@@ -2,35 +2,35 @@ from math import hypot, sqrt, ceil
 import re
 import os, os.path
 from array import array
-import copy
 import time
+from typing import List
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 from histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
-from utils import Options
+from utils import Options, MultiKey, MultiReport
+from flow import Target, Sample, Process, Flow
 
-def _unTLatex(string):
+def _unTLatex(string : str) -> str:
     string = string.replace("#chi","x").replace("#rightarrow","->").replace("#minus","-")
     string = re.sub(r"#(mu|tau|gamma)", r"\1", string)
     string = re.sub(r"#bar\{(\w+)\}", r"\1bar", string)
     string = re.sub(r"[\^_]\{([012+\-])\}", r"\1", string)
     return string
 
-class Plot(object):
+class Plot(Target):
     def __init__(self, name, *args, **options):
-        self.name = name
+        super(Plot, self).__init__(name, **options)
         t = options["type"] if "type" in options else "Histo1D"
         if t == "Histo1D":
             self._expr = args[0]
             self._bins = args[1]
             self.attach = self.bookHisto1D
             self.finish = self.finishHisto1D
-        for k,v in options.items():
-            setattr(self,k,v)
-    def _prepareExpr(self,rdf,expr,name):
+            self.style = self.styleHisto1D
+    def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
         #print("Will create a new expression for plot "+self.name)
@@ -41,7 +41,7 @@ class Plot(object):
         return getattr(self, name, default)
     def hasOpt(self, name):
         return hasattr(self, name)
-    def bookHisto1D(self,rdf,sample,process):
+    def bookHisto1D(self, rdf, sample : Sample, era):
         if type(self._bins) == list:
             model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self.bins)) 
         else:
@@ -52,19 +52,23 @@ class Plot(object):
         ret = rdf.Histo1D(model, expr, "weight")
         ret._from = rdf
         return ret
-    def finishHisto1D(self,plot,sample,process):
+    def finishHisto1D(self, plot, sample : Sample, era):
         ## Contents
         if self.getOpt('includeOverflows',True) or self.getOpt('includeUnderflow',False):
-                plot.SetBinContent(1,plot.GetBinContent(0)+plot.GetBinContent(1))
-                plot.SetBinError(1,hypot(plot.GetBinError(0),plot.GetBinError(1)))
-                plot.SetBinContent(0,0)
-                plot.SetBinError(0,0)
+            plot.SetBinContent(1,plot.GetBinContent(0)+plot.GetBinContent(1))
+            plot.SetBinError(1,hypot(plot.GetBinError(0),plot.GetBinError(1)))
+            plot.SetBinContent(0,0)
+            plot.SetBinError(0,0)
         if self.getOpt('includeOverflows',True) or self.getOpt('includeOverflow',False):
-                n = plot.GetNbinsX()
-                plot.SetBinContent(n,plot.GetBinContent(n+1)+plot.GetBinContent(n))
-                plot.SetBinError(n,hypot(plot.GetBinError(n+1),plot.GetBinError(n)))
-                plot.SetBinContent(n+1,0)
-                plot.SetBinError(n+1,0)
+            n = plot.GetNbinsX()
+            plot.SetBinContent(n,plot.GetBinContent(n+1)+plot.GetBinContent(n))
+            plot.SetBinError(n,hypot(plot.GetBinError(n+1),plot.GetBinError(n)))
+            plot.SetBinContent(n+1,0)
+            plot.SetBinError(n+1,0)
+        if sample.isMC:
+            plot.Scale(1.0/sample.genWeightSum(era))
+        return plot
+    def styleHisto1D(self, plot, process : Process):
         ## Axis
         plot.GetXaxis().SetTitle(self.getOpt('xTitle',self._expr))
         ## Graphics
@@ -135,53 +139,82 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     h.poissonGraph = ret ## attach it so it doesn't get deleted
     return ret
 
-def makePlots(procs,flows,lumi,plots):
-    t0 = time.perf_counter()
-    sample_norm_futures = []
-    for p in procs:
-        for s in p.samples:
-            if s.isMC: sample_norm_futures += s.getWeightSumsFutureList()
-    all_plot_futures = []
-    for flow in flows:
-        for p in procs:
+class PlotMaker(object):
+    def __init__(self):
+        self.clear()
+    def clear(self):
+        self._sample_norm_futures = []
+        self._plot_futures = []
+    def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName=""):
+        t0 = time.perf_counter()
+        n0 = (len(self._sample_norm_futures), len(self._plot_futures))
+        for p in processes:
             for s in p.samples:
-                sflow = s.customizeFlow(flow,lumi)
-                rdf = sflow.attach(s.source.createRDF())
-                for pl in plots:
-                    pfut = pl.attach(rdf,s,p)
-                    all_plot_futures.append((flow,p,s,pl,pfut))
-    t1 = time.perf_counter()
-    print("Booked %d sums and %d plots in %.3fs" % (len(sample_norm_futures),len(all_plot_futures),t1-t0))
-    # run the graphs
-    ROOT.RDF.RunGraphs(sample_norm_futures+[pfut for (flow,p,s,pl,pfut) in all_plot_futures])
-    t2 = time.perf_counter()
-    print("Filled %d sums and %d plots in %.3fs" % (len(sample_norm_futures),len(all_plot_futures),t2-t1))
-    # plotmap: flow -> plot -> proc -> sample
-    plotmap = dict()
-    for (flow,p,s,pl,pfut) in all_plot_futures:
-        if flow.name not in plotmap: plotmap[flow.name] = dict()
-        flowmap = plotmap[flow.name]
-        if pl.name not in flowmap: flowmap[pl.name] = dict()
-        procmap = flowmap[pl.name]
-        if p.name not in procmap: procmap[p.name] = []
-        hist = pfut.GetValue()
-        if s.isMC: hist.Scale(1.0/s.genWeightSum())
-        pl.finish(hist,s,p)
-        procmap[p.name].append(hist)
-    # now merge and save
-    ret = []
-    for flow in flows:
-        flowmap = plotmap[flow.name]
-        flow_plots = []
-        for pl in plots:
-            procmap = flowmap[pl.name]
-            histos = [ (p,mergePlots(p.name,procmap[p.name])) for p in procs ]
-            flow_plots.append(PlotResult(pl,histos))
-        ret.append((flow.name,flow_plots))
-    t3 = time.perf_counter()
-    print("Merged %d plots in %.3fs" % (len(all_plot_futures),t3-t2))
-    print("Total time for %d plots: %.3fs" % (len(all_plot_futures),t3-t0))
-    return ret
+                if s.isMC: 
+                    self._sample_norm_futures += s.getWeightSumsFutureList()
+        if isinstance(flows,Flow): flows= [flows]
+        if eras is None: 
+            eras = [None]
+            lumi = {None:lumi}
+        for flow in flows:
+            for era in eras:
+                for proc in processes:
+                    procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
+                    for sample in proc.samples:
+                        src = sample.source(era)
+                        if not src: continue
+                        sampleKey = procKey.addKeys(sample=sample.name)
+                        sflow = sample.customizeFlow(flow, lumi[era], era=era)
+                        rdf = sflow.attach(src.createRDF(), sample, era)
+                        for pl in plots:
+                            pfut = pl.attach(rdf, sample, era)
+                            if pfut is None: continue
+                            self._plot_futures.append((sampleKey.addKeys(plot = pl.name), proc, sample, pl, pfut))         
+        t1 = time.perf_counter()
+        n1 = (len(self._sample_norm_futures), len(self._plot_futures))
+        print("Booked %d sums and %d plots in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
+        return self
+    def runAll(self, mergeEras=False, mergeSamples=True):
+        t0 = time.perf_counter()
+        n0 = (len(self._sample_norm_futures), len(self._plot_futures))
+        # run the graphs
+        ROOT.RDF.RunGraphs(self._sample_norm_futures+[pfut[-1] for pfut in self._plot_futures])
+        t1 = time.perf_counter()
+        print("Filled %d sums and %d plots in %.3fs" % (n0[0],n0[1],t1-t0))
+        # finalize the plots
+        plots = MultiReport()
+        for (plotKey, proc, sample, plot, pfut) in self._plot_futures:
+            hist = pfut.GetValue() 
+            hist = plot.finish(hist, sample, plotKey.era)
+            hist = plot.style(hist, proc)
+            plots.append(plotKey, (plot, proc, sample, hist))
+        print("After finalize, I have these keys: %s" % (", ".join(str(r[0]) for r in plots)))
+        # merge the plots
+        keysToRemove = []
+        if mergeSamples: keysToRemove.append("sample")
+        if mergeEras: keysToRemove.append("era")
+        merged = MultiReport()
+        for mergedKey, mergeList in plots.groupRemoving(*keysToRemove):
+            plot = mergeList[0][0]
+            proc = mergeList[0][1]
+            hists = [r[-1] for r in mergeList]
+            if mergeSamples:
+                merged.append(mergedKey, (plot, proc, mergePlots(proc.name, hists)))
+            else:
+                merged.append(mergedKey, (plot, proc, sample, mergePlots(proc.name, hists)))
+        print("After merge, I have these keys: %s" % (", ".join(str(r[0]) for r in merged)))
+        keysToRemove = ["process"] if mergeSamples else ["process","sample"]
+        results = MultiReport()
+        for mergedKey, mergeList in merged.groupRemoving(*keysToRemove):
+            plot = mergeList[0][0]
+            histos = [r[1:] for r in mergeList]
+            result = PlotResult(plot, histos)
+            results.append(mergedKey, result)
+        print("At the end, I have these keys: %s" % (", ".join(str(r[0]) for r in results)))
+        t2 = time.perf_counter()
+        print("Merged %d sums and %d plots in %.3fs" % (n0[0],n0[1],t2-t1))
+        self.clear()
+        return results
 
 class PlotSetPrinter(object):
     @staticmethod
@@ -190,7 +223,7 @@ class PlotSetPrinter(object):
         opts.declare("stack", True, bool, help="Whether different contributions should be stacked")
         opts.declare("plotFormats", "png,pdf,root,txt", help="Output format for plots")
         opts.declare("noStackSignals", False, bool, help="Don't include signals in the stack")
-        opts.declare("showErrors", False, bool, help="Show errors: in stacked plotts, it will be on total (shaded band), otherwise it will be on individual outlines") 
+        opts.declare("showErrors", False, bool, help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines") 
         opts.declare("extraLabel", help="Additional label to put in the plots")
         opts.declare("topLeftText", "#bf{CMS} #it{Internal}", help="Text on the top left of the canvas")
         opts.declare("topRightText", "", help="Text on the top right of the canvas")
@@ -211,11 +244,12 @@ class PlotSetPrinter(object):
         return opts
     def __init__(self,**options):
         self._options = PlotSetPrinter.defaultOptions().update(**options)
-    def printSet(self,plots,path,**options):
+    def printSet(self, plots : MultiReport, path, **options):
+        assert(isinstance(plots,MultiReport))
         ## Loop on the plots and print them
-        for plot in plots:
-            self.printPlot(plot,path,**options)
-    def printPlot(self,plot,path,**options):
+        for plotKey,plot in plots:
+            self.printPlot(plot, path.format(**plotKey), **options)
+    def printPlot(self, plot, path, **options):
         ## make directory (FIXME make this better, and use https://gitlab.cern.ch/php-plots/php-plots)
         if not os.path.exists(path):
             os.makedirs(path); 
@@ -255,7 +289,7 @@ class PlotSetPrinter(object):
                 hist.SetMarkerStyle(0)
         fullName = (os.path.basename(path), outputName)
         if stack.GetNhists() == 0:
-            print("ERROR: for %s, all histograms are empty\n " % fullName)
+            print("ERROR: for %s, all histograms are empty\n " % str(fullName))
             return
         # define aspect ratio
         doWide = opts.widePlot or plot.getOpt("Wide",False)

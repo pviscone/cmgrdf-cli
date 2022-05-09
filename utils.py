@@ -1,0 +1,136 @@
+from collections import defaultdict
+from typing import List
+import copy
+
+class OptionDecl(object):
+    def __init__(self, name, default=None, type=str, cmdline=None, **kwargs):
+        self.name = name
+        self.default = default
+        self.type = type
+        self.cmdline = cmdline
+        self.kwargs = kwargs
+
+class Options(object):
+    def __init__(self, *optionDeclarations : List[OptionDecl]):
+        self._values = dict()
+        self._declarations = []
+        for opt in optionDeclarations:
+            self.declare(opt.name,default=opt.default,type=opt.type,cmdline=opt.cmdline,**opt.kwargs)
+    def declare(self,name,default=None,type=str,cmdline=None,**kwargs):
+        self._declarations.append((name,default,type,cmdline,kwargs))
+        if name in self._values:
+            if default != None:
+                raise RuntimeError("Duplicate definition of "+name)
+        else:
+            self._values[name] = default
+        return self
+    def addToParser(self,parser):
+        for (name,default,type,cmdline,kwargs) in self._declarations:
+            if type == bool:
+                if not cmdline: cmdline = ["--no"+name] if default else ["--"+name]
+                action = "store_false" if default else "store_true"
+                parser.add_argument(*cmdline, dest=name, action=action, **kwargs)
+            else:
+                if not cmdline: cmdline = ["--"+name]
+                parser.add_argument(*cmdline, dest=name, type=type, default=self._values[name], **kwargs)
+    def __getattr__(self, name : str):
+        return self._values[name]
+    def __getitem__(self, name : str):
+        return self._values[name]
+    def __hasattr__(self, name : str):
+        return name in self._values
+    def __contains__(self, name : str):
+        return name in self._values
+    def __setattr__(self, name : str, value):
+        if name[0] == "_" or name not in self._values:
+            object.__setattr__(self, name, value)
+        else:
+            self._values[name] = value
+    def __setitem__(self, name : str, value):
+        self._values[name] = value
+    def __len__(self):
+        return len(self._values)
+    def update(self,**kwargs):
+        self._values.update(kwargs)
+        return self
+    def items(self):
+        return self._values.items()
+    def keys(self):
+        return self._values.keys()
+    def cloneAndUpdate(self,**kwargs):
+        ret = Options()
+        ret._values = dict(self._values.items())
+        ret._values.update(**kwargs)
+        return ret
+    def cloneAndExtend(self, *optionDeclarations : List[OptionDecl]):
+        ret = Options()
+        ret._values = copy.copy(self._values)
+        ret._declarations = copy.copy(self._declarations)
+        for opt in optionDeclarations:
+            self.declare(opt.name,default=opt.default,type=opt.type,cmdline=opt.cmdline,**opt.kwargs)
+        return ret
+
+class MultiKey(object):
+    def __init__(self, **kwargs):
+        self._keys = sorted(kwargs.keys())
+        self._values = dict(kwargs.items())
+    def idTuple(self):
+        return tuple([id(self._values[k]) for k in self._keys])
+    def keys(self):
+        return self._keys
+    def items(self):
+        return self._values.items()
+    def __len__(self):
+        return len(self._keys())
+    def __getattr__(self, name : str):
+        return self._values[name]
+    def __getitem__(self, name : str):
+        return self._values[name]
+    def __hasattr__(self, name : str):
+        return name in self._values
+    def __contains__(self, name : str):
+        return name in self._values
+    def removeKeys(self, *keysToRemove : List[str]):
+        assert(all((k in self._keys) for k in keysToRemove))
+        filtered = dict((k,v) for (k,v) in self.items() if k not in keysToRemove)
+        return MultiKey(**filtered)
+    def addKeys(self, **kwargs):
+        extended = copy.copy(self._values)
+        for (k,v) in kwargs.items():
+            assert(k not in extended)
+            extended[k] = v
+        return MultiKey(**extended)
+    def __hash__(self):
+        return hash(tuple((k,self._values[k]) for k in self._keys))
+    def __eq__(self, other) -> bool:
+        if other.__class__ == MultiKey:
+            if self._keys != other._keys: return False
+            return all(self[k] == other[k] for k in self._keys)
+        return id(self) == id(other)
+    def __str__(self):
+        return "(%s)" % (",".join("%s=%s"%(k,self._values[k]) for k in self._keys)) 
+    def __repr__(self):
+        return "MultiKey(%s)" % (",".join("%s=%r"%(k,self._values[k]) for k in self._keys))
+
+class MultiReport(object):
+    def __init__(self, *items):
+        self._items = list(items)
+        for item in items:
+            assert(type(item) == tuple and isinstance(items[0],MultiKey))
+    def append(self, key : MultiKey, value):
+        self._items.append((key,value))
+    def __len__(self):
+        return len(self._items)
+    def __iter__(self):
+        return iter(self._items)
+    def groupRemoving(self,*keys):
+        mergeMap = defaultdict(list)
+        mergeMapKeys = dict()
+        for k,v in self._items:
+            gk = k.removeKeys(*keys)
+            mergeMap[gk.idTuple()].append(v)
+            mergeMapKeys[gk.idTuple()] = gk
+        return [(gk,mergeMap[gid]) for (gid,gk) in mergeMapKeys.items()]
+        
+    
+
