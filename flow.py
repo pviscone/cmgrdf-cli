@@ -1,7 +1,8 @@
 import copy
+import hashlib
 import re
 from typing import Dict, List, Union
-from utils import OptionDecl, Options, recursiveHash
+from utils import OptionDecl, Options, recursiveHash, _recursiveAddToHash
 import os.path
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -208,6 +209,8 @@ class FlowStep(object):
                 obj1.onData == obj2.onData and
                 obj1.onDataDriven == obj2.onDataDriven and
                 obj1.eras == obj2.eras)
+    def _addToHash(self,hasher):
+        _recursiveAddToHash((self.name,self.onMC,self.onData,self.onDataDriven,self.eras),hasher)
 class Cut(FlowStep):
     def __init__(self,name,expr,**options):
         super(Cut,self).__init__(name,**options)
@@ -218,8 +221,11 @@ class Cut(FlowStep):
         return rdf.Filter(self.expr,self.name)
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
-            return self.name == other.name and self.expr == other.expr
+            return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 class Define(FlowStep):
     def __init__(self,name,expr,**options):
         super(Define,self).__init__(name,**options)
@@ -232,6 +238,9 @@ class Define(FlowStep):
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 class ReDefine(FlowStep):
     def __init__(self, name, expr, **options):
         super(Define, self).__init__(name, **options)
@@ -244,6 +253,9 @@ class ReDefine(FlowStep):
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 class DefinePerSample(FlowStep):
     def __init__(self, name, expr, **options):
         super(DefinePerSample, self).__init__(name, **options)
@@ -260,6 +272,9 @@ class DefinePerSample(FlowStep):
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 class AddWeight(FlowStep):
     def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
         super(AddWeight, self).__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
@@ -272,6 +287,9 @@ class AddWeight(FlowStep):
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 
 class Flow(object):
     def __init__(self, name, *steps, **options):
@@ -312,19 +330,21 @@ class Target(object):
 
 
 class _Branch(object):
-    def __init__(self, step : FlowStep, rdf):
+    def __init__(self, step : FlowStep, rdf, hasher = None):
         self.step = step
         self.rdf = rdf
         self.branches = [] # type: List["_Branch"]
+        self.hasher = hashlib.sha256() if hasher == None else hasher # type: hashlib.sha256
+        if step: step._addToHash(self.hasher)
     def maybeBranch(self, step : FlowStep, verbose=False):
         for b in self.branches:
             if b.step == step:
-                if verbose: print(" Re-used branch for step %s: %s" % (step.name, step))
+                if verbose: print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
                 return b
-        newb = _Branch(step, step.attach(self.rdf))
-        if verbose: print(" Created new branch for step %s: %s" % (step.name, step))
-        self.branches.append(newb)
-        return newb
+        b = _Branch(step, step.attach(self.rdf), self.hasher.copy())
+        if verbose: print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
+        self.branches.append(b)
+        return b
 class Forest(object):
     def __init__(self):
         self._trees = dict() # type: Dict[Source,_Branch]

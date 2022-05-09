@@ -136,8 +136,10 @@ class MultiReport(object):
 def _recursiveAddToHash(obj, hasher):
     if obj == None:
         hasher.update(b"<None>")
-    elif type(obj) == str:
-        hasher.update(('str:'+obj).encode())
+        return
+    hasher.update(str(type(obj)).encode())
+    if type(obj) == str:
+        hasher.update(obj.encode())
     elif type(obj) == bool:
         hasher.update(b"1" if obj else b"0")
     elif type(obj) == int:
