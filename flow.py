@@ -1,7 +1,7 @@
 import copy
-from email.policy import default
-from typing import List, Union
-from utils import OptionDecl, Options
+import re
+from typing import Dict, List, Union
+from utils import OptionDecl, Options, recursiveHash
 import os.path
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -10,9 +10,10 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 class Source(object):
     def __init__(self, name : str, files, era = None): ## TODO: add support for friends here
         if type(files) == str: files = [files]
-        self.name = name if name else Source._autoName(files[0])
+        self.name = name if name else Source._autoName(files)
         self.files = files
         self.era = era
+        #print("Created source %r era %r, files(%d): [%s, ...]" % (self.name,era,len(files),files[0]))
     def createRDF(self, treeName="Events"):
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
@@ -29,6 +30,14 @@ class Source(object):
             return o.name == self.name and o.files == self.files and o.era == self.era
         else:
             return id(self) == id(o)
+    def bigHash(self):
+        return recursiveHash(self.name,self.era,self.files)
+    def __hash__(self):
+        return hash(self.bigHash())
+    def safeName(self):
+        return re.sub("[^A-Za-z0-9_]","",self.name)
+    def longId(self):
+        return "%s-%s-%s" % (self.safeName(), self.era if self.era else "", self.bigHash())
     @staticmethod
     def _autoName(files: List[str]) -> str:
         assert(files)
@@ -185,71 +194,94 @@ class FlowStep(object):
         elif self.eras and (era not in self.eras):
             return False
         return True
-    def attach(self, rdf, sample : Sample, era):
-        if not self.appliesTo(sample,era):
-            return rdf 
-        rdf2 = self._attach(rdf,sample,era)
+    def attach(self, rdf):
+        rdf2 = self._attach(rdf)
         if rdf2 != rdf:
             rdf2._from = rdf
             return rdf2
         else:
             return rdf
-    def _attach(self,rdf,sample):
-        raise RuntimeError("_attach() not implemented")
-
+    @staticmethod
+    def _equals(obj1,obj2):
+        return (obj1.name == obj2.name and 
+                obj1.onMC == obj2.onMC and
+                obj1.onData == obj2.onData and
+                obj1.onDataDriven == obj2.onDataDriven and
+                obj1.eras == obj2.eras)
 class Cut(FlowStep):
     def __init__(self,name,expr,**options):
         super(Cut,self).__init__(name,**options)
         self.expr = expr
         for k,v in options.items():
             setattr(self,k,v)
-    def _attach(self,rdf,sample,process):
+    def _attach(self,rdf):
         return rdf.Filter(self.expr,self.name)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return self.name == other.name and self.expr == other.expr
+        return id(self) == id(other)
 class Define(FlowStep):
     def __init__(self,name,expr,**options):
         super(Define,self).__init__(name,**options)
         self.expr = expr
         for k,v in options.items():
             setattr(self,k,v)
-    def _attach(self,rdf,sample,process):
+    def _attach(self,rdf):
         return rdf.Define(self.name,self.expr)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
 class ReDefine(FlowStep):
     def __init__(self, name, expr, **options):
         super(Define, self).__init__(name, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self, k, v)
-    def _attach(self, rdf, sample, era):
+    def _attach(self, rdf):
         return rdf.ReDefine(self.name, self.expr)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
 class DefinePerSample(FlowStep):
     def __init__(self, name, expr, **options):
         super(DefinePerSample, self).__init__(name, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self,k,v)
-    def _attach(self,rdf,sample,era):
+    def _attach(self,rdf):
         # FIXME
         #if hasattr(rdf,"DefinePerSample"):
         #    return rdf.DefinePerSample(self.name,self.expr)
         #else:
         return rdf.Define(self.name,self.expr)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
 class AddWeight(FlowStep):
     def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
         super(AddWeight, self).__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self, k, v)
-    def _attach(self,rdf,sample,era):
+    def _attach(self,rdf):
         return rdf.Redefine("weight","weight*(%s)"%self.expr)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
 
 class Flow(object):
     def __init__(self, name, *steps, **options):
         self.name = name
-        self.steps = list(steps)
+        self.steps = list(steps) # type: List[FlowStep]
         for k,v in options.items():
             setattr(self, k, v)
-    def clone(self):
+    def clone(self, newName=None):
         ret = copy.copy(self)
+        if newName: ret.name = newName
         ret.steps = copy.copy(self.steps)
         ret._from = self
         return ret
@@ -265,7 +297,8 @@ class Flow(object):
     def attach(self, rdf, sample : Sample, era):
         assert(isinstance(sample,Sample))
         for s in self.steps:
-            rdf = s.attach(rdf, sample, era)
+            if s.appliesTo(sample,era):
+                rdf = s.attach(rdf)
         return rdf
 
 class Target(object):
@@ -275,3 +308,35 @@ class Target(object):
         raise RuntimeError("Must be implemented by subclass")
     def finish(self, rdf, sample, era):
         pass
+
+
+
+class _Branch(object):
+    def __init__(self, step : FlowStep, rdf):
+        self.step = step
+        self.rdf = rdf
+        self.branches = [] # type: List["_Branch"]
+    def maybeBranch(self, step : FlowStep, verbose=False):
+        for b in self.branches:
+            if b.step == step:
+                if verbose: print(" Re-used branch for step %s: %s" % (step.name, step))
+                return b
+        newb = _Branch(step, step.attach(self.rdf))
+        if verbose: print(" Created new branch for step %s: %s" % (step.name, step))
+        self.branches.append(newb)
+        return newb
+class Forest(object):
+    def __init__(self):
+        self._trees = dict() # type: Dict[Source,_Branch]
+    def grow(self, source : Source, flow : Flow, treeName="Events", verbose=False):
+        if source not in self._trees:
+            if verbose: print("Created new source tree for %s" % source.longId())
+            self._trees[source] = _Branch(None,source.createRDF(treeName))
+        else:
+            if verbose: print("Reused source for %s" % source.longId())
+        tree = self._trees[source]
+        for step in flow.steps:
+            tree = tree.maybeBranch(step, verbose=verbose)
+        return tree.rdf
+    def clear(self):
+        self._trees.clear()

@@ -1,6 +1,9 @@
 from collections import defaultdict
+import struct
 from typing import List
 import copy
+import hashlib
+import sys
 
 class OptionDecl(object):
     def __init__(self, name, default=None, type=str, cmdline=None, **kwargs):
@@ -130,3 +133,35 @@ class MultiReport(object):
             mergeMap[gk].append(v)
         return mergeMap.items()
 
+def _recursiveAddToHash(obj, hasher):
+    if obj == None:
+        hasher.update(b"<None>")
+    elif type(obj) == str:
+        hasher.update(('str:'+obj).encode())
+    elif type(obj) == bool:
+        hasher.update(b"1" if obj else b"0")
+    elif type(obj) == int:
+        hasher.update(obj.to_bytes(8,sys.byteorder))
+    elif type(obj) == float:
+        hasher.update(struct.pack("d",obj))
+    elif isinstance(obj,(list,tuple)):
+        _recursiveAddToHash(len(obj),hasher)
+        for e in obj: _recursiveAddToHash(e,hasher)
+    elif isinstance(obj,set):
+        _recursiveAddToHash(len(obj),hasher)
+        for e in sorted(obj): _recursiveAddToHash(e,hasher)
+    elif isinstance(obj,dict):
+        _recursiveAddToHash(len(obj),hasher)
+        for k,v in sorted(obj.items()): 
+            _recursiveAddToHash(k,hasher)
+            _recursiveAddToHash(v,hasher)
+    else:
+        raise RuntimeError("Don't know how to hash %r of type %s" % (obj,type(obj)))
+
+
+
+def recursiveHash(*objs):
+    hasher = hashlib.sha256()
+    for obj in objs:
+        _recursiveAddToHash(obj, hasher)
+    return hasher.hexdigest()

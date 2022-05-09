@@ -11,7 +11,7 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 from histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
 from utils import Options, MultiKey, MultiReport
-from flow import Target, Sample, Process, Flow
+from flow import Target, Sample, Process, Flow, Forest
 
 def _unTLatex(string : str) -> str:
     string = string.replace("#chi","x").replace("#rightarrow","->").replace("#minus","-")
@@ -25,7 +25,7 @@ class Plot(Target):
         super(Plot, self).__init__(name)
         for k,v in options.items():
             setattr(self, k, v)
-        t = options["type"] if "type" in options else "Histo1D"
+        t = options["1Gtype"] if "type" in options else "Histo1D"
         if t == "Histo1D":
             self._expr = args[0]
             self._bins = args[1]
@@ -142,11 +142,13 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     return ret
 
 class PlotMaker(object):
-    def __init__(self):
+    def __init__(self,growForest=True):
+        self._forest = Forest() if growForest else None
         self.clear()
     def clear(self):
         self._sample_norm_futures = []
         self._plot_futures = []
+        if self._forest: self._forest.clear()
     def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName=""):
         t0 = time.perf_counter()
         n0 = (len(self._sample_norm_futures), len(self._plot_futures))
@@ -167,7 +169,10 @@ class PlotMaker(object):
                         if not src: continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         sflow = sample.customizeFlow(flow, lumi[era], era=era)
-                        rdf = sflow.attach(src.createRDF(), sample, era)
+                        if self._forest:
+                            rdf = self._forest.grow(src, sflow)
+                        else:
+                            rdf = sflow.attach(src.createRDF(), sample, era)
                         for pl in plots:
                             pfut = pl.attach(rdf, sample, era)
                             if pfut is None: continue
