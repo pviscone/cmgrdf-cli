@@ -11,6 +11,7 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 class Source(object):
     def __init__(self, name : str, files, era = None): ## TODO: add support for friends here
         if type(files) == str: files = [files]
+        else: assert(len(files) >= 1)
         self.name = name if name else Source._autoName(files)
         self.files = files
         self.era = era
@@ -32,7 +33,10 @@ class Source(object):
         else:
             return id(self) == id(o)
     def bigHash(self):
-        return recursiveHash(self.name,self.era,self.files)
+        if os.path.exists(self.files[0]): # files may not exist if e.g. they're globs or root URLs
+            return recursiveHash(self.name,self.era,[(f,os.path.getmtime(f)) for f in self.files])
+        else:
+            return recursiveHash(self.name,self.era,self.files)
     def __hash__(self):
         return hash(self.bigHash())
     def safeName(self):
