@@ -125,12 +125,8 @@ class MultiReport(object):
         return iter(self._items)
     def groupRemoving(self,*keys):
         mergeMap = defaultdict(list)
-        mergeMapKeys = dict()
         for k,v in self._items:
             gk = k.removeKeys(*keys)
-            mergeMap[gk.idTuple()].append(v)
-            mergeMapKeys[gk.idTuple()] = gk
-        return [(gk,mergeMap[gid]) for (gid,gk) in mergeMapKeys.items()]
-        
-    
+            mergeMap[gk].append(v)
+        return mergeMap.items()
 

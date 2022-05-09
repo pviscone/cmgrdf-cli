@@ -22,7 +22,9 @@ def _unTLatex(string : str) -> str:
 
 class Plot(Target):
     def __init__(self, name, *args, **options):
-        super(Plot, self).__init__(name, **options)
+        super(Plot, self).__init__(name)
+        for k,v in options.items():
+            setattr(self, k, v)
         t = options["type"] if "type" in options else "Histo1D"
         if t == "Histo1D":
             self._expr = args[0]
@@ -188,7 +190,6 @@ class PlotMaker(object):
             hist = plot.finish(hist, sample, plotKey.era)
             hist = plot.style(hist, proc)
             plots.append(plotKey, (plot, proc, sample, hist))
-        print("After finalize, I have these keys: %s" % (", ".join(str(r[0]) for r in plots)))
         # merge the plots
         keysToRemove = []
         if mergeSamples: keysToRemove.append("sample")
@@ -202,7 +203,6 @@ class PlotMaker(object):
                 merged.append(mergedKey, (plot, proc, mergePlots(proc.name, hists)))
             else:
                 merged.append(mergedKey, (plot, proc, sample, mergePlots(proc.name, hists)))
-        print("After merge, I have these keys: %s" % (", ".join(str(r[0]) for r in merged)))
         keysToRemove = ["process"] if mergeSamples else ["process","sample"]
         results = MultiReport()
         for mergedKey, mergeList in merged.groupRemoving(*keysToRemove):
@@ -210,7 +210,6 @@ class PlotMaker(object):
             histos = [r[1:] for r in mergeList]
             result = PlotResult(plot, histos)
             results.append(mergedKey, result)
-        print("At the end, I have these keys: %s" % (", ".join(str(r[0]) for r in results)))
         t2 = time.perf_counter()
         print("Merged %d sums and %d plots in %.3fs" % (n0[0],n0[1],t2-t1))
         self.clear()

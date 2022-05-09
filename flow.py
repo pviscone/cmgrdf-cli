@@ -168,20 +168,20 @@ class Data(Process):
         self.isData = True
 
 class FlowStep(object):
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, **options):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
         self.name = name
         self.onMC = onMC
         self.onData = onData
-        self.onDataDriven = True
+        self.onDataDriven = onDataDriven
         self.eras = eras
     def appliesTo(self, sample : Sample, era) -> bool:
         assert(isinstance(sample,Sample))
-        if sample.isMC and not self.onMC:
-            return False
-        elif sample.isData and not self.onData:
-            return False
-        elif sample.isDataDriven and not self.onDataDriven:
-            return False
+        if sample.isMC:
+            if not self.onMC: return False
+        elif sample.isData:
+            if not self.onData: return False
+        elif sample.isDataDriven:
+            if not self.onDataDriven: return False
         elif self.eras and (era not in self.eras):
             return False
         return True
@@ -234,8 +234,8 @@ class DefinePerSample(FlowStep):
         #else:
         return rdf.Define(self.name,self.expr)
 class AddWeight(FlowStep):
-    def __init__(self, name, expr, onMC=True, onData=False, onDataDriven=False, **options):
-        super(AddWeight, self).__init__(name, **options)
+    def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
+        super(AddWeight, self).__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self, k, v)
@@ -269,10 +269,8 @@ class Flow(object):
         return rdf
 
 class Target(object):
-    def __init__(self, name, **options):
+    def __init__(self, name):
         self.name = name
-        for k,v in options.items():
-            setattr(self, k, v)
     def attach(self, rdf, sample, era):
         raise RuntimeError("Must be implemented by subclass")
     def finish(self, rdf, sample, era):
