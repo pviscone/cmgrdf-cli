@@ -1,4 +1,3 @@
-from re import I
 from flow import Process, MCSample, DataSample, Data, Flow, AddWeight, Cut
 from plots import Plot, PlotMaker, PlotSetPrinter
 import ROOT

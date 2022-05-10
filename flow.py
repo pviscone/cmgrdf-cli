@@ -15,7 +15,6 @@ class Source(object):
         self.name = name if name else Source._autoName(files)
         self.files = files
         self.era = era
-        #print("Created source %r era %r, files(%d): [%s, ...]" % (self.name,era,len(files),files[0]))
     def createRDF(self, treeName="Events"):
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
@@ -43,6 +42,12 @@ class Source(object):
         return re.sub("[^A-Za-z0-9_]","",self.name)
     def longId(self):
         return "%s-%s-%s" % (self.safeName(), self.era if self.era else "", self.bigHash())
+    def __str__(self):
+        return "Source(%s%s, %d files[%s%s], id %s)" % (
+            self.name, (", era %s" % self.era) if self.era else "",
+            len(self.files), self.files[0], ", ..." if len(self.files) > 1 else "",
+            self.bigHash()
+        )
     @staticmethod
     def _autoName(files: List[str]) -> str:
         assert(files)
