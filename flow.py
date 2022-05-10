@@ -9,33 +9,58 @@ ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 class Source(object):
-    def __init__(self, name : str, files, era = None): ## TODO: add support for friends here
+    def __init__(self, name : str, files, era = None, friends=None): ## TODO: add support for friends here
         if type(files) == str: files = [files]
         else: assert(len(files) >= 1)
         self.name = name if name else Source._autoName(files)
         self.files = files
         self.era = era
+        self.friends = friends
     def createRDF(self, treeName="Events"):
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
+                if treeName == "Events": assert(self.friends == None) # not supported
                 ret = ROOT.RDataFrame(treeName,self.files[0]+"/*.root")
             else:
-                ret = ROOT.RDataFrame(treeName,self.files[0])
+                if treeName == "Events" and self.friends != None:
+                    tfile = ROOT.TFile.Open(self.files[0])
+                    tree = tfile.Get(treeName)
+                    for f in self.friends:
+                        if type(f) == tuple:
+                            tree.AddFriend(f[0],f[1])
+                        elif type(f) == str: 
+                            tree.AddFriend("Friends",f)
+                        else: 
+                            raise RuntimeError("Unsupported friend %r for %s" % (f,self))
+                    ret = ROOT.RDataFrame(tree)
+                    ret._tree = tree
+                    ret._tfile = tfile
+                else:
+                    ret = ROOT.RDataFrame(treeName,self.files[0])
         else:
+            if treeName == "Events": assert(self.friends == None) # not supported
             chain = ROOT.TChain(treeName)
             for f in self.files: chain.Add(f)
             ret = ROOT.RDataFrame(treeName,chain)
         return ret
     def __eq__(self, o : object) -> bool:
         if o.__class__ == Source:
-            return o.name == self.name and o.files == self.files and o.era == self.era
+            return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends
         else:
             return id(self) == id(o)
     def bigHash(self):
         if os.path.exists(self.files[0]): # files may not exist if e.g. they're globs or root URLs
-            return recursiveHash(self.name,self.era,[(f,os.path.getmtime(f)) for f in self.files])
+            tsfiles = [(f,os.path.getmtime(f)) for f in self.files]
+            tsfriends = []
+            if self.friends:
+                for f in self.friends:
+                    if type(f) == tuple:
+                        tsfriends.append((f[0],f[1],os.path.getmtime(f[1])))
+                    else:
+                        tsfriends.append((f,os.path.getmtime(f)))
+            return recursiveHash(self.name,self.era,tsfiles,tsfriends)
         else:
-            return recursiveHash(self.name,self.era,self.files)
+            return recursiveHash(self.name,self.era,self.files,self.friends)
     def __hash__(self):
         return hash(self.bigHash())
     def safeName(self):
@@ -43,9 +68,10 @@ class Source(object):
     def longId(self):
         return "%s-%s-%s" % (self.safeName(), self.era if self.era else "", self.bigHash())
     def __str__(self):
-        return "Source(%s%s, %d files[%s%s], id %s)" % (
+        return "Source(%s%s, %d files[%s%s]%s, id %s)" % (
             self.name, (", era %s" % self.era) if self.era else "",
             len(self.files), self.files[0], ", ..." if len(self.files) > 1 else "",
+            (", %d friends[%s, ...]" % (len(self.friends), self.friends[0])) if self.friends else "",
             self.bigHash()
         )
     @staticmethod
@@ -59,7 +85,7 @@ class Source(object):
 class Sample(object):
     #options = Options(
     #                OptionDecl("eras", None, help="If specified, it can be a list of eras (e.g. years)"))
-    def __init__(self, name : str, source, hooks=[], eras=None, **kwargs):
+    def __init__(self, name : str, source, hooks=[], eras=None, friends=None, **kwargs):
         """source can be any 4 of the following:
              - a source object, if this sample doesn't have a list of eras
              - a dict (era -> Source) if this sample has a list of eras.
@@ -73,13 +99,15 @@ class Sample(object):
             setattr(self,k,v)
         if self.eras:
             if type(source) == str:
-                self._sources = dict((era, Source('', source.format(name=name, era=era))) for era in self.eras)
+                friendFiles = dict((era, [ f.format(name=name, era=era) for f in friends] if friends else None) for era in self.eras)
+                self._sources = dict((era, Source('', source.format(name=name, era=era), era=era, friends=friendFiles[era])) for era in self.eras)
             else:
                 self._sources = dict((era, source[era]) for era in self.eras)
         elif isinstance(source,Source):
             self._source = source
         else:
-            self._source = Source('', source.format(name = name))
+            friendFiles = [ f.format(name=name) for f in friends] if friends else None
+            self._source = Source('', source.format(name = name), friends=friendFiles)
         self.isMC = False
         self.isDataDriven = False
         self.isData = False
@@ -115,7 +143,7 @@ class MCSample(Sample):
         self.isMC = True
     def customizeFlow(self, flow, luminosity, era=None):
         flow2 = super().customizeFlow(flow, luminosity, era=era)
-        return flow2.clone().prepend(
+        return flow2.prepend(
                 DefinePerSample("sampleWeight", "{0}*{1}*{2}".format(self.genWeightName,self.xsec,luminosity*1000)),
                 Define("weight", "sampleWeight*({})".format(getattr(self,"weight",1))))
     def getWeightSumsFutureList(self):
@@ -160,7 +188,7 @@ class DataDrivenSample(Sample):
         self.isData = False
     def customizeFlow(self, flow, luminosity, era):
         flow2 = super().customizeFlow(flow, luminosity, era=era)
-        return flow2.clone().prepend(
+        return flow2.prepend(
                 Define("weight", getattr(self,"weight","1")))
 
 class DataSample(DataDrivenSample): 
@@ -201,7 +229,7 @@ class FlowStep(object):
             if not self.onData: return False
         elif sample.isDataDriven:
             if not self.onDataDriven: return False
-        elif self.eras and (era not in self.eras):
+        if self.eras and (era not in self.eras):
             return False
         return True
     def attach(self, rdf):
@@ -252,12 +280,12 @@ class Define(FlowStep):
         _recursiveAddToHash(self.expr,hasher)
 class ReDefine(FlowStep):
     def __init__(self, name, expr, **options):
-        super(Define, self).__init__(name, **options)
+        super().__init__(name, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self, k, v)
     def _attach(self, rdf):
-        return rdf.ReDefine(self.name, self.expr)
+        return rdf.Redefine(self.name, self.expr)
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.expr == other.expr

@@ -168,7 +168,7 @@ class PlotMaker(object):
                         src = sample.source(era)
                         if not src: continue
                         sampleKey = procKey.addKeys(sample=sample.name)
-                        sflow = sample.customizeFlow(flow, lumi[era], era=era)
+                        sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
                         if self._forest:
                             rdf = self._forest.grow(src, sflow)
                         else:
