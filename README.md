@@ -30,8 +30,7 @@ An analysis task is characterized by the following items:
 
 
 ### To Do
- * Uncertainties
+ * Normalization Uncertainties
  * Coalescing of identical plots (like already done for flow steps)
- * Per-sample hooks to modify the flows
  * Print cut flow report
  * Luminosity in plot printer: how?

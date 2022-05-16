@@ -97,13 +97,22 @@ class Plot(Target):
 
 
 class PlotResult(object):
-    def __init__(self,plot,histos):
+    def __init__(self,plot,histos,fillTotals=True):
         self.spec = plot
         self.name = plot.name
         self.template = self.spec._template
         self.histos = [(k, h if isinstance(h,HistoWithNuisances) else HistoWithNuisances(h)) for (k,h) in histos]
+        self.totals = {}
+        if fillTotals:
+            sigs, bkgs = [], []
+            for k,h in histos:
+                if k.isSignal: sigs.append(h)
+                elif not k.isData: bkgs.append(h)
+            if sigs: self.totals["signal"] = mergePlots("signal", sigs)
+            if bkgs: self.totals["background"] = mergePlots("background", bkgs)
     def __getattr__(self,key):
         return getattr(self.spec,key)
+
 
 
 def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
@@ -405,7 +414,7 @@ class PlotSetPrinter(object):
                 self.addLabel(c1, opts.extraLabel, .23, .855, .6, .895, align=12, textSize=smallTextSize)
                 pass
 
-        self.doLegend(p1,plot,total,opts,locals())
+        self.doLegend(p1,plot,total,totalError,opts,locals())
         self.addLabels(p1, hasExpo = total.GetMaximum() > 9e4 and not islog, textSize = smallTextSize, opts = opts, doWide = doWide)
         #  signorm = None; datnorm = None; sfitnorm = None
         #  if options.showSigShape or options.showIndivSigShapes or options.showIndivSigs: 
@@ -441,9 +450,6 @@ class PlotSetPrinter(object):
             nums = [data] if data else []
             den = total
             self.doRatioHists(p2, plot, nums, den, opts, locals())
-            #rdata,rnorm,rnorm2,rline = doRatioHists(pspec,pmap,total, maxRange=options.maxRatioRange, fixRange=options.fixRatioRange,
-            #                                        fitRatio=options.fitRatio, errorsOnRef=options.errorBandOnRatio, 
-            #                                        ratioNums=options.ratioNums, ratioDen=options.ratioDen, ylabel=options.ratioYLabel, yndiv=options.ratioYNDiv, doWide=doWide, showStatTotLegend=options.showStatTotLegend, textSize=options.legendFontSize)
             total.GetXaxis().SetLabelOffset(999) ## send them away
             total.GetXaxis().SetTitleOffset(999) ## in outer space
             total.GetYaxis().SetTitleSize(0.06)
@@ -455,16 +461,19 @@ class PlotSetPrinter(object):
             if ext == "txt":
                 if "TProfile" in total.ClassName(): continue
                 dump = open("%s/%s.%s" % (path, outputName, ext), "w")
-                toprint = [(_unTLatex(p.label),hist) for (p,hist) in plot.histos]
-                toprint += [("Total",total)]
+                toprint = [(_unTLatex(p.label),hist) for (p,hist) in plot.histos if not p.isData]
+                row1 = len(toprint)
+                for tot in "signal", "background":
+                    if tot in plot.totals: toprint.append((tot.title(),plot.totals[tot]))
+                toprint.append(("Total", total)) 
                 maxlen = max([len(l) for (l,h) in toprint]+[10])
                 fmt    = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen+1)
-                for label, hist in toprint:
+                for i, (label, hist) in enumerate(toprint):
                     if hist.Integral() <= 0: continue
                     norm = hist.Integral()
                     stat = hist.integralStatError()
                     syst = hist.integralSystError(symmetrize=True)
-                    if label == "Total":
+                    if i == row1:
                         dump.write(("-"*(maxlen+45))+"\n");
                     dump.write(fmt % (label, norm, stat))
                     if syst: dump.write(" +/- %9.2f (syst) = +/- %9.2f (all)"  % (syst, hypot(stat,syst)))
@@ -502,13 +511,12 @@ class PlotSetPrinter(object):
         if not hasattr(c1, '_labels'): c1._labels =[]
         c1._labels.append(cmsprel)
         return cmsprel
-
     def addLabels(self, c1, opts, hasExpo=False, textSize=0.033, xoffs=0, doWide=False):
         if opts.topLeftText not in ['', None]:
             self.addLabel(c1,opts.topLeftText, (.28 if hasExpo else 0.07 if doWide else .16)+xoffs, .955, .60+xoffs, .995, align=12, textSize=textSize)
         if opts.topRightText not in ['', None]:
             self.addLabel(c1,opts.topRightText,(0.5 if doWide else .58)+xoffs, .955, .98+xoffs, .995, align=32, textSize=textSize)
-    def doLegend(self,c1,plot,total,opts,locvars):
+    def doLegend(self,c1,plot,total,totalError,opts,locvars):
         if opts.stack:
             if opts.noStackSignals: mcStyle = ("L","F")
             else:                   mcStyle = ("F","F")
@@ -528,6 +536,7 @@ class PlotSetPrinter(object):
                 if hist.Integral() < opts.legendCutOffSignals*totvalue: continue
                 bgEntries.append((hist.raw(),proc.label,mcStyle[1]))
         entries = dataEntries + sigEntries + bgEntries 
+        if totalError:  entries.append((totalError,"Total unc.","F"))
         nentries = len(entries)
         height = (.20 + opts.legendTextSize*max(nentries-3,0))
         if opts.legendColumns > 1: height = 1.3*height/opts.legendColumn
@@ -553,7 +562,6 @@ class PlotSetPrinter(object):
         leg.SetTextFont(42)
         leg.SetTextSize(opts.legendTextSize)
         leg.SetNColumns(opts.legendColumns)
-        #if totalError:  entries.append((totalError,"Total unc.","F")) # FIXME recover
         nrows = int(ceil(nentries/float(opts.legendColumns)))
         for r in range(nrows):
             for c in range(opts.legendColumns):
@@ -562,7 +570,7 @@ class PlotSetPrinter(object):
                 leg.AddEntry(*entries[i])
         leg.Draw()
         c1._legend =  leg
-    def doRatioHists(self,pane,plot,nums,den,opts,locvars):#pspec,pmap,total,maxRange,fixRange=False,fitRatio=None,errorsOnRef=True,ratioNums="signal",ratioDen="background",ylabel="Data/pred.",yndiv=505,doWide=False,showStatTotLegend=False,textSize=0.035):
+    def doRatioHists(self,pane,plot,nums,den,opts,locvars):
         doWide = locvars["doWide"]
         textSize = opts.smallTextSize
         pane.cd()
@@ -682,5 +690,12 @@ class PlotSetPrinter(object):
        #legendratio0_ = leg0
        #legendratio1_ = leg1
         pane._ratioStuff = (ratios, unity,(unityErr,unityErr0), line)
+    def doShadedUncertainty(self, hist):
+        ret = hist.graphAsymmTotalErrors()
+        ret.SetFillStyle(3244);
+        ret.SetFillColor(ROOT.kGray+2)
+        ret.SetMarkerStyle(0)
+        ret.Draw("PE2 SAME")
+        return ret
      
  

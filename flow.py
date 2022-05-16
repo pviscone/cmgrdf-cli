@@ -347,8 +347,8 @@ class Insert(object):
             assert(after == None)
             self.when = ("before", before)
         elif after != None:
-            assert(after == None)
-            self.when = ("after", before)
+            assert(before == None)
+            self.when = ("after", after)
         else:
             raise RuntimeError("Must specify either before or after")
     def customizeFlow(self, flow : "Flow", era):
@@ -397,6 +397,7 @@ class Flow(object):
                 newSteps += Flow._flatten(steps)
         self.steps = newSteps
         if not found: raise RuntimeError("Not found step %s in flow %s" % (name,self.name))
+        return self
     def attach(self, rdf, sample : Sample, era):
         assert(isinstance(sample,Sample))
         for s in self.steps:

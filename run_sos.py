@@ -1,15 +1,20 @@
-from flow import DefineDefault, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine
+from flow import DefineDefault, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert
 from plots import Plot, PlotMaker, PlotSetPrinter
 import ROOT
+import os
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
-ROOT.gInterpreter.ProcessLine('#include "functions.cc"')
-ROOT.gInterpreter.ProcessLine('#include "functionsSOS.cc"')
+os.environ["SOS_DATA_DIR"] = "/afs/cern.ch/work/g/gpetrucc/ttHH/CMSSW_10_6_30/src/CMGTools/TTHAnalysis/data/susySosSF"
 
-P="/scratch/gpetrucc/NanoTrees_SOS_070220_v6_skim_2lep_met125/{era}/{name}.root"
-PF="/scratch/gpetrucc/NanoTrees_SOS_070220_v6_skim_2lep_met125/{era}/recleaner/{name}_Friend.root"
-PFMC="/scratch/gpetrucc/NanoTrees_SOS_070220_v6_skim_2lep_met125/{era}/jetmetUncertainties/{name}_Friend.root"
+ROOT.gInterpreter.ProcessLine('#include "functions.cc"')
+ROOT.gInterpreter.ProcessLine('#include "sos/functionsSOS.cc"')
+ROOT.gInterpreter.ProcessLine('#include "sos/functionsSF.cc"')
+
+P0="/scratch/gpetrucc/NanoTrees_SOS_070220_v6_skim_2lep_met125/{era}"
+P=P0+"/{name}.root"
+PF=[P0+"/recleaner/{name}_Friend.root"]
+PFMC=PF+[P0+"/jetmetUncertainties/{name}_Friend.root",P0+"/bTagWeights/{name}_Friend.root"]
 
 recleanerDefines = [
     ReDefine("nLepGood", "nLepFO_Recl"),
@@ -90,6 +95,8 @@ metFixes = [
 
 preSelection = [ #Flow("2los",
     Cut("eventFilters", "EventFilters", onMC=False),
+    AddWeight("puWeight","puWeight"),
+    AddWeight("eventBTagSF","eventBTagSF"),
     Cut("dilep", "nLepGood == 2"),
     Cut("sublepPt", "(abs(LepGood2_pdgId)==13 && LepGood2_pt > 3.5) || (abs(LepGood2_pdgId)==11 && LepGood2_pt > 5)"),
     Define("mll","mass_2(LepGood1_pt, LepGood1_eta, LepGood1_phi, LepGood1_mass, LepGood2_pt, LepGood2_eta, LepGood2_phi, LepGood2_mass)"),
@@ -97,7 +104,7 @@ preSelection = [ #Flow("2los",
     Define("metmm12", "metmm_pt(LepGood1_pdgId, LepGood1_pt, LepGood1_phi, LepGood2_pdgId, LepGood2_pt, LepGood2_phi, MET_pt, MET_phi)"),
     Define("mT1", "mt_2(LepGood1_pt, LepGood1_phi, MET_pt, MET_phi)"),
     Define("mT2", "mt_2(LepGood2_pt, LepGood2_phi, MET_pt, MET_phi)"),
-    Cut("mllcut", "mll > 4 && mll < 50"), 
+    Define("mtautau12", "mass_tautau(MET_pt,MET_phi,LepGood1_pt,LepGood1_eta,LepGood1_phi,LepGood2_pt,LepGood2_eta,LepGood2_phi)"),
     Cut("upsilonVeto", "mll < 9 || mll > 10.5"),
     Cut("dilepPt", "ptll > 3 "),
     Cut("ISRjet", "JetSel1_jetId >= 4"),
@@ -126,25 +133,23 @@ metCutsMap = dict([(c.name,c) for c in [
     Cut("metultra_AR", "$DATA{metmm12 > 290} $MC{EWK_MCMetBoundUltra}"),
     Cut("metultra_col", "metmm12 > 340"),
     Cut("metultra_trig", "(year==2016 && HLT_HighMET16) || ( (year==2017 || year==2018) && HLT_HighMET )"),
-  ###Inclusive in MET
+    ###Inclusive in MET
     Cut("inclMET_2l", "(MET_pt > 125 && metmm12 > 125 && metmm12 < 200 && ((year==2016 && HLT_MuMuMET16) || ( (year==2017 || year==2018) && HLT_MuMuMET )) && (abs(LepGood1_pdgId)==13 && abs(LepGood2_pdgId)==13)) || (metmm12 > 200 && ((year==2016 && HLT_HighMET16) || ( (year==2017 || year==2018) && HLT_HighMET )))"),
 ]])
 
 srCuts = [
-    ##### SR (enabled by default but likely to be inverted cuts)
+    AddWeight("triggerSF12", "triggerSF(muDleg_SF(year,LepGood1_pt,LepGood1_eta,LepGood2_pt,LepGood2_eta), MET_pt, metmm12, year)"),
+    AddWeight("lepSF12", "lepSF(LepGood1_pt,LepGood1_eta,LepGood1_pdgId,year)*lepSF(LepGood2_pt,LepGood2_eta,LepGood2_pdgId,year)"),
     Cut("OS", "LepGood1_pdgId*LepGood2_pdgId<0"),
-    Cut("ledlepPt", "5.0 < LepGood1_pt && LepGood1_pt < 30.0"),
     Cut("twoTight", "LepGood1_isLepTight && LepGood2_isLepTight"),
     Cut("bveto", "nBJetMedium25 == 0"),
-    Cut("mtautau", "0.0 > mass_tautau(MET_pt,MET_phi,LepGood1_pt,LepGood1_eta,LepGood1_phi,LepGood2_pt,LepGood2_eta,LepGood2_phi) || mass_tautau(MET_pt,MET_phi,LepGood1_pt,LepGood1_eta,LepGood1_phi,LepGood2_pt,LepGood2_eta,LepGood2_phi) > 160.0"),
-    ### EWK
+    Cut("mtautau", "0.0 > mtautau12 || mtautau12 > 160.0"),
     Cut("mT", "mT1 < 70. && mT2 < 70.0"),
     Cut("SF", "abs(LepGood1_pdgId*LepGood2_pdgId)==169 || abs(LepGood1_pdgId*LepGood2_pdgId)==121"),
     Cut("mll_low", "mll > 1 && mll < 50"),
     Cut("JPsiVeto", "mll < 3 || mll > 3.2"),
     Cut("ledlepPt3p5", "((abs(LepGood1_pdgId)==13 && LepGood1_pt > 3.5) || (abs(LepGood1_pdgId)==11 && LepGood1_pt > 5))  && LepGood1_pt < 30.0"),
     Cut("mindR", "deltaR(LepGood1_eta, LepGood1_phi, LepGood2_eta,LepGood2_phi)>0.3"),
-
 ]
 
 controlRegions = dict(
@@ -166,6 +171,8 @@ controlRegions = dict(
 
 
 others = [ 
+    Cut("mllcut", "mll > 4 && mll < 50"), 
+    Cut("ledlepPt", "5.0 < LepGood1_pt && LepGood1_pt < 30.0"),
     Cut("CRDYledlepPt_low", "((abs(LepGood1_pdgId)==13 && LepGood1_pt > 3.5) || (abs(LepGood1_pdgId)==11 && LepGood1_pt > 5))"),
     Cut("CRTTledlepPt_low", "((abs(LepGood1_pdgId)==13 && LepGood1_pt > 3.5) || (abs(LepGood1_pdgId)==11 && LepGood1_pt > 5))"),
     Cut("mm", "abs(LepGood1_pdgId)==13 && abs(LepGood2_pdgId)==13"),
@@ -176,18 +183,43 @@ others = [
 commonSteps = recleanerDefines + branchDefaults + eventFilterDefines + metFixes
 flow_SR = Flow("SR", commonSteps + preSelection + [metCutsMap["methigh"],metCutsMap["methigh_trig"]] + srCuts)
 
+TruthMatchedLeptons = Insert(Cut("mcTrue","LepGood_mcMatchId[iLepFO_Recl[0]] != 0 && LepGood_mcMatchId[iLepFO_Recl[1]] != 0"), after="dilep")
+FakeMatchedLeptons = Insert(Cut("mcTrue","||".join(f"(LepGood_mcMatchId[iLepFO_Recl[{i}]] == 0 && LepGood_mcPromptGamma[iLepFO_Recl[{i}]] == 0)" for i in (0,1))), after="dilep")
 def PromptMC(name,eras=[2016,2017,2018]):
-    return MCSample(name, P, friends=[PF,PFMC], xsec="xsec", eras=eras)
+    return MCSample(name, P, friends=PFMC, xsec="xsec", eras=eras, hooks=[TruthMatchedLeptons])
+def FakeMC(name,eras=[2016,2017,2018]):
+    return MCSample(name, P, friends=PFMC, xsec="xsec", eras=eras, hooks=[FakeMatchedLeptons])
 
+def makeBins(edges,to="to"):
+    return ["%sto%s" % (edges[i-1],edges[i]) for i in range(1,len(edges))]
+WJbins = makeBins([100,200,400,600,800,1200,2500,"Inf"])
+def makeDYs(hooks,years=[2016,2017,2018]):
+    ret = []
+    for year in years:
+        lowM = 4 if year != 2016 else 5
+        DYlow  = makeBins([70,100,200,400,600,"Inf"])
+        DYmid  = makeBins([70,100,200,400,600,"Inf"])[(0 if year == 2018 else 1):]
+        DYhigh = makeBins([70,100,200,400,600,800,1200,2500,"Inf"])[(0 if year == 2016 else 1):]
+        bins  = [f"M1to{lowM}_HT{ht}" for ht in DYlow]
+        bins += [f"M{lowM}to50_HT{ht}" for ht in DYmid]
+        bins += [f"M50_HT{ht}" for ht in DYhigh]
+        for b in bins:
+            name = "DYJetsToLL_"+b
+            ret.append(MCSample(name, P, friends=PFMC, xsec="xsec", eras=[year], hooks=hooks))
+    return ret
+     
 data = [
     Process("TT", [PromptMC("TTJets_DiLepton")], label="t#bar{t} (2l)", fillColor=ROOT.kBlue-7),
+    Process("DY", makeDYs([TruthMatchedLeptons]), label="DY", fillColor=ROOT.kCyan),
     Process("WZ", [PromptMC("WZTo3LNu_mllmin01")], label="WZ", fillColor=ROOT.kGreen+1),
     Process("VV", [PromptMC(x) for x in ("ZZTo2L2Q", "ZZTo2L2Q", "ZZTo4L_M1toInf", "VVTo2L2Nu_M1toInf", "WpWpJJ")]+
                   [PromptMC("WWDoubleTo2L",eras=[2016])]+
                   [PromptMC("WW_DPS",eras=[2017,2018])], label="VV", fillColor=ROOT.kViolet-4),
-    Data([DataSample(f"{pd}_Run2016{l}_25Oct2019", P, friends=[PF], eras=[2016]) for pd in ("DoubleMuon","MET") for l in "BCDEFGH"]+
-         [DataSample(f"{pd}_Run2017{l}_25Oct2019", P, friends=[PF], eras=[2017]) for pd in ("DoubleMuon","MET") for l in "BCDEF"]+
-         [DataSample(f"{pd}_Run2018{l}_25Oct2019", P, friends=[PF], eras=[2018]) for pd in ("DoubleMuon","MET") for l in "ABCD"])
+    Process("Fakes_Wt", [FakeMC("WJetsToLNu_HT%s" % s) for s in WJbins], label="Wj(fakes)", fillColor=ROOT.kGray),
+    Process("Fakes_tt", [FakeMC("TTJets_"+s) for s in ("DiLepton","SingleLeptonFromT","SingleLeptonFromTbar")], label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
+    Data([DataSample(f"{pd}_Run2016{l}_25Oct2019", P, friends=PF, eras=[2016]) for pd in ("DoubleMuon","MET") for l in "BCDEFGH"]+
+         [DataSample(f"{pd}_Run2017{l}_25Oct2019", P, friends=PF, eras=[2017]) for pd in ("DoubleMuon","MET") for l in "BCDEF"]+
+         [DataSample(f"{pd}_Run2018{l}_25Oct2019", P, friends=PF, eras=[2018]) for pd in ("DoubleMuon","MET") for l in "ABCD"])
 ]
 
 plots = [ 
@@ -197,9 +229,9 @@ plots = [
 
 lumi = {2017:41.5, 2018:59.7}
 
-ROOT.EnableImplicitMT(8)
+ROOT.EnableImplicitMT(12)
 maker = PlotMaker()
 maker.book(data,lumi,flow_SR,plots,eras=[2018])
 result_plots = maker.runAll()
-printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi[2018], showRatio=True)
+printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi[2018], showRatio=True, showErrors=True)
 printer.printSet(result_plots, "plots/002/sos/cmgrdf/{era}/{flow}")
