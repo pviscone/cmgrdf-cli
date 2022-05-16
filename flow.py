@@ -137,7 +137,15 @@ class MCSample(Sample):
     def __init__(self, name : str, source, genWeightName="genWeight", genWeightSum=None, genSumWeightName="_auto_", xsec="1.0", **kwargs):
         super().__init__(name, source, **kwargs)
         self.genWeightName = genWeightName
-        self._genWeightSum = genWeightSum
+        if self.eras:
+            if genWeightSum:
+                self._genWeightSum = genWeightSum
+            else:
+                self._genWeightSum = dict((e,None) for e in self.eras)
+        else:
+            self._genWeightSum = {None:genWeightSum}
+        self._genWeightSumFutures = dict()
+        self._runsRdf = dict()
         self.genSumWeightName = genSumWeightName
         self.xsec = xsec
         self.isMC = True
@@ -146,36 +154,40 @@ class MCSample(Sample):
         return flow2.prepend(
                 DefinePerSample("sampleWeight", "{0}*{1}*{2}".format(self.genWeightName,self.xsec,luminosity*1000)),
                 Define("weight", "sampleWeight*({})".format(getattr(self,"weight",1))))
-    def getWeightSumsFutureList(self):
-        if (self._genWeightSum == None) and not hasattr(self,"_genWeightSumFuture"):
-            savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kError;
-            self._genWeightSumFuture = dict()
-            self._runsRdf = dict()
-            for era in (self.eras if self.eras else [None]):
-                self._runsRdf[era] = self.source(era).createRDF("Runs")
-                sumName = self.genSumWeightName
-                if sumName == "_auto_":
-                    colsvec = self._runsRdf[era].GetColumnNames()
-                    cols = [ colsvec[i] for i in range(colsvec.size()) ]
-                    for name in "genEventSumw", "genEventSumw_":
-                        if name in cols:
-                            sumName = name
-                            break
-                self._genWeightSumFuture[era] = self._runsRdf[era].Sum(sumName)
-            ROOT.gErrorIgnoreLevel = savErrorLevel;
-            return list(self._genWeightSumFuture.values())
-        return []
+    def getWeightSumsFutureList(self,eras=[None]):
+        assert((self.eras is None) == (eras == [None]))
+        ret = []
+        for era in eras:
+            if self.eras and era not in self.eras:
+                continue
+            if (era in self._genWeightSum) and (self._genWeightSum[era] is not None):
+                continue
+            if (era in self._genWeightSumFutures):
+                continue
+            savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kError
+            self._runsRdf[era] = self.source(era).createRDF("Runs")
+            sumName = self.genSumWeightName
+            if sumName == "_auto_":
+                colsvec = self._runsRdf[era].GetColumnNames()
+                cols = [ colsvec[i] for i in range(colsvec.size()) ]
+                for name in "genEventSumw", "genEventSumw_":
+                    if name in cols:
+                        sumName = name
+                        break
+            self._genWeightSumFutures[era] = self._runsRdf[era].Sum(sumName)
+            ROOT.gErrorIgnoreLevel = savErrorLevel
+            ret.append(self._genWeightSumFutures[era]) 
+        return ret
     def genWeightSum(self,era=None):
-        if self._genWeightSum == None:
-            if not hasattr(self,"_genWeightSumFuture"):
-                self.getWeightSumsFutureList()
-            if self.eras:
-                self._genWeightSum = dict((era,self._genWeightSumFuture[era].GetValue()) for era in self.eras)
-            else:
-                self._genWeightSum = self._genWeightSumFuture[era].GetValue()
-            del self._runsRdf
-            del self._genWeightSumFuture
-        return self._genWeightSum[era] if era else self._genWeightSum
+        assert((self.eras is None) == (era == None))
+        if self._genWeightSum[era] is None:
+            if era not in self._genWeightSumFutures:
+                self.getWeightSumsFutureList([era])
+            self._genWeightSum[era] = self._genWeightSumFutures[era].GetValue()
+            print("Un-futured weight sums for %s, era %s: %s" % (self.name, era, self._genWeightSum))
+            del self._runsRdf[era]
+            del self._genWeightSumFutures[era]
+        return self._genWeightSum[era]
 
 class DataDrivenSample(Sample): 
     #defaults = Sample.defaults.cloneAndExtend(
@@ -295,7 +307,7 @@ class ReDefine(FlowStep):
         _recursiveAddToHash(self.expr,hasher)
 class DefinePerSample(FlowStep):
     def __init__(self, name, expr, **options):
-        super(DefinePerSample, self).__init__(name, **options)
+        super().__init__(name, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self,k,v)
@@ -312,9 +324,27 @@ class DefinePerSample(FlowStep):
     def _addToHash(self,hasher):
         super()._addToHash(hasher)
         _recursiveAddToHash(self.expr,hasher)
+class DefineDefault(FlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, **options)
+        self.expr = expr
+        for k,v in options.items():
+            setattr(self,k,v)
+    def _attach(self,rdf):
+        # FIXME use DefinePerSample
+        if self.name in rdf.GetColumnNames():
+            return rdf
+        return rdf.Define(self.name,self.expr)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr,hasher)
 class AddWeight(FlowStep):
     def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
-        super(AddWeight, self).__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
+        super().__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
         self.expr = expr
         for k,v in options.items():
             setattr(self, k, v)
@@ -331,9 +361,19 @@ class AddWeight(FlowStep):
 class Flow(object):
     def __init__(self, name, *steps, **options):
         self.name = name
-        self.steps = list(steps) # type: List[FlowStep]
+        self.steps = Flow._flatten(steps) # type: List[FlowStep]
         for k,v in options.items():
             setattr(self, k, v)
+    @staticmethod
+    def _flatten(steps):
+        ret = []
+        for s in steps:
+            if type(s) == list:
+                ret += Flow._flatten(s)
+            else:
+                assert(isinstance(s,FlowStep))
+                ret.append(s)
+        return ret
     def clone(self, newName=None):
         ret = copy.copy(self)
         if newName: ret.name = newName

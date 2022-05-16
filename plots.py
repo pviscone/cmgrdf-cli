@@ -45,7 +45,7 @@ class Plot(Target):
         return hasattr(self, name)
     def bookHisto1D(self, rdf, sample : Sample, era):
         if type(self._bins) == list:
-            model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self.bins)) 
+            model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self._bins)) 
         else:
             nbins, low, high = self._bins
             model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), int(nbins), low, high)
@@ -152,14 +152,14 @@ class PlotMaker(object):
     def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName=""):
         t0 = time.perf_counter()
         n0 = (len(self._sample_norm_futures), len(self._plot_futures))
-        for p in processes:
-            for s in p.samples:
-                if s.isMC: 
-                    self._sample_norm_futures += s.getWeightSumsFutureList()
-        if isinstance(flows,Flow): flows= [flows]
         if eras is None: 
             eras = [None]
             lumi = {None:lumi}
+        for p in processes:
+            for s in p.samples:
+                if s.isMC: 
+                    self._sample_norm_futures += s.getWeightSumsFutureList(eras)
+        if isinstance(flows,Flow): flows= [flows]
         for flow in flows:
             for era in eras:
                 for proc in processes:
