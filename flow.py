@@ -119,13 +119,13 @@ class Sample(object):
             assert(self.eras == None)
             return self._source
     def customizeFlow(self, flow, luminosity, era=None):
-        if era:
-            flow.filterSteps(lambda s : s.appliesTo(self,era))
         for h in self._hooks:
             flow2 = h.customizeFlow(flow, era=era)
             if flow2 != flow:
                 flow2._from = flow
                 flow = flow2
+        if era:
+            flow.filterSteps(lambda s : s.appliesTo(self,era))
         return flow
 
 class MCSample(Sample): 
@@ -184,7 +184,6 @@ class MCSample(Sample):
             if era not in self._genWeightSumFutures:
                 self.getWeightSumsFutureList([era])
             self._genWeightSum[era] = self._genWeightSumFutures[era].GetValue()
-            print("Un-futured weight sums for %s, era %s: %s" % (self.name, era, self._genWeightSum))
             del self._runsRdf[era]
             del self._genWeightSumFutures[era]
         return self._genWeightSum[era]
@@ -260,103 +259,100 @@ class FlowStep(object):
                 obj1.eras == obj2.eras)
     def _addToHash(self,hasher):
         _recursiveAddToHash((self.name,self.onMC,self.onData,self.onDataDriven,self.eras),hasher)
-class Cut(FlowStep):
-    def __init__(self,name,expr,**options):
-        super(Cut,self).__init__(name,**options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self,k,v)
-    def _attach(self,rdf):
-        return rdf.Filter(self.expr,self.name)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
-class Define(FlowStep):
-    def __init__(self,name,expr,**options):
-        super(Define,self).__init__(name,**options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self,k,v)
-    def _attach(self,rdf):
-        return rdf.Define(self.name,self.expr)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
-class ReDefine(FlowStep):
+
+class SimpleExprFlowStep(FlowStep):
+    """ A Flow step which is fully defined by a single expression.
+        This base class implements the equality and hash tests, while it's
+        up to the subclass to implement _attach(self, rdf)"""
     def __init__(self, name, expr, **options):
         super().__init__(name, **options)
         self.expr = expr
         for k,v in options.items():
-            setattr(self, k, v)
+            setattr(self,k,v)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.expr == other.expr
+        return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
+        _recursiveAddToHash(self.expr, hasher)
+
+class Cut(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
+    def _attach(self, rdf):
+        return rdf.Filter(self.expr, self.name)
+class Define(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
+    def _attach(self, rdf):
+        return rdf.Define(self.name, self.expr)
+class ReDefine(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
     def _attach(self, rdf):
         return rdf.Redefine(self.name, self.expr)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
-class DefinePerSample(FlowStep):
+class DefinePerSample(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
-        super().__init__(name, **options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self,k,v)
-    def _attach(self,rdf):
-        # FIXME
-        #if hasattr(rdf,"DefinePerSample"):
-        #    return rdf.DefinePerSample(self.name,self.expr)
-        #else:
-        return rdf.Define(self.name,self.expr)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
-class DefineDefault(FlowStep):
+        super().__init__(name, expr, **options)
+    def _attach(self, rdf):
+        # Fixme didn't get DefinePerSample working in python yet
+        return rdf.Define(self.name, self.expr)
+class DefineDefault(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
-        super().__init__(name, **options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self,k,v)
-    def _attach(self,rdf):
+        super().__init__(name, expr, **options)
+    def _attach(self, rdf):
         # FIXME use DefinePerSample
         if self.name in rdf.GetColumnNames():
             return rdf
         return rdf.Define(self.name,self.expr)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
-class AddWeight(FlowStep):
+class AddWeight(SimpleExprFlowStep):
     def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
-        super().__init__(name, onData=onData, onDataDriven=onDataDriven, **options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self, k, v)
+        super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
     def _attach(self,rdf):
         return rdf.Redefine("weight","weight*(%s)"%self.expr)
+
+class AddWeightUncertainty(FlowStep):
+    def __init__(self, name, exprUp, exprDown=None, nominal="1.0", **options):
+        super().__init__(name, **options)
+        self.nominal = nominal
+        if exprDown is not None:
+            self.vars = (exprDown, exprUp)
+        else:
+            self.vars = ("({0})/({1})".format(nominal,exprUp), exprUp)
+    def _attach(self,rdf):
+        rdf = rdf.Define(self.name, str(self.nominal))
+        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down","up"])
+        return rdf.Redefine("weight","weight*(%s)"%self.name)
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
+            return FlowStep._equals(self, other) and self.nominal == other.nominal and self.vars == other.vars
         return id(self) == id(other)
     def _addToHash(self,hasher):
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr,hasher)
+        _recursiveAddToHash(self.nominal, hasher)
+        _recursiveAddToHash(self.vars, hasher)
+
+
+class Append(object):
+    def __init__(self, *steps : List[FlowStep]):
+        self.steps = list(steps)
+    def customizeFlow(self, flow, era):
+        return flow.append(self.steps)
+
+class Insert(object):
+    def __init__(self, *steps : List[FlowStep], before=None, after=None):
+        self.steps = list(steps)
+        if before != None:
+            assert(after == None)
+            self.when = ("before", before)
+        elif after != None:
+            assert(after == None)
+            self.when = ("after", before)
+        else:
+            raise RuntimeError("Must specify either before or after")
+    def customizeFlow(self, flow : "Flow", era):
+        return flow.insertBeforeOrAfter(self.when[0], self.when[1], *self.steps)
 
 class Flow(object):
     def __init__(self, name, *steps, **options):
@@ -381,14 +377,26 @@ class Flow(object):
         ret._from = self
         return ret
     def prepend(self, *steps):
-        self.steps[0:0] = steps
+        self.steps[0:0] = Flow._flatten(steps)
         return self
     def append(self, *steps):
-        self.steps += steps
+        self.steps += Flow._flatten(steps)
         return self
     def filterSteps(self, filter):
         self.steps = [ s for s in self.steps if filter(s)]
         return self
+    def insertBeforeOrAfter(self, when : str, name, *steps):
+        assert(when in ("before","after"))
+        newSteps = []
+        found = True
+        for s in self.steps:
+            if s.name == name and when == "before":
+                newSteps += Flow._flatten(steps)
+            newSteps.append(s)
+            if s.name == name and when == "after":
+                newSteps += Flow._flatten(steps)
+        self.steps = newSteps
+        if not found: raise RuntimeError("Not found step %s in flow %s" % (name,self.name))
     def attach(self, rdf, sample : Sample, era):
         assert(isinstance(sample,Sample))
         for s in self.steps:

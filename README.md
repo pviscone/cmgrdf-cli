@@ -26,3 +26,12 @@ An analysis task is characterized by the following items:
   * Steps can be shared across multiple flows (e.g. common definitions or preselection cuts)
   * Some steps may apply only on some sample types (MC, Data, ...) or eras, and individual Sample may have further hooks to customize the flow applied to them
 * When data has to be processed, the tool takes care of assembling for each source a RooDataFrame the full RooDataFrame graph, and if multiple flows share a common initial part the corresponding RooDataFrame nodes are only created once.
+
+
+
+### To Do
+ * Uncertainties
+ * Coalescing of identical plots (like already done for flow steps)
+ * Per-sample hooks to modify the flows
+ * Print cut flow report
+ * Luminosity in plot printer: how?

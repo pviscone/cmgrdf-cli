@@ -3,7 +3,7 @@ import re
 import os, os.path
 from array import array
 import time
-from typing import List
+from typing import Any, List
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -43,7 +43,7 @@ class Plot(Target):
         return getattr(self, name, default)
     def hasOpt(self, name):
         return hasattr(self, name)
-    def bookHisto1D(self, rdf, sample : Sample, era):
+    def bookHisto1D(self, rdf, sample : Sample, era) -> Any:
         if type(self._bins) == list:
             model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self._bins)) 
         else:
@@ -54,7 +54,7 @@ class Plot(Target):
         ret = rdf.Histo1D(model, expr, "weight")
         ret._from = rdf
         return ret
-    def finishHisto1D(self, plot, sample : Sample, era):
+    def finishHisto1D(self, plot, sample : Sample, era) -> Any:
         ## Contents
         if self.getOpt('includeOverflows',True) or self.getOpt('includeUnderflow',False):
             plot.SetBinContent(1,plot.GetBinContent(0)+plot.GetBinContent(1))
@@ -149,7 +149,7 @@ class PlotMaker(object):
         self._sample_norm_futures = []
         self._plot_futures = []
         if self._forest: self._forest.clear()
-    def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName=""):
+    def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName="", withUncertainties=False):
         t0 = time.perf_counter()
         n0 = (len(self._sample_norm_futures), len(self._plot_futures))
         if eras is None: 
@@ -176,7 +176,8 @@ class PlotMaker(object):
                         for pl in plots:
                             pfut = pl.attach(rdf, sample, era)
                             if pfut is None: continue
-                            self._plot_futures.append((sampleKey.addKeys(plot = pl.name), proc, sample, pl, pfut))         
+                            vars = ROOT.RDF.Experimental.VariationsFor(pfut) if withUncertainties else None
+                            self._plot_futures.append((sampleKey.addKeys(plot = pl.name), proc, sample, pl, pfut, vars))         
         t1 = time.perf_counter()
         n1 = (len(self._sample_norm_futures), len(self._plot_futures))
         print("Booked %d sums and %d plots in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
@@ -185,14 +186,20 @@ class PlotMaker(object):
         t0 = time.perf_counter()
         n0 = (len(self._sample_norm_futures), len(self._plot_futures))
         # run the graphs
-        ROOT.RDF.RunGraphs(self._sample_norm_futures+[pfut[-1] for pfut in self._plot_futures])
+        ROOT.RDF.RunGraphs(self._sample_norm_futures+[pfut[-2] for pfut in self._plot_futures])
         t1 = time.perf_counter()
         print("Filled %d sums and %d plots in %.3fs" % (n0[0],n0[1],t1-t0))
         # finalize the plots
         plots = MultiReport()
-        for (plotKey, proc, sample, plot, pfut) in self._plot_futures:
-            hist = pfut.GetValue() 
-            hist = plot.finish(hist, sample, plotKey.era)
+        for (plotKey, proc, sample, plot, pfut, vars) in self._plot_futures:
+            hist = HistoWithNuisances(plot.finish(pfut.GetValue(), sample, plotKey.era))
+            if vars:
+                for k in vars.GetKeys():
+                    if ":" in k:
+                        (var,sign) = str(k).split(":")
+                        hist.addVariation(var, sign, plot.finish(vars[k], sample, plotKey.era))
+                    elif k != "nominal":
+                        print("ERROR: unknown variation %s for %s" % (k, plotKey))
             hist = plot.style(hist, proc)
             plots.append(plotKey, (plot, proc, sample, hist))
         # merge the plots
