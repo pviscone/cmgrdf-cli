@@ -1,5 +1,5 @@
 import re
-from flow import DefineDefault, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert, Source
+from flow import DefineDefault, MCGroup, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert, Source
 from plots import Plot, PlotMaker, PlotSetPrinter
 import ROOT
 import os
@@ -193,7 +193,7 @@ def makeMCs(names,hooks,eras=[2016,2017,2018]):
         names = [ str ]
     for name in names:
         if type(name) == tuple: # name & eras
-            ret += makeMCs([name[0]], hooks, eras=[name[1:]])
+            ret += makeMCs([name[0]], hooks, eras=[*name[1:]])
         elif type(name) == list: 
             ret += makeMCs(name, hooks, eras=eras)
         else:
@@ -248,41 +248,18 @@ def makeGData(pds,processing,years=[2016,2017,2018]):
         sources[y] = Source(name, files, era=y, friends=friends)
     return [DataSample("Data_"+processing, sources, eras=years)]
 
-def mcG(name,samples,eras=[2016,2017,2018]):
-    ## Now, this is a bug but we don't care for the result at the moment
-    sources = dict()
-    for e in eras:
-        files, friends = [], None
-        for s in samples:
-            src = s.source(e)
-            if src == None: continue
-            assert(len(src.files) == 1)
-            files.append(src.files[0])
-            if friends is None:
-                friends = [[f] for f in src.friends ]
-            else:
-                for i,f in enumerate(src.friends):
-                    friends[i].append(f)
-        #print(f"{name} at era {e}:")
-        #print("  %d files: %s" % (len(files), files[:3]))
-        #print("  %d friends:" % (len(friends)))
-        #for f in friends:
-        #    print("     %d friend files: %s" % (len(f),f[:3]))
-        sources[e] = Source(name, files, era=e, friends=friends)
-    return [MCSample(name, sources, eras=eras, xsec=samples[0].xsec, hooks=samples[0]._hooks)]
-
 data = dict(
     prompt = [
         Process("TT", makePrompt(TT2l), label="t#bar{t} (2l)", fillColor=ROOT.kBlue-7),
         #Process("DY", makeDYs([TruthMatchedLeptons]), label="DY", fillColor=ROOT.kCyan),
         #Process("WZ", makePrompt(WZ), label="WZ", fillColor=ROOT.kGreen+1),
         #Process("VV", makePrompt(VVp), label="VV", fillColor=ROOT.kViolet-4),
-        #Process("Rares", mcG("Rares",makePrompt(TW+TTW+TT1l+TTZ+Rares)), label="Rares", fillColor=ROOT.kViolet-4),
-        Process("Rares", makePrompt(TW+TTW+TT1l+TTZ+Rares), label="Rares", fillColor=ROOT.kViolet-4),
+        Process("Rares", [MCGroup("Rares",makePrompt(TW+TTW+TT1l+TTZ+Rares))], label="Rares", fillColor=ROOT.kViolet-4),
+        #Process("Rares", makePrompt(TW+TTW+TT1l+TTZ+Rares), label="Rares", fillColor=ROOT.kViolet-4),
     ],
     mcfakes = [
-        #Process("Fakes_dy", mcG("Fakes_dy",makeDYs([FakeMatchedLeptons])), label="DY(fakes)", fillColor=ROOT.kBlack),
-        Process("Fakes_dy", makeDYs([FakeMatchedLeptons]), label="DY(fakes)", fillColor=ROOT.kBlack),
+        Process("Fakes_dy", [MCGroup("Fakes_dy",makeDYs([FakeMatchedLeptons]))], label="DY(fakes)", fillColor=ROOT.kBlack),
+        #Process("Fakes_dy", makeDYs([FakeMatchedLeptons]), label="DY(fakes)", fillColor=ROOT.kBlack),
         #Process("Fakes_Wj", makeWJ(), label="Wj(fakes)", fillColor=ROOT.kGray),
         #Process("Fakes_tt", makeFakes(TT2l+TT1l), label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
         #Process("Fakes_t", makeFakes(TW+T), label="t(fakes)", fillColor=ROOT.kGray+2),

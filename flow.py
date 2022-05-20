@@ -148,7 +148,14 @@ class Sample(object):
         else:
             assert(self.eras == None)
             return self._source
-    def customizeFlow(self, flow, luminosity, era=None):
+    def hasEra(self, era):
+        if era != None:
+            assert(self.eras != None)
+            return era in self._sources
+        else:
+            assert(self.eras == None)
+            return True
+    def customizeFlow(self, flow, era=None):
         for h in self._hooks:
             flow2 = h.customizeFlow(flow, era=era)
             if flow2 != flow:
@@ -174,52 +181,71 @@ class MCSample(Sample):
                 self._genWeightSum = dict((e,None) for e in self.eras)
         else:
             self._genWeightSum = {None:genWeightSum}
-        self._genWeightSumFutures = dict()
-        self._runsRdf = dict()
         self.genSumWeightName = genSumWeightName
         self.xsec = xsec
         self.isMC = True
-    def customizeFlow(self, flow, luminosity, era=None):
-        flow2 = super().customizeFlow(flow, luminosity, era=era)
+    def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
+        flow2 = super().customizeFlow(flow, era=era)
         return flow2.prepend(
-                DefinePerSample("sampleWeight", "{0}*{1}*{2}".format(self.genWeightName,self.xsec,luminosity*1000)),
+                DefinePerSample("genWeightSum", sumWeightProvider),
+                Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
                 Define("weight", "sampleWeight*({})".format(getattr(self,"weight",1))))
-    def getWeightSumsFutureList(self,eras=[None]):
-        assert((self.eras is None) == (eras == [None]))
-        ret = []
-        for era in eras:
-            if self.eras and era not in self.eras:
-                continue
-            if (era in self._genWeightSum) and (self._genWeightSum[era] is not None):
-                continue
-            if (era in self._genWeightSumFutures):
-                continue
-            savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kError
-            self._runsRdf[era] = self.source(era).createRDF("Runs")
-            sumName = self.genSumWeightName
-            if sumName == "_auto_":
-                colsvec = self._runsRdf[era].GetColumnNames()
-                cols = [ colsvec[i] for i in range(colsvec.size()) ]
-                for name in "genEventSumw", "genEventSumw_":
-                    if name in cols:
-                        sumName = name
-                        break
-            self._genWeightSumFutures[era] = self._runsRdf[era].Sum(sumName)
-            ROOT.gErrorIgnoreLevel = savErrorLevel
-            ret.append(self._genWeightSumFutures[era]) 
-        return ret
     def genWeightSum(self,era=None):
         assert((self.eras is None) == (era == None))
-        if self._genWeightSum[era] is None:
-            if era not in self._genWeightSumFutures:
-                self.getWeightSumsFutureList([era])
-            self._genWeightSum[era] = self._genWeightSumFutures[era].GetValue()
-            src = self.source(era);
-            print("LOG GEN SUM: sample %s, era %r, source %s, file0 %s, sum %r" % (
-                    self.name, era, src.longId(), src.files[0], self._genWeightSum[era]))
-            del self._runsRdf[era]
-            del self._genWeightSumFutures[era]
         return self._genWeightSum[era]
+    def bookSumWeight(self, sumWeightProvider, eras):
+        sumWeightProvider.bookEras(self, eras)        
+
+def _mergeEras(samples):
+    if all((s.eras == None) for s in samples):
+        return None
+    else:
+        return list(set([e for s in samples for e in s.eras])) # make unique
+def _mergeSources(name, samples):
+    eras = _mergeEras(samples)
+    if eras is None: eras = [None]
+    sources = dict()
+    for e in eras:
+        files, friends = [], None
+        for s in samples:
+            src = s.source(e)
+            if src == None: continue
+            assert(len(src.files) == 1)
+            files.append(src.files[0])
+            if friends is None:
+                friends = [[f] for f in src.friends ]
+            else:
+                for i,f in enumerate(src.friends):
+                    friends[i].append(f)
+        sources[e] = Source(name, files, era=e, friends=friends)
+    return sources if eras != [None] else sources[None]
+
+class MCGroup(Sample): 
+    def __init__(self, name : str, samples : List[MCSample], moreHooks=[], extraWeight=None):
+        super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
+        self.samples = samples
+        self._hooks = samples[0]._hooks[:]
+        for s in samples[1:]: assert(s._hooks == self._hooks)
+        self._hooks += moreHooks[:]
+        self.xsec = samples[0].xsec
+        for s in samples[1:]: assert(s.xsec == self.xsec)
+        self.genWeightName = samples[0].genWeightName
+        for s in samples[1:]: assert(s.genWeightName == self.genWeightName)
+        self.weight = getattr(samples[0], 'weight', 1)
+        for s in samples[1:]: assert(getattr(s, 'weight', 1) == self.weight)
+        if extraWeight:
+            self.weight = "({})*({})" % (self.weight, extraWeight)
+        self.isMC = True
+    def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
+        flow2 = super().customizeFlow(flow, era=era)
+        return flow2.prepend(
+                #DefinePerSample("genWeightSum", sumWeightProvider),
+                #Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
+                Define("sampleWeight", "{0}*{1}*{2}".format(self.genWeightName,self.xsec,luminosity*1000)),
+                Define("weight", "sampleWeight*({})".format(self.weight)))
+    def bookSumWeight(self, sumWeightProvider, eras):
+        for s in self.samples:
+            sumWeightProvider.bookEras(s, eras)
 
 class DataDrivenSample(Sample): 
     #defaults = Sample.defaults.cloneAndExtend(
@@ -230,8 +256,8 @@ class DataDrivenSample(Sample):
         self.isMC = False
         self.isDataDriven = True
         self.isData = False
-    def customizeFlow(self, flow, luminosity, era):
-        flow2 = super().customizeFlow(flow, luminosity, era=era)
+    def customizeFlow(self, flow, era):
+        flow2 = super().customizeFlow(flow, era=era)
         return flow2.prepend(
                 Define("weight", getattr(self,"weight","1")))
 
@@ -325,12 +351,20 @@ class ReDefine(SimpleExprFlowStep):
         super().__init__(name, expr, **options)
     def _attach(self, rdf):
         return rdf.Redefine(self.name, self.expr)
-class DefinePerSample(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
+class DefinePerSample(FlowStep):
+    def __init__(self, name, provider, **options):
+        super().__init__(name, **options)
+        self.provider = provider
+        for k,v in options.items():
+            setattr(self,k,v)
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.provider == other.provider
+        return id(self) == id(other)
+    def _addToHash(self,hasher):
+        super()._addToHash(hasher)
     def _attach(self, rdf):
-        # Fixme didn't get DefinePerSample working in python yet
-        return rdf.Define(self.name, self.expr)
+        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name)
 class DefineDefault(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)

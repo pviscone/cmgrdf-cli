@@ -6,6 +6,7 @@ import time
 from typing import Any, List
 
 import ROOT
+from GenWeightProvider import GenWeightProvider
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
@@ -67,8 +68,6 @@ class Plot(Target):
             plot.SetBinError(n,hypot(plot.GetBinError(n+1),plot.GetBinError(n)))
             plot.SetBinContent(n+1,0)
             plot.SetBinError(n+1,0)
-        if sample.isMC:
-            plot.Scale(1.0/sample.genWeightSum(era))
         return plot
     def styleHisto1D(self, plot, process : Process):
         ## Axis
@@ -153,22 +152,22 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
 class PlotMaker(object):
     def __init__(self,growForest=True):
         self._forest = Forest() if growForest else None
+        self._summer = GenWeightProvider()
         self.clear()
     def clear(self):
-        self._sample_norm_futures = []
         self._plot_futures = []
         if self._forest: self._forest.clear()
     def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName="", withUncertainties=False):
         t0 = time.perf_counter()
-        n0 = (len(self._sample_norm_futures), len(self._plot_futures))
+        n0 = (self._summer.nSamples(), len(self._plot_futures))
         if eras is None: 
             eras = [None]
             lumi = {None:lumi}
         for p in processes:
             for s in p.samples:
                 if s.isMC: 
-                    self._sample_norm_futures += s.getWeightSumsFutureList(eras)
-        if isinstance(flows,Flow): flows= [flows]
+                    s.bookSumWeight(self._summer, eras)
+        if isinstance(flows,Flow): flows = [flows]
         for flow in flows:
             for era in eras:
                 for proc in processes:
@@ -177,7 +176,10 @@ class PlotMaker(object):
                         src = sample.source(era)
                         if not src: continue
                         sampleKey = procKey.addKeys(sample=sample.name)
-                        sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
+                        if sample.isMC:
+                            sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
+                        else:
+                            sflow = sample.customizeFlow(flow.clone(), era=era)
                         if self._forest:
                             rdf = self._forest.grow(src, sflow)
                         else:
@@ -188,14 +190,16 @@ class PlotMaker(object):
                             vars = ROOT.RDF.Experimental.VariationsFor(pfut) if withUncertainties else None
                             self._plot_futures.append((sampleKey.addKeys(plot = pl.name), proc, sample, pl, pfut, vars))         
         t1 = time.perf_counter()
-        n1 = (len(self._sample_norm_futures), len(self._plot_futures))
+        n1 = (self._summer.nSamples(), len(self._plot_futures))
         print("Booked %d sums and %d plots in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
         return self
     def runAll(self, mergeEras=False, mergeSamples=True):
         t0 = time.perf_counter()
-        n0 = (len(self._sample_norm_futures), len(self._plot_futures))
+        n0 = (self._summer.nSamples(), len(self._plot_futures))
+        self._summer.runAll()
+        print("Filled %d sums in %.3fs" % (n0[0],time.perf_counter()-t0))
         # run the graphs
-        ROOT.RDF.RunGraphs(self._sample_norm_futures+[pfut[-2] for pfut in self._plot_futures])
+        ROOT.RDF.RunGraphs([pfut[-2] for pfut in self._plot_futures])
         t1 = time.perf_counter()
         print("Filled %d sums and %d plots in %.3fs" % (n0[0],n0[1],t1-t0))
         # finalize the plots
