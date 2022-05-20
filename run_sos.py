@@ -1,4 +1,5 @@
-from flow import DefineDefault, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert
+import re
+from flow import DefineDefault, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert, Source
 from plots import Plot, PlotMaker, PlotSetPrinter
 import ROOT
 import os
@@ -93,7 +94,7 @@ metFixes = [
     ReDefine("MET_phi","METFixEE2017_phi ",eras=[2017], onMC=False),
 ]
 
-preSelection = [ #Flow("2los",
+preSelection = [ 
     Cut("eventFilters", "EventFilters", onMC=False),
     AddWeight("puWeight","puWeight"),
     AddWeight("eventBTagSF","eventBTagSF"),
@@ -181,18 +182,33 @@ others = [
 
 
 commonSteps = recleanerDefines + branchDefaults + eventFilterDefines + metFixes
-flow_SR = Flow("SR", commonSteps + preSelection + [metCutsMap["methigh"],metCutsMap["methigh_trig"]] + srCuts)
+flow_SR = dict( (met,Flow(f"SR{met}", commonSteps + preSelection + [metCutsMap[f"met{met}"],metCutsMap[f"met{met}_trig"]] + srCuts)) for met in ("med","high",) )
 
 TruthMatchedLeptons = Insert(Cut("mcTrue","LepGood_mcMatchId[iLepFO_Recl[0]] != 0 && LepGood_mcMatchId[iLepFO_Recl[1]] != 0"), after="dilep")
 FakeMatchedLeptons = Insert(Cut("mcTrue","||".join(f"(LepGood_mcMatchId[iLepFO_Recl[{i}]] == 0 && LepGood_mcPromptGamma[iLepFO_Recl[{i}]] == 0)" for i in (0,1))), after="dilep")
-def PromptMC(name,eras=[2016,2017,2018]):
-    return MCSample(name, P, friends=PFMC, xsec="xsec", eras=eras, hooks=[TruthMatchedLeptons])
-def FakeMC(name,eras=[2016,2017,2018]):
-    return MCSample(name, P, friends=PFMC, xsec="xsec", eras=eras, hooks=[FakeMatchedLeptons])
+
+def makeMCs(names,hooks,eras=[2016,2017,2018]):
+    ret = []
+    if type(names) == str:
+        names = [ str ]
+    for name in names:
+        if type(name) == tuple: # name & eras
+            ret += makeMCs([name[0]], hooks, eras=[name[1:]])
+        elif type(name) == list: 
+            ret += makeMCs(name, hooks, eras=eras)
+        else:
+            ret.append( MCSample(name, P, friends=PFMC, xsec="xsec", eras=eras, hooks=hooks) )
+    return ret
+def makePrompt(names,eras=[2016,2017,2018]):
+    return makeMCs(names,[TruthMatchedLeptons],eras=eras)
+def makeFakes(names,eras=[2016,2017,2018]):
+    return makeMCs(names,[FakeMatchedLeptons],eras=eras)
 
 def makeBins(edges,to="to"):
     return ["%sto%s" % (edges[i-1],edges[i]) for i in range(1,len(edges))]
-WJbins = makeBins([100,200,400,600,800,1200,2500,"Inf"])
+def makeWJ(hooks=[FakeMatchedLeptons], years=[2016,2017,2018]):
+    WJbins = makeBins([100,200,400,600,800,1200,2500,"Inf"])
+    return [MCSample("WJetsToLNu_HT%s" % s, P, friends=PFMC, xsec="xsec", eras=years, hooks=hooks) for s in WJbins]
 def makeDYs(hooks,years=[2016,2017,2018]):
     ret = []
     for year in years:
@@ -207,20 +223,81 @@ def makeDYs(hooks,years=[2016,2017,2018]):
             name = "DYJetsToLL_"+b
             ret.append(MCSample(name, P, friends=PFMC, xsec="xsec", eras=[year], hooks=hooks))
     return ret
-     
-data = [
-    Process("TT", [PromptMC("TTJets_DiLepton")], label="t#bar{t} (2l)", fillColor=ROOT.kBlue-7),
-    Process("DY", makeDYs([TruthMatchedLeptons]), label="DY", fillColor=ROOT.kCyan),
-    Process("WZ", [PromptMC("WZTo3LNu_mllmin01")], label="WZ", fillColor=ROOT.kGreen+1),
-    Process("VV", [PromptMC(x) for x in ("ZZTo2L2Q", "ZZTo2L2Q", "ZZTo4L_M1toInf", "VVTo2L2Nu_M1toInf", "WpWpJJ")]+
-                  [PromptMC("WWDoubleTo2L",eras=[2016])]+
-                  [PromptMC("WW_DPS",eras=[2017,2018])], label="VV", fillColor=ROOT.kViolet-4),
-    Process("Fakes_Wt", [FakeMC("WJetsToLNu_HT%s" % s) for s in WJbins], label="Wj(fakes)", fillColor=ROOT.kGray),
-    Process("Fakes_tt", [FakeMC("TTJets_"+s) for s in ("DiLepton","SingleLeptonFromT","SingleLeptonFromTbar")], label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
-    Data([DataSample(f"{pd}_Run2016{l}_25Oct2019", P, friends=PF, eras=[2016]) for pd in ("DoubleMuon","MET") for l in "BCDEFGH"]+
-         [DataSample(f"{pd}_Run2017{l}_25Oct2019", P, friends=PF, eras=[2017]) for pd in ("DoubleMuon","MET") for l in "BCDEF"]+
-         [DataSample(f"{pd}_Run2018{l}_25Oct2019", P, friends=PF, eras=[2018]) for pd in ("DoubleMuon","MET") for l in "ABCD"])
-]
+
+TT2l = ["TTJets_DiLepton"]
+TT1l = ["TTJets_SingleLeptonFromT","TTJets_SingleLeptonFromTbar"]
+TW = ["T_tWch_noFullyHad","TBar_tWch_noFullyHad"]
+T = ["T_sch_lep","T_tch","TBar_tch"]
+WZ = ["WZTo3LNu_mllmin01"]
+VVp = [ "ZZTo2L2Q", "ZZTo2L2Q", "ZZTo4L_M1toInf", "VVTo2L2Nu_M1toInf", "WpWpJJ", ("WWDoubleTo2L",2016), ("WW_DPS",2017,2018) ]
+VVf = [ "WWToLNuQQ", ("WZTo1L1Nu2Q",2016,2017) ]
+TTW = [ ("TTWToLNu_fxfx",2018),("TTWToLNu",2016) ]
+TTZ = [ ("TTZToLLNuNu_amc",2017,2018),("TTZToLLNuNu",2016),"TTZToLLNuNu_m1to10"]
+Rares  = [ "TZQToLL","tWll","WWW_ll","WWZ","WZZ","ZZZ"]
+
+def makeData(pds,processing,years=[2016,2017,2018]):
+    eras = {2016:"BCDEFGH",2017:"BCDEF",2018:"ABCD"}
+    return [DataSample(f"{pd}_Run{y}{l}_{processing}", P, friends=PF, eras=[y]) for pd in pds for y in years for l in eras[y]]
+def makeGData(pds,processing,years=[2016,2017,2018]):
+    eras = {2016:"BCDEFGH",2017:"BCDEF",2018:"ABCD"}
+    sources = dict()
+    for y in years:
+        files = [ P.format(name=f"{pd}_Run{y}{l}_{processing}", era=y) for pd in pds for l in eras[y] ]
+        friends = [ [ F.format(name=f"{pd}_Run{y}{l}_{processing}", era=y) for pd in pds for l in eras[y] ] for F in PF ]
+        name = "Data_Run%d%s_%s"%(y,eras[y],processing)
+        sources[y] = Source(name, files, era=y, friends=friends)
+    return [DataSample("Data_"+processing, sources, eras=years)]
+
+def mcG(name,samples,eras=[2016,2017,2018]):
+    ## Now, this is a bug but we don't care for the result at the moment
+    sources = dict()
+    for e in eras:
+        files, friends = [], None
+        for s in samples:
+            src = s.source(e)
+            if src == None: continue
+            assert(len(src.files) == 1)
+            files.append(src.files[0])
+            if friends is None:
+                friends = [[f] for f in src.friends ]
+            else:
+                for i,f in enumerate(src.friends):
+                    friends[i].append(f)
+        #print(f"{name} at era {e}:")
+        #print("  %d files: %s" % (len(files), files[:3]))
+        #print("  %d friends:" % (len(friends)))
+        #for f in friends:
+        #    print("     %d friend files: %s" % (len(f),f[:3]))
+        sources[e] = Source(name, files, era=e, friends=friends)
+    return [MCSample(name, sources, eras=eras, xsec=samples[0].xsec, hooks=samples[0]._hooks)]
+
+data = dict(
+    prompt = [
+        Process("TT", makePrompt(TT2l), label="t#bar{t} (2l)", fillColor=ROOT.kBlue-7),
+        #Process("DY", makeDYs([TruthMatchedLeptons]), label="DY", fillColor=ROOT.kCyan),
+        #Process("WZ", makePrompt(WZ), label="WZ", fillColor=ROOT.kGreen+1),
+        #Process("VV", makePrompt(VVp), label="VV", fillColor=ROOT.kViolet-4),
+        #Process("Rares", mcG("Rares",makePrompt(TW+TTW+TT1l+TTZ+Rares)), label="Rares", fillColor=ROOT.kViolet-4),
+        Process("Rares", makePrompt(TW+TTW+TT1l+TTZ+Rares), label="Rares", fillColor=ROOT.kViolet-4),
+    ],
+    mcfakes = [
+        #Process("Fakes_dy", mcG("Fakes_dy",makeDYs([FakeMatchedLeptons])), label="DY(fakes)", fillColor=ROOT.kBlack),
+        Process("Fakes_dy", makeDYs([FakeMatchedLeptons]), label="DY(fakes)", fillColor=ROOT.kBlack),
+        #Process("Fakes_Wj", makeWJ(), label="Wj(fakes)", fillColor=ROOT.kGray),
+        #Process("Fakes_tt", makeFakes(TT2l+TT1l), label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
+        #Process("Fakes_t", makeFakes(TW+T), label="t(fakes)", fillColor=ROOT.kGray+2),
+        #Process("Fakes_vv", makeFakes(VVf), label="VV(fakes)", fillColor=ROOT.kGray+3),
+    ],
+    ddfakes = [
+    ],
+    data = [
+        Data(makeGData(("DoubleMuon", "MET"),"25Oct2019"))
+             #[DataSample(f"{pd}_Run2016{l}_25Oct2019", P, friends=PF, eras=[2016]) for pd in ("DoubleMuon", "MET") for l in "BCDEFGH"] +
+             #[DataSample(f"{pd}_Run2017{l}_25Oct2019", P, friends=PF, eras=[2017]) for pd in ("DoubleMuon", "MET") for l in "BCDEF"] +
+             #[DataSample(f"{pd}_Run2018{l}_25Oct2019", P, friends=PF, eras=[2018]) for pd in ("DoubleMuon", "MET") for l in "ABCD"])
+    ]
+)
+
 
 plots = [ 
     Plot("yields", "1", (1,-0.5,0.5), xTitle="Total Event Yields"),
@@ -229,9 +306,10 @@ plots = [
 
 lumi = {2017:41.5, 2018:59.7}
 
-ROOT.EnableImplicitMT(12)
+ROOT.EnableImplicitMT(16)
 maker = PlotMaker()
-maker.book(data,lumi,flow_SR,plots,eras=[2018])
+#verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo)
+maker.book(data["prompt"]+data["mcfakes"]+data["data"],lumi,flow_SR["med"],plots,eras=[2018],taskName="mcFakes")
 result_plots = maker.runAll()
 printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi[2018], showRatio=True, showErrors=True)
-printer.printSet(result_plots, "plots/002/sos/cmgrdf/{era}/{flow}")
+printer.printSet(result_plots, "plots/003/sos/cmgrdf/{era}/{flow}_{taskName}")

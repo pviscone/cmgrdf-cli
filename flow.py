@@ -16,6 +16,7 @@ class Source(object):
         self.files = files
         self.era = era
         self.friends = friends
+        self._bigHash = None
     def createRDF(self, treeName="Events"):
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
@@ -38,10 +39,27 @@ class Source(object):
                 else:
                     ret = ROOT.RDataFrame(treeName,self.files[0])
         else:
-            if treeName == "Events": assert(self.friends == None) # not supported
             chain = ROOT.TChain(treeName)
             for f in self.files: chain.Add(f)
-            ret = ROOT.RDataFrame(treeName,chain)
+            friendChains = []
+            if treeName == "Events": 
+                if self.friends != None:
+                    #print("Creating friends for %s %s" % (treeName, self.longId()))
+                    for i,files in enumerate(self.friends):
+                        #print(" -> creating chain for friend %d: %s" % (i+1,files[:2]))
+                        ftname = "Friends"
+                        if type(files) == tuple:    
+                            ftname = files[0]
+                            files = files[1]
+                        fchain = ROOT.TChain(ftname)#"iFriends%d" % (i+1))
+                        for f in files: fchain.Add(f) #f"{f}?#{ftname}")
+                        chain.AddFriend(fchain)
+                        friendChains.append(fchain)
+            ret = ROOT.RDataFrame(chain)
+            ret._chain = chain
+            ret._friendChains = friendChains
+            #print("RDF for %s %s: chain %s, friends %s" % (treeName, self.longId(), chain, friendChains))
+        #print("RDF for %s %s: FO branches %s" % (treeName, self.longId(), [s for s in ret.GetColumnNames() if "FO" in str(s)]))
         return ret
     def __eq__(self, o : object) -> bool:
         if o.__class__ == Source:
@@ -49,18 +67,29 @@ class Source(object):
         else:
             return id(self) == id(o)
     def bigHash(self):
+        if not self._bigHash: self._makeBigHash()
+        return self._bigHash
+    def _makeBigHash(self):
         if os.path.exists(self.files[0]): # files may not exist if e.g. they're globs or root URLs
             tsfiles = [(f,os.path.getmtime(f)) for f in self.files]
             tsfriends = []
             if self.friends:
                 for f in self.friends:
                     if type(f) == tuple:
-                        tsfriends.append((f[0],f[1],os.path.getmtime(f[1])))
+                        if len(self.files) == 1:
+                            tsfriends.append((f[0],f[1],os.path.getmtime(f[1])))
+                        else:
+                            for fi in f[1]: 
+                                tsfriends.append((f[0],fi,os.path.getmtime(fi)))
                     else:
-                        tsfriends.append((f,os.path.getmtime(f)))
-            return recursiveHash(self.name,self.era,tsfiles,tsfriends)
+                        if len(self.files) == 1:
+                            tsfriends.append((f,os.path.getmtime(f)))
+                        else:
+                            for fi in f:
+                                tsfriends.append((fi,os.path.getmtime(fi)))
+            self._bigHash = recursiveHash(self.name,self.era,tsfiles,tsfriends)
         else:
-            return recursiveHash(self.name,self.era,self.files,self.friends)
+            self._bigHash = recursiveHash(self.name,self.era,self.files,self.friends)
     def __hash__(self):
         return hash(self.bigHash())
     def safeName(self):
@@ -104,6 +133,7 @@ class Sample(object):
             else:
                 self._sources = dict((era, source[era]) for era in self.eras)
         elif isinstance(source,Source):
+            assert(friends == None) # should have been put in the Source object
             self._source = source
         else:
             friendFiles = [ f.format(name=name) for f in friends] if friends else None
@@ -184,6 +214,9 @@ class MCSample(Sample):
             if era not in self._genWeightSumFutures:
                 self.getWeightSumsFutureList([era])
             self._genWeightSum[era] = self._genWeightSumFutures[era].GetValue()
+            src = self.source(era);
+            print("LOG GEN SUM: sample %s, era %r, source %s, file0 %s, sum %r" % (
+                    self.name, era, src.longId(), src.files[0], self._genWeightSum[era]))
             del self._runsRdf[era]
             del self._genWeightSumFutures[era]
         return self._genWeightSum[era]

@@ -32,5 +32,6 @@ An analysis task is characterized by the following items:
 ### To Do
  * Normalization Uncertainties
  * Coalescing of identical plots (like already done for flow steps)
+ * Coalescing of identical processings on different samples for same process? (or let the user do it?)
  * Print cut flow report
  * Luminosity in plot printer: how?
