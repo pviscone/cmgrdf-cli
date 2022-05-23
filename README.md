@@ -4,7 +4,8 @@
 
 To install, from outside CMSSW, and with python3 (e.g. lxplus8.cern.ch):
 ```bash
-git clone https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git 
+git clone https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git
+cd cmgrdf-prototype 
 make -j 3
 ```
 
