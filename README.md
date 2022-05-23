@@ -1,4 +1,18 @@
 # CMGRDF
+
+## Setup recipe
+
+To install, from outside CMSSW, and with python3 (e.g. lxplus8.cern.ch):
+```bash
+git clone https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git 
+make -j 3
+```
+
+To set up your environment (path, python path, ...), from the main directory:
+```bash
+eval $(make env)
+```
+
 ## Overview of the model
 
 An analysis task is characterized by the following items:
@@ -20,18 +34,20 @@ An analysis task is characterized by the following items:
 * A Process is a group of samples that is put together as a single entry into plots, yields, datacards.
    * The process defines the display options like a pretty label, colors, etc.
 
-## Processing: Flow, steps, 
+## Processing: Flow, Steps 
 
 * A Flow is a sequence of processing steps: cuts, variable definitions, ...
   * Steps can be shared across multiple flows (e.g. common definitions or preselection cuts)
   * Some steps may apply only on some sample types (MC, Data, ...) or eras, and individual Sample may have further hooks to customize the flow applied to them
 * When data has to be processed, the tool takes care of assembling for each source a RooDataFrame the full RooDataFrame graph, and if multiple flows share a common initial part the corresponding RooDataFrame nodes are only created once.
 
-
-
 ### To Do
- * Normalization Uncertainties
- * Coalescing of identical plots (like already done for flow steps)
- * Coalescing of identical processings on different samples for same process? (or let the user do it?)
+
+ * Normalization Uncertainties in a better way
+ * Document MCGroup
+ * Test a fake rate method
+ * Test roo-fit related stuff
+ * Implement creating datacards
  * Print cut flow report
- * Luminosity in plot printer: how?
+ * Luminosity in plot printer: how? attach lumi to PlotResult?
+ * Caching

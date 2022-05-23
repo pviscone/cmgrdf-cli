@@ -4,6 +4,7 @@ from typing import List
 import copy
 import hashlib
 import sys
+import os.path
 
 class OptionDecl(object):
     def __init__(self, name, default=None, type=str, cmdline=None, **kwargs):
@@ -167,3 +168,11 @@ def recursiveHash(*objs):
     for obj in objs:
         _recursiveAddToHash(obj, hasher)
     return hasher.hexdigest()
+
+def localOrEOS(dir,localroot,eosroot,eosurl="root://eoscms.cern.ch/"):
+    localPath = os.path.join(localroot,dir)
+    if os.path.isdir(localPath):
+        return localPath
+    if not eosroot.startswith("root://"):
+        eosroot = eosurl + eosroot
+    return os.path.join(eosroot,dir)

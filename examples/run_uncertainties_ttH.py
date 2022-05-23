@@ -1,13 +1,8 @@
-import sys
-from flow import AddWeightUncertainty, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, Append
-
-from plots import Plot, PlotMaker, PlotSetPrinter
+from CMGRDF import *
 import ROOT
-ROOT.gROOT.SetBatch(True)
-ROOT.PyConfig.IgnoreCommandLineOptions = True
-ROOT.gInterpreter.ProcessLine('#include "functions.cc"')
 
-P="/scratch/gpetrucc/NanoTrees_TTH_v6/2018/"
+P=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6pre")
+PD=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
 DYuncs = Append(AddWeightUncertainty("DYxsec",1.2),
                 AddWeightUncertainty("DYnj","std::pow(1.05,nJet)","std::pow(0.95,nJet)")) 
 TTuncs = Append(AddWeightUncertainty("TTxsec",1.3))
@@ -16,7 +11,7 @@ data = [
     Process("TT", [MCSample("TTJets_DiLepton",P+"/{name}.root", xsec="xsec", hooks=[TTuncs])], label="t#bar{t}", fillColor=ROOT.kOrange+3, signal=True),
     Process("DY", [MCSample("DYJetsToLL_M50",P+"/{name}.root", xsec="xsec", hooks=[DYuncs]),
                    MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec", hooks=[DYuncs])], label="DY", fillColor=ROOT.kAzure+10),
-    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,P+"/{name}.root") for era in "ABCD"]),
+    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,PD+"/{name}.root") for era in "ABCD"]),
 ]
 cuts = Flow("dilep",
         AddWeight("prescaleFromSkim","prescaleFromSkim", onData=True, onDataDriven=True),

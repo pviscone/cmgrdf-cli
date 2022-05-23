@@ -1,15 +1,9 @@
-import copy
-import hashlib
-import re
-from typing import Dict, List, Union
-from utils import OptionDecl, Options, recursiveHash, _recursiveAddToHash
-import os.path
-import ROOT
-ROOT.gROOT.SetBatch(True)
-ROOT.PyConfig.IgnoreCommandLineOptions = True
+from typing import List
+import ROOT, os, os.path, re
+from CMGRDF.utils import recursiveHash
 
 class Source(object):
-    def __init__(self, name : str, files, era = None, friends=None): ## TODO: add support for friends here
+    def __init__(self, name : str, files, era = None, friends=None):
         if type(files) == str: files = [files]
         else: assert(len(files) >= 1)
         self.name = name if name else Source._autoName(files)
@@ -17,6 +11,7 @@ class Source(object):
         self.era = era
         self.friends = friends
         self._bigHash = None
+        self._bigHashNoFriends = None
     def createRDF(self, treeName="Events"):
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
@@ -66,9 +61,9 @@ class Source(object):
             return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends
         else:
             return id(self) == id(o)
-    def bigHash(self):
+    def bigHash(self,friends=True):
         if not self._bigHash: self._makeBigHash()
-        return self._bigHash
+        return self._bigHash if friends else self._bigHashNoFriends
     def _makeBigHash(self):
         if os.path.exists(self.files[0]): # files may not exist if e.g. they're globs or root URLs
             tsfiles = [(f,os.path.getmtime(f)) for f in self.files]
@@ -88,8 +83,16 @@ class Source(object):
                             for fi in f:
                                 tsfriends.append((fi,os.path.getmtime(fi)))
             self._bigHash = recursiveHash(self.name,self.era,tsfiles,tsfriends)
+            if self.friends:
+                self._bigHashNoFriends = recursiveHash(self.name,self.era,tsfiles)
+            else:
+                self._bigHashNoFriends = self._bigHash
         else:
             self._bigHash = recursiveHash(self.name,self.era,self.files,self.friends)
+            if self.friends:
+                self._bigHashNoFriends = recursiveHash(self.name,self.era,self.files)
+            else:
+                self._bigHashNoFriends = self._bigHash
     def __hash__(self):
         return hash(self.bigHash())
     def safeName(self):
@@ -166,11 +169,6 @@ class Sample(object):
         return flow
 
 class MCSample(Sample): 
-   #__options = Sample.options.cloneAndExtend(
-   #                OptionDecl("genWeightName", "genWeight", help="Generator weight (added to thhe default weight)"),
-   #                OptionDecl("genWeightSum", None, help="Pre-computed sum of generator weights [for each era]. If not specified, will be computed from genSumWeightName"),
-   #                OptionDecl("genSumWeightName", "_auto_", help="Generator weight sum name in the Runs tree. _auto_ selects 'genEventSumw' or 'genEventSumw_' depending on what is available"),
-   #                OptionDecl("xsec", "1.0", help="Cross section times BR, in pb (can be a branch name)"))
     def __init__(self, name : str, source, genWeightName="genWeight", genWeightSum=None, genSumWeightName="_auto_", xsec="1.0", **kwargs):
         super().__init__(name, source, **kwargs)
         self.genWeightName = genWeightName
@@ -186,6 +184,7 @@ class MCSample(Sample):
         self.isMC = True
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
+        from CMGRDF.flow import DefinePerSample, Define
         return flow2.prepend(
                 DefinePerSample("genWeightSum", sumWeightProvider),
                 Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
@@ -200,7 +199,8 @@ def _mergeEras(samples):
     if all((s.eras == None) for s in samples):
         return None
     else:
-        return list(set([e for s in samples for e in s.eras])) # make unique
+        return list(sorted(set([e for s in samples for e in s.eras]))) # use set to make unique
+
 def _mergeSources(name, samples):
     eras = _mergeEras(samples)
     if eras is None: eras = [None]
@@ -238,18 +238,16 @@ class MCGroup(Sample):
         self.isMC = True
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
+        from CMGRDF.flow import DefinePerSample, Define
         return flow2.prepend(
-                #DefinePerSample("genWeightSum", sumWeightProvider),
-                #Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
-                Define("sampleWeight", "{0}*{1}*{2}".format(self.genWeightName,self.xsec,luminosity*1000)),
+                DefinePerSample("genWeightSum", sumWeightProvider),
+                Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
                 Define("weight", "sampleWeight*({})".format(self.weight)))
     def bookSumWeight(self, sumWeightProvider, eras):
         for s in self.samples:
             sumWeightProvider.bookEras(s, eras)
 
 class DataDrivenSample(Sample): 
-    #defaults = Sample.defaults.cloneAndExtend(
-    #            OptionDecl("weight", "1", help="Starting weight for this sample"))
     def __init__(self, name, source, weight="1", **options):
         super().__init__(name, source, **options)
         self.weight = weight
@@ -258,6 +256,7 @@ class DataDrivenSample(Sample):
         self.isData = False
     def customizeFlow(self, flow, era):
         flow2 = super().customizeFlow(flow, era=era)
+        from CMGRDF.flow import Define
         return flow2.prepend(
                 Define("weight", getattr(self,"weight","1")))
 
@@ -269,6 +268,8 @@ class DataSample(DataDrivenSample):
 class Process(object):
     def __init__(self,name,samples,**options):
         self.name = name
+        if isinstance(samples,Sample):
+            samples = [samples]
         self.samples = samples
         for k,v in options.items():
             setattr(self,k,v)
@@ -283,233 +284,3 @@ class Data(Process):
         if "label" not in options: options["label"] = "Data"
         super(Data,self).__init__("data",samples,**options)
         self.isData = True
-
-class FlowStep(object):
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
-        self.name = name
-        self.onMC = onMC
-        self.onData = onData
-        self.onDataDriven = onDataDriven
-        self.eras = eras
-    def appliesTo(self, sample : Sample, era) -> bool:
-        assert(isinstance(sample,Sample))
-        if sample.isMC:
-            if not self.onMC: return False
-        elif sample.isData:
-            if not self.onData: return False
-        elif sample.isDataDriven:
-            if not self.onDataDriven: return False
-        if self.eras and (era not in self.eras):
-            return False
-        return True
-    def attach(self, rdf):
-        rdf2 = self._attach(rdf)
-        if rdf2 != rdf:
-            rdf2._from = rdf
-            return rdf2
-        else:
-            return rdf
-    @staticmethod
-    def _equals(obj1,obj2):
-        return (obj1.name == obj2.name and 
-                obj1.onMC == obj2.onMC and
-                obj1.onData == obj2.onData and
-                obj1.onDataDriven == obj2.onDataDriven and
-                obj1.eras == obj2.eras)
-    def _addToHash(self,hasher):
-        _recursiveAddToHash((self.name,self.onMC,self.onData,self.onDataDriven,self.eras),hasher)
-
-class SimpleExprFlowStep(FlowStep):
-    """ A Flow step which is fully defined by a single expression.
-        This base class implements the equality and hash tests, while it's
-        up to the subclass to implement _attach(self, rdf)"""
-    def __init__(self, name, expr, **options):
-        super().__init__(name, **options)
-        self.expr = expr
-        for k,v in options.items():
-            setattr(self,k,v)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.expr == other.expr
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr, hasher)
-
-class Cut(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
-    def _attach(self, rdf):
-        return rdf.Filter(self.expr, self.name)
-class Define(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
-    def _attach(self, rdf):
-        return rdf.Define(self.name, self.expr)
-class ReDefine(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
-    def _attach(self, rdf):
-        return rdf.Redefine(self.name, self.expr)
-class DefinePerSample(FlowStep):
-    def __init__(self, name, provider, **options):
-        super().__init__(name, **options)
-        self.provider = provider
-        for k,v in options.items():
-            setattr(self,k,v)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.provider == other.provider
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-    def _attach(self, rdf):
-        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name)
-class DefineDefault(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
-    def _attach(self, rdf):
-        # FIXME use DefinePerSample
-        if self.name in rdf.GetColumnNames():
-            return rdf
-        return rdf.Define(self.name,self.expr)
-class AddWeight(SimpleExprFlowStep):
-    def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
-        super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
-    def _attach(self,rdf):
-        return rdf.Redefine("weight","weight*(%s)"%self.expr)
-
-class AddWeightUncertainty(FlowStep):
-    def __init__(self, name, exprUp, exprDown=None, nominal="1.0", **options):
-        super().__init__(name, **options)
-        self.nominal = nominal
-        if exprDown is not None:
-            self.vars = (exprDown, exprUp)
-        else:
-            self.vars = ("({0})/({1})".format(nominal,exprUp), exprUp)
-    def _attach(self,rdf):
-        rdf = rdf.Define(self.name, str(self.nominal))
-        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down","up"])
-        return rdf.Redefine("weight","weight*(%s)"%self.name)
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.nominal == other.nominal and self.vars == other.vars
-        return id(self) == id(other)
-    def _addToHash(self,hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.nominal, hasher)
-        _recursiveAddToHash(self.vars, hasher)
-
-
-class Append(object):
-    def __init__(self, *steps : List[FlowStep]):
-        self.steps = list(steps)
-    def customizeFlow(self, flow, era):
-        return flow.append(self.steps)
-
-class Insert(object):
-    def __init__(self, *steps : List[FlowStep], before=None, after=None):
-        self.steps = list(steps)
-        if before != None:
-            assert(after == None)
-            self.when = ("before", before)
-        elif after != None:
-            assert(before == None)
-            self.when = ("after", after)
-        else:
-            raise RuntimeError("Must specify either before or after")
-    def customizeFlow(self, flow : "Flow", era):
-        return flow.insertBeforeOrAfter(self.when[0], self.when[1], *self.steps)
-
-class Flow(object):
-    def __init__(self, name, *steps, **options):
-        self.name = name
-        self.steps = Flow._flatten(steps) # type: List[FlowStep]
-        for k,v in options.items():
-            setattr(self, k, v)
-    @staticmethod
-    def _flatten(steps):
-        ret = []
-        for s in steps:
-            if type(s) == list:
-                ret += Flow._flatten(s)
-            else:
-                assert(isinstance(s,FlowStep))
-                ret.append(s)
-        return ret
-    def clone(self, newName=None):
-        ret = copy.copy(self)
-        if newName: ret.name = newName
-        ret.steps = copy.copy(self.steps)
-        ret._from = self
-        return ret
-    def prepend(self, *steps):
-        self.steps[0:0] = Flow._flatten(steps)
-        return self
-    def append(self, *steps):
-        self.steps += Flow._flatten(steps)
-        return self
-    def filterSteps(self, filter):
-        self.steps = [ s for s in self.steps if filter(s)]
-        return self
-    def insertBeforeOrAfter(self, when : str, name, *steps):
-        assert(when in ("before","after"))
-        newSteps = []
-        found = True
-        for s in self.steps:
-            if s.name == name and when == "before":
-                newSteps += Flow._flatten(steps)
-            newSteps.append(s)
-            if s.name == name and when == "after":
-                newSteps += Flow._flatten(steps)
-        self.steps = newSteps
-        if not found: raise RuntimeError("Not found step %s in flow %s" % (name,self.name))
-        return self
-    def attach(self, rdf, sample : Sample, era):
-        assert(isinstance(sample,Sample))
-        for s in self.steps:
-            if s.appliesTo(sample,era):
-                rdf = s.attach(rdf)
-        return rdf
-
-class Target(object):
-    def __init__(self, name):
-        self.name = name
-    def attach(self, rdf, sample, era):
-        raise RuntimeError("Must be implemented by subclass")
-    def finish(self, rdf, sample, era):
-        pass
-
-
-
-class _Branch(object):
-    def __init__(self, step : FlowStep, rdf, hasher = None):
-        self.step = step
-        self.rdf = rdf
-        self.branches = [] # type: List["_Branch"]
-        self.hasher = hashlib.sha256() if hasher == None else hasher # type: hashlib.sha256
-        if step: step._addToHash(self.hasher)
-    def maybeBranch(self, step : FlowStep, verbose=False):
-        for b in self.branches:
-            if b.step == step:
-                if verbose: print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
-                return b
-        b = _Branch(step, step.attach(self.rdf), self.hasher.copy())
-        if verbose: print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
-        self.branches.append(b)
-        return b
-class Forest(object):
-    def __init__(self):
-        self._trees = dict() # type: Dict[Source,_Branch]
-    def grow(self, source : Source, flow : Flow, treeName="Events", verbose=False):
-        if source not in self._trees:
-            if verbose: print("Created new source tree for %s" % source.longId())
-            self._trees[source] = _Branch(None,source.createRDF(treeName))
-        else:
-            if verbose: print("Reused source for %s" % source.longId())
-        tree = self._trees[source]
-        for step in flow.steps:
-            tree = tree.maybeBranch(step, verbose=verbose)
-        return tree.rdf
-    def clear(self):
-        self._trees.clear()

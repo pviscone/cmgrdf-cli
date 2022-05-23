@@ -1,17 +1,15 @@
-from flow import Process, MCSample, DataSample, Data, Flow, AddWeight, Cut
-from plots import Plot, PlotMaker, PlotSetPrinter
+from CMGRDF import *
 import ROOT
-ROOT.gROOT.SetBatch(True)
-ROOT.PyConfig.IgnoreCommandLineOptions = True
 
-P="/scratch/gpetrucc/NanoTrees_TTH_v6/2018/"
+P=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6pre")
+PD=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
 data_dilep = [
     Process("DY", [MCSample("DYJetsToLL_M50",P+"/{name}.root", xsec="xsec"),
                    MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec")], label="DY", fillColor=ROOT.kAzure+10, signal=True),
     Process("WZ", [MCSample("WZTo3LNu_pow",P+"/{name}.root", xsec="xsec")], label="WZ", fillColor=ROOT.kMagenta+1),
     Process("WW", [MCSample("WWTo2L2Nu",P+"/{name}.root", xsec="xsec")], label="WW", fillColor=ROOT.kViolet+1),
     Process("TT", [MCSample("TTJets_DiLepton",P+"/{name}.root", xsec="xsec")], label="t#bar{t}", fillColor=ROOT.kOrange+3),
-    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,P+"/{name}.root") for era in "ABCD"]),
+    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,PD+"/{name}.root") for era in "ABCD"]),
 ]
 cuts_dilep = Flow("dilep",
         AddWeight("prescaleFromSkim","prescaleFromSkim", onData=True, onDataDriven=True),

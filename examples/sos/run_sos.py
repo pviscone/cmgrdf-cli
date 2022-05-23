@@ -1,21 +1,16 @@
-import re
-from flow import DefineDefault, MCGroup, Process, MCSample, DataSample, Data, Flow, AddWeight, Cut, Define, ReDefine, Insert, Source
-from plots import Plot, PlotMaker, PlotSetPrinter
-import ROOT
-import os
-ROOT.gROOT.SetBatch(True)
-ROOT.PyConfig.IgnoreCommandLineOptions = True
+import os, ROOT
+from CMGRDF import *
+from CMGRDF.data import Source # stuff beyond the basics
 
 os.environ["SOS_DATA_DIR"] = "/afs/cern.ch/work/g/gpetrucc/ttHH/CMSSW_10_6_30/src/CMGTools/TTHAnalysis/data/susySosSF"
 
-ROOT.gInterpreter.ProcessLine('#include "functions.cc"')
-ROOT.gInterpreter.ProcessLine('#include "sos/functionsSOS.cc"')
-ROOT.gInterpreter.ProcessLine('#include "sos/functionsSF.cc"')
+ROOT.gInterpreter.ProcessLine('#include "functionsSOS.cc"')
+ROOT.gInterpreter.ProcessLine('#include "functionsSF.cc"')
 
-P0="/scratch/gpetrucc/NanoTrees_SOS_070220_v6_skim_2lep_met125/{era}"
-P=P0+"/{name}.root"
-PF=[P0+"/recleaner/{name}_Friend.root"]
-PFMC=PF+[P0+"/jetmetUncertainties/{name}_Friend.root",P0+"/bTagWeights/{name}_Friend.root"]
+P0=localOrEOS("NanoTrees_SOS_070220_v6_skim_2lep_met125","/scratch/gpetrucc","/eos/cms/store/cmst3/group/tthlep/peruzzi/")
+P=P0+"/{era}/{name}.root"
+PF=[P0+"/{era}/recleaner/{name}_Friend.root"]
+PFMC=PF+[P0+"/{era}/jetmetUncertainties/{name}_Friend.root",P0+"/{era}/bTagWeights/{name}_Friend.root"]
 
 recleanerDefines = [
     ReDefine("nLepGood", "nLepFO_Recl"),
@@ -251,19 +246,18 @@ def makeGData(pds,processing,years=[2016,2017,2018]):
 data = dict(
     prompt = [
         Process("TT", makePrompt(TT2l), label="t#bar{t} (2l)", fillColor=ROOT.kBlue-7),
-        #Process("DY", makeDYs([TruthMatchedLeptons]), label="DY", fillColor=ROOT.kCyan),
-        #Process("WZ", makePrompt(WZ), label="WZ", fillColor=ROOT.kGreen+1),
-        #Process("VV", makePrompt(VVp), label="VV", fillColor=ROOT.kViolet-4),
-        Process("Rares", [MCGroup("Rares",makePrompt(TW+TTW+TT1l+TTZ+Rares))], label="Rares", fillColor=ROOT.kViolet-4),
-        #Process("Rares", makePrompt(TW+TTW+TT1l+TTZ+Rares), label="Rares", fillColor=ROOT.kViolet-4),
+        Process("DY", MCGroup("DY",makeDYs([TruthMatchedLeptons])), label="DY", fillColor=ROOT.kCyan),
+        Process("WZ", makePrompt(WZ), label="WZ", fillColor=ROOT.kGreen+1),
+        Process("VV", makePrompt(VVp), label="VV", fillColor=ROOT.kViolet-4),
+        Process("Rares", [MCGroup("Rares",makePrompt(TW+TTW+TTZ+Rares)),
+                          *makePrompt(TT1l)], label="Rares", fillColor=ROOT.kViolet-4),
     ],
     mcfakes = [
-        Process("Fakes_dy", [MCGroup("Fakes_dy",makeDYs([FakeMatchedLeptons]))], label="DY(fakes)", fillColor=ROOT.kBlack),
-        #Process("Fakes_dy", makeDYs([FakeMatchedLeptons]), label="DY(fakes)", fillColor=ROOT.kBlack),
-        #Process("Fakes_Wj", makeWJ(), label="Wj(fakes)", fillColor=ROOT.kGray),
-        #Process("Fakes_tt", makeFakes(TT2l+TT1l), label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
-        #Process("Fakes_t", makeFakes(TW+T), label="t(fakes)", fillColor=ROOT.kGray+2),
-        #Process("Fakes_vv", makeFakes(VVf), label="VV(fakes)", fillColor=ROOT.kGray+3),
+        Process("Fakes_dy", MCGroup("DY",makeDYs([FakeMatchedLeptons])), label="DY(fakes)", fillColor=ROOT.kBlack),
+        Process("Fakes_Wj", MCGroup("WJ",makeWJ()), label="Wj(fakes)", fillColor=ROOT.kGray),
+        Process("Fakes_tt", makeFakes(TT2l+TT1l), label="t#bar{t}(fakes)", fillColor=ROOT.kGray+1),
+        Process("Fakes_t",  makeFakes(TW+T), label="t(fakes)", fillColor=ROOT.kGray+2),
+        Process("Fakes_vv", makeFakes(VVf), label="VV(fakes)", fillColor=ROOT.kGray+3),
     ],
     ddfakes = [
     ],
@@ -289,4 +283,4 @@ maker = PlotMaker()
 maker.book(data["prompt"]+data["mcfakes"]+data["data"],lumi,flow_SR["med"],plots,eras=[2018],taskName="mcFakes")
 result_plots = maker.runAll()
 printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi[2018], showRatio=True, showErrors=True)
-printer.printSet(result_plots, "plots/003/sos/cmgrdf/{era}/{flow}_{taskName}")
+printer.printSet(result_plots, "../plots/003/sos/cmgrdf/{era}/{flow}_{taskName}")

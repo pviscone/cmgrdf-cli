@@ -3,16 +3,13 @@ import re
 import os, os.path
 from array import array
 import time
-from typing import Any, List
+from typing import Any
 
 import ROOT
-from GenWeightProvider import GenWeightProvider
-ROOT.gROOT.SetBatch(True)
-ROOT.PyConfig.IgnoreCommandLineOptions = True
-
-from histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
-from utils import Options, MultiKey, MultiReport
-from flow import Target, Sample, Process, Flow, Forest
+from CMGRDF.histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
+from CMGRDF.utils import Options, MultiReport, recursiveHash
+from CMGRDF.data import Sample, Process
+from CMGRDF.flow import Target, Processor
 
 def _unTLatex(string : str) -> str:
     string = string.replace("#chi","x").replace("#rightarrow","->").replace("#minus","-")
@@ -26,13 +23,17 @@ class Plot(Target):
         super(Plot, self).__init__(name)
         for k,v in options.items():
             setattr(self, k, v)
-        t = options["1Gtype"] if "type" in options else "Histo1D"
+        t = options["type"] if "type" in options else "Histo1D"
+        self.type = t
         if t == "Histo1D":
             self._expr = args[0]
             self._bins = args[1]
             self.attach = self.bookHisto1D
             self.finish = self.finishHisto1D
             self.style = self.styleHisto1D
+            self._forEquals = (self._expr, self._bins, 
+                              [self.getOpt(x) for x in ("includeOverflows","includeOverflow","includeUnderflow")])
+        self._bigHash = None
     def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
@@ -56,6 +57,7 @@ class Plot(Target):
         ret._from = rdf
         return ret
     def finishHisto1D(self, plot, sample : Sample, era) -> Any:
+        """Make changes to the plot that affect the contents"""
         ## Contents
         if self.getOpt('includeOverflows',True) or self.getOpt('includeUnderflow',False):
             plot.SetBinContent(1,plot.GetBinContent(0)+plot.GetBinContent(1))
@@ -70,7 +72,9 @@ class Plot(Target):
             plot.SetBinError(n+1,0)
         return plot
     def styleHisto1D(self, plot, process : Process):
+        """Make changes to the plot that affect only the style"""
         ## Axis
+        plot.SetTitle(self.getOpt('title',self.name))
         plot.GetXaxis().SetTitle(self.getOpt('xTitle',self._expr))
         ## Graphics
         if process.getOpt('fillColor',None) != None:
@@ -93,7 +97,18 @@ class Plot(Target):
         plot.SetLineWidth(3)
         plot.SetLineColor(plot.GetFillColor())
         plot.SetFillStyle(0)
-
+    def __eq__(self,other):
+        if other.__class__ == Plot:
+            if self.name != other.name: return False
+            if self.type != other.type: return False
+            return self._forEquals == other._forEquals
+        return False
+    def __hash__(self):
+        return hash(self.bigHash())
+    def bigHash(self):
+        if not self._bigHash:
+            self._bigHash = recursiveHash(self.name, self.type, self._forEquals)
+        return self._bigHash
 
 class PlotResult(object):
     def __init__(self,plot,histos,fillTotals=True):
@@ -149,62 +164,13 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     h.poissonGraph = ret ## attach it so it doesn't get deleted
     return ret
 
-class PlotMaker(object):
-    def __init__(self,growForest=True):
-        self._forest = Forest() if growForest else None
-        self._summer = GenWeightProvider()
-        self.clear()
-    def clear(self):
-        self._plot_futures = []
-        if self._forest: self._forest.clear()
-    def book(self, processes : List[Process], lumi, flows, plots : List[Plot], eras=None, taskName="", withUncertainties=False):
+class PlotMaker(Processor):
+    def runAll(self, mergeEras=False, mergeSamples=True, logPerformance=True):
+        rawReport = self.runAllRaw(logPerformance = logPerformance)
         t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._plot_futures))
-        if eras is None: 
-            eras = [None]
-            lumi = {None:lumi}
-        for p in processes:
-            for s in p.samples:
-                if s.isMC: 
-                    s.bookSumWeight(self._summer, eras)
-        if isinstance(flows,Flow): flows = [flows]
-        for flow in flows:
-            for era in eras:
-                for proc in processes:
-                    procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
-                    for sample in proc.samples:
-                        src = sample.source(era)
-                        if not src: continue
-                        sampleKey = procKey.addKeys(sample=sample.name)
-                        if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
-                        else:
-                            sflow = sample.customizeFlow(flow.clone(), era=era)
-                        if self._forest:
-                            rdf = self._forest.grow(src, sflow)
-                        else:
-                            rdf = sflow.attach(src.createRDF(), sample, era)
-                        for pl in plots:
-                            pfut = pl.attach(rdf, sample, era)
-                            if pfut is None: continue
-                            vars = ROOT.RDF.Experimental.VariationsFor(pfut) if withUncertainties else None
-                            self._plot_futures.append((sampleKey.addKeys(plot = pl.name), proc, sample, pl, pfut, vars))         
-        t1 = time.perf_counter()
-        n1 = (self._summer.nSamples(), len(self._plot_futures))
-        print("Booked %d sums and %d plots in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
-        return self
-    def runAll(self, mergeEras=False, mergeSamples=True):
-        t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._plot_futures))
-        self._summer.runAll()
-        print("Filled %d sums in %.3fs" % (n0[0],time.perf_counter()-t0))
-        # run the graphs
-        ROOT.RDF.RunGraphs([pfut[-2] for pfut in self._plot_futures])
-        t1 = time.perf_counter()
-        print("Filled %d sums and %d plots in %.3fs" % (n0[0],n0[1],t1-t0))
-        # finalize the plots
         plots = MultiReport()
-        for (plotKey, proc, sample, plot, pfut, vars) in self._plot_futures:
+        for plotKey, (proc, sample, plot, pfut, vars) in rawReport:
+            if not isinstance(plot,Plot): continue # there may be other stuff depending on book
             hist = HistoWithNuisances(plot.finish(pfut.GetValue(), sample, plotKey.era))
             if vars:
                 for k in vars.GetKeys():
@@ -235,9 +201,7 @@ class PlotMaker(object):
             histos = [r[1:] for r in mergeList]
             result = PlotResult(plot, histos)
             results.append(mergedKey, result)
-        t2 = time.perf_counter()
-        print("Merged %d sums and %d plots in %.3fs" % (n0[0],n0[1],t2-t1))
-        self.clear()
+        if logPerformance: print("Merged %d plots in %.3fs" % (len(plots),time.perf_counter()-t0))
         return results
 
 class PlotSetPrinter(object):
