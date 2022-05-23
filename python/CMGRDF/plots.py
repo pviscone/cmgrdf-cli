@@ -165,8 +165,8 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     return ret
 
 class PlotMaker(Processor):
-    def runAll(self, mergeEras=False, mergeSamples=True, logPerformance=True):
-        rawReport = self.runAllRaw(logPerformance = logPerformance)
+    def runAll(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs):
+        rawReport = self.runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
         for plotKey, (proc, sample, plot, pfut, vars) in rawReport:
@@ -201,6 +201,7 @@ class PlotMaker(Processor):
             histos = [r[1:] for r in mergeList]
             result = PlotResult(plot, histos)
             results.append(mergedKey, result)
+            result.lumi = self.bookedLumi(mergedKey.removeKeys("name"))
         if logPerformance: print("Merged %d plots in %.3fs" % (len(plots),time.perf_counter()-t0))
         return results
 
@@ -377,13 +378,10 @@ class PlotSetPrinter(object):
         if opts.extraLabel:
             if plot.getOpt('legend','TR')=="TL":
                 self.addLabel(c1, opts.extraLabel, .68, .855, .9, .895, align=32, textSize=smallTextSize)
-                pass
             else:
                 self.addLabel(c1, opts.extraLabel, .23, .855, .6, .895, align=12, textSize=smallTextSize)
-                pass
-
         self.doLegend(p1,plot,total,totalError,opts,locals())
-        self.addLabels(p1, hasExpo = total.GetMaximum() > 9e4 and not islog, textSize = smallTextSize, opts = opts, doWide = doWide)
+        self.addLabels(p1, hasExpo = total.GetMaximum() > 9e4 and not islog, textSize = smallTextSize, opts = opts, doWide = doWide, lumi = plot.lumi)
         #  signorm = None; datnorm = None; sfitnorm = None
         #  if options.showSigShape or options.showIndivSigShapes or options.showIndivSigs: 
         #      signorms = doStackSignalNorm(pspec,pmap,options.showIndivSigShapes or options.showIndivSigs,extrascale=options.signalPlotScale, norm=not options.showIndivSigs)
@@ -465,7 +463,7 @@ class PlotSetPrinter(object):
                 raise RuntimeError("Unsupported output format %r"%ext)
         if outputTDir: outputTDir.Close()
         c1.Close() 
-    def addLabel(self,c1,text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033,_noDelete={}):
+    def addLabel(self,c1,text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033):
         cmsprel = ROOT.TPaveText(x1,y1,x2,y2,"NDC");
         cmsprel.SetTextSize(textSize);
         cmsprel.SetFillColor(0);
@@ -479,11 +477,16 @@ class PlotSetPrinter(object):
         if not hasattr(c1, '_labels'): c1._labels =[]
         c1._labels.append(cmsprel)
         return cmsprel
-    def addLabels(self, c1, opts, hasExpo=False, textSize=0.033, xoffs=0, doWide=False):
+    def addLabels(self, c1, opts, hasExpo=False, textSize=0.033, xoffs=0, doWide=False, lumi=None):
+        ymin, ymax = .955, .995
         if opts.topLeftText not in ['', None]:
-            self.addLabel(c1,opts.topLeftText, (.28 if hasExpo else 0.07 if doWide else .16)+xoffs, .955, .60+xoffs, .995, align=12, textSize=textSize)
+            self.addLabel(c1, opts.topLeftText % dict(lumi=lumi),
+                          (.28 if hasExpo else 0.07 if doWide else .16) + xoffs, ymin, .60+xoffs, ymax, 
+                          align=12, textSize=textSize)
         if opts.topRightText not in ['', None]:
-            self.addLabel(c1,opts.topRightText,(0.5 if doWide else .58)+xoffs, .955, .98+xoffs, .995, align=32, textSize=textSize)
+            self.addLabel(c1, opts.topRightText % dict(lumi=lumi),
+                          (0.5 if doWide else .58)+xoffs, ymin, .98+xoffs, ymax, 
+                          align=32, textSize=textSize)
     def doLegend(self,c1,plot,total,totalError,opts,locvars):
         if opts.stack:
             if opts.noStackSignals: mcStyle = ("L","F")

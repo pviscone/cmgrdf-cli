@@ -195,7 +195,7 @@ class _Branch(object):
         self.step = step
         self.rdf = rdf
         self.branches = [] # type: List["_Branch"]
-        self.leaves = dict() # type: Mapping[Target, Any]
+        self.leaves = dict() # type: Dict[Target, Any]
         self.hasher = hashlib.sha256() if hasher == None else hasher # type: hashlib.sha256
         if step: step._addToHash(self.hasher)
     def maybeBranch(self, step : FlowStep, verbose=False):
@@ -231,15 +231,23 @@ class Forest(object):
         return futures
     def clear(self):
         self._trees.clear()
+    def bookCutFlowReports(self):
+        return [(src, b.rdf.Report()) for (src,b) in self._trees.items()]
 
 class Processor(object):
     def __init__(self):
         self._forest = Forest()
         self._summer = GenWeightProvider()
+        self._lumiMap = dict() # type: Dict[MultiKey, float]
         self.clear()
     def clear(self):
         self._futures = []
         if self._forest: self._forest.clear()
+    def bookedLumi(self, multiKey):
+        if multiKey not in self._lumiMap: 
+            lumi = sum([l for (k,l) in self._lumiMap.items() if multiKey.isSuperSet(k)])
+            self._lumiMap[multiKey] = lumi
+        return self._lumiMap[multiKey]
     def book(self, processes : List[Process], lumi, flows : Union[Flow,List[Flow]], targets : List[Target], eras=None, taskName="", withUncertainties=False, logPerformance=True):
         t0 = time.perf_counter()
         n0 = (self._summer.nSamples(), len(self._futures))
@@ -253,6 +261,7 @@ class Processor(object):
         if isinstance(flows,Flow): flows = [flows]
         for flow in flows:
             for era in eras:
+                self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = lumi[era]
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
                     for sample in proc.samples:
@@ -272,8 +281,9 @@ class Processor(object):
         n1 = (self._summer.nSamples(), len(self._futures))
         if logPerformance: print("Booked %d sums and %d targets in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
         return self
-    def runAllRaw(self, logPerformance=True):
+    def runAllRaw(self, logPerformance=True, makeCutFlowReports=False):
         """returns a MultiReport with value being (process,sample,target,future,vars)"""
+        self._reports = self._forest.bookCutFlowReports() if makeCutFlowReports else []
         t0 = time.perf_counter()
         n0 = (self._summer.nSamples(), len(self._futures))
         self._summer.runAll()
@@ -288,3 +298,8 @@ class Processor(object):
         for (plotKey, proc, sample, target, future, vars) in self._futures:
             ret.append(plotKey, (proc, sample, target, future, vars))
         return ret
+    def printRawCutFlowReports(self):
+        for source, report in sorted(self._reports, key = lambda p : p[0].longId()):
+            print("Cut flow for %s" % source.longId())
+            report.GetValue().Print()
+            print("")

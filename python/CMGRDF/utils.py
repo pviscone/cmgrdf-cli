@@ -94,9 +94,15 @@ class MultiKey(object):
         return name in self._values
     def __contains__(self, name : str):
         return name in self._values
+    def isSuperSet(self, other : "MultiKey"):
+        return all((other._values[k] == v) for k,v in self._values.items())
     def removeKeys(self, *keysToRemove : List[str]):
         assert(all((k in self._keys) for k in keysToRemove))
         filtered = dict((k,v) for (k,v) in self.items() if k not in keysToRemove)
+        return MultiKey(**filtered)
+    def selectKeys(self, *keys):
+        assert(all((k in self._keys) for k in keys))
+        filtered = dict((k,v) for (k,v) in self.items() if k in keys)
         return MultiKey(**filtered)
     def addKeys(self, **kwargs):
         extended = copy.copy(self._values)

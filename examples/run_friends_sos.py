@@ -29,4 +29,4 @@ lumi = {2017:41.5, 2018:59.7}
 
 ROOT.EnableImplicitMT(8)
 results = PlotMaker().book(data, lumi, cuts, plots, eras=[2017,2018]).runAll()
-PlotSetPrinter().printSet(results, "plots/001/friends/cmgrdf/{era}")
+PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)").printSet(results, "plots/001/friends/cmgrdf/{era}")

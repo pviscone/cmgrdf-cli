@@ -21,6 +21,7 @@ An analysis task is characterized by the following items:
  * One or more Flows, that define how the data is to be processed in general: event selection, definition of new variables, per-event weights, uncertaintes...
  * One or more Plots or other targets
  * Optionally, a list of eras, e.g. corresponding to data-taking years. There's no specific type for eras, they can be ints, strings, ...
+ 
  The typical processing mode would be to submit one or more tasks, and then tell the code to run all and return the results.
   * The result will be a `MultiReport`, which is a list of `MultiKey` (smart tuples containing information like the flow name, era, plot name, etc...) and values, which has the interface to regroup stuff by removing keys
 
@@ -49,6 +50,4 @@ An analysis task is characterized by the following items:
  * Test a fake rate method
  * Test roo-fit related stuff
  * Implement creating datacards
- * Print cut flow report
- * Luminosity in plot printer: how? attach lumi to PlotResult?
  * Caching
