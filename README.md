@@ -63,6 +63,25 @@ The caching system relies on hashes of the input file names (and, if the files a
 
 Support for caching of the full set of selected events via `Snapshot()` will also soon be added.
 
+
+## Runnig in SWAN and Jupyter
+
+The library can also be used under SWAN: https://swan.cern.ch/
+ * Open SWAN with a recent LGC stack (e.g. the development version), and create a project under SWAN
+ * Clone the CMGRDF repository inside the project, or elsewhere on your EOS user area (this step is more easily done from lxplus)
+ * Within SWAN, open a terminal, go into the CMGRDF directory and `make clean && make -j 4` to recompile it so that it is linked to the software stack of SWAN
+ * Create a Python3 notebook and put some initialization of the environment, e.g. 
+```python
+import sys, os
+os.environ["CMGRDF"] = "/eos/user/g/gpetrucc/SWAN_projects/CMGRDF-test/cmgrdf-prototype"
+os.environ["LD_LIBRARY_PATH"] += ":"+os.environ["CMGRDF"]+"/lib"
+sys.path.append(os.environ["CMGRDF"]+"/python")
+
+import ROOT
+from CMGRDF import *
+ ``` 
+ * Configure the PlotSetPrinter to display the png files inline in the jupyter by passing `, plotFormats="png,jupyter"` in the constructor.
+
 ### To Do (in random order)
 
  * Normalization Uncertainties in a better way
