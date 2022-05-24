@@ -7,7 +7,7 @@ import ROOT
 from CMGRDF.GenWeightProvider import GenWeightProvider
 
 from CMGRDF.data import Process, Source, Sample
-from CMGRDF.utils import MultiKey, MultiReport, _recursiveAddToHash
+from CMGRDF.utils import MultiKey, MultiReport, _recursiveAddToHash, safeName
 
 class FlowStep(object):
     def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
@@ -189,6 +189,8 @@ class Target(object):
         raise RuntimeError("Must be implemented by subclass")
     def finish(self, rdf, sample, era):
         pass
+    def longId(self):
+        return None
 
 class _Branch(object):
     def __init__(self, step : FlowStep, rdf, hasher = None):
@@ -207,11 +209,23 @@ class _Branch(object):
         if verbose: print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
         self.branches.append(b)
         return b
+    def longId(self):
+        return "%s-%s" % (safeName(self.step), self.hasher.hexdigest())
 
-class Forest(object):
-    def __init__(self):
+class Processor(object):
+    def __init__(self, cache = None):
         self._trees = dict() # type: Dict[Source,_Branch]
-    def growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False):
+        self._summer = GenWeightProvider(cache = cache)
+        self._lumiMap = dict() # type: Dict[MultiKey, float]
+        self._cache = cache
+        self._toCache = dict()
+        self.clear()
+    def clear(self):
+        self._futures = []
+        self._fromCache = []
+        self._toCache.clear()
+        self._trees.clear()
+    def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False):
         if source not in self._trees:
             if verbose: print("Created new source tree for %s" % source.longId())
             self._trees[source] = _Branch(None,source.createRDF(treeName))
@@ -221,28 +235,8 @@ class Forest(object):
         for step in flow.steps:
             tree = tree.maybeBranch(step, verbose=verbose)
         return tree
-    def growLeaves(self, source : Source, flow : Flow, targets : List[Target], sample : Sample, era, treeName="Events", verbose=False):
-        branch = self.growBranch(source, flow, treeName=treeName, verbose=verbose)
-        futures = []
-        for t in targets:
-            if t not in branch.leaves:
-                branch.leaves[t] = t.attach(branch.rdf, sample, era)
-            futures.append((t,branch.leaves[t]))
-        return futures
-    def clear(self):
-        self._trees.clear()
-    def bookCutFlowReports(self):
+    def _bookCutFlowReports(self):
         return [(src, b.rdf.Report()) for (src,b) in self._trees.items()]
-
-class Processor(object):
-    def __init__(self):
-        self._forest = Forest()
-        self._summer = GenWeightProvider()
-        self._lumiMap = dict() # type: Dict[MultiKey, float]
-        self.clear()
-    def clear(self):
-        self._futures = []
-        if self._forest: self._forest.clear()
     def bookedLumi(self, multiKey):
         if multiKey not in self._lumiMap: 
             lumi = sum([l for (k,l) in self._lumiMap.items() if multiKey.isSuperSet(k)])
@@ -272,31 +266,47 @@ class Processor(object):
                             sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
-                        futures = self._forest.growLeaves(src, sflow, targets, sample, era)
-                        for t,fut in futures:
-                            if fut is None: continue
-                            vars = ROOT.RDF.Experimental.VariationsFor(fut) if withUncertainties else None
-                            self._futures.append((sampleKey.addKeys(name = t.name), proc, sample, t, fut, vars))         
+                        branch = self._growBranch(src, sflow)
+                        for t in targets:
+                            plotKey = sampleKey.addKeys(name = t.name)
+                            k3 = (src.longId(), branch.longId(), t.longId()) if self._cache else None
+                            if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):
+                                (res, resvar) = self._cache.getPlot(k3)
+                                self._fromCache.append((plotKey, proc, sample, t, res, resvar))
+                            else:
+                                if t not in branch.leaves:
+                                    branch.leaves[t] = t.attach(branch.rdf, sample, era)
+                                fut = branch.leaves[t]
+                                vars = ROOT.RDF.Experimental.VariationsFor(fut) if withUncertainties else None
+                                if self._cache and k3[-1] is not None: self._toCache[plotKey] = k3
+                                self._futures.append((plotKey, proc, sample, t, fut, vars))
         t1 = time.perf_counter()
         n1 = (self._summer.nSamples(), len(self._futures))
         if logPerformance: print("Booked %d sums and %d targets in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
         return self
     def runAllRaw(self, logPerformance=True, makeCutFlowReports=False):
-        """returns a MultiReport with value being (process,sample,target,future,vars)"""
-        self._reports = self._forest.bookCutFlowReports() if makeCutFlowReports else []
+        """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
+        self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
         t0 = time.perf_counter()
         n0 = (self._summer.nSamples(), len(self._futures))
         self._summer.runAll()
         t0b = time.perf_counter()
         if logPerformance: print("Filled %d sums in %.3fs" % (n0[0],t0b-t0))
         # run the graphs
-        ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
-        t1 = time.perf_counter()
-        if logPerformance: print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0],n0[1],t1-t0,t1-t0b))
+        if self._futures:
+            ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
+            t1 = time.perf_counter()
+            if logPerformance: print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0],n0[1],t1-t0,t1-t0b))
         # finalize the plots
         ret = MultiReport()
         for (plotKey, proc, sample, target, future, vars) in self._futures:
-            ret.append(plotKey, (proc, sample, target, future, vars))
+            result = target.finish(future.GetValue(), sample, plotKey.era)
+            resvars = dict((k,target.finish(vars[k], sample, plotKey.era)) for k in vars.GetKeys()) if vars else None
+            if plotKey in self._toCache:
+                self._cache.writePlot(self._toCache[plotKey], result, resvars)
+            ret.append(plotKey, (proc, sample, target, result, resvars))
+        for (plotKey, proc, sample, target, result, resvars) in self._fromCache:
+            ret.append(plotKey, (proc, sample, target, result, resvars))
         return ret
     def printRawCutFlowReports(self):
         for source, report in sorted(self._reports, key = lambda p : p[0].longId()):

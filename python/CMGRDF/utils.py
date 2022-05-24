@@ -5,6 +5,7 @@ import copy
 import hashlib
 import sys
 import os.path
+import re
 
 class OptionDecl(object):
     def __init__(self, name, default=None, type=str, cmdline=None, **kwargs):
@@ -167,7 +168,8 @@ def _recursiveAddToHash(obj, hasher):
     else:
         raise RuntimeError("Don't know how to hash %r of type %s" % (obj,type(obj)))
 
-
+def safeName(obj):
+    return re.sub("[^A-Za-z0-9_]", "", obj.name)
 
 def recursiveHash(*objs):
     hasher = hashlib.sha256()

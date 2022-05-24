@@ -16,6 +16,10 @@ public:
                  const std::vector<std::string> &files,
                  const std::string &genSumName = "_auto_",
                  bool warn = false);
+  bool addSampleWithSum(const std::string &name,
+                 const std::vector<std::string> &files,
+                 double sum, 
+                 bool warn = false);                 
   bool addSampleAndRun(const std::string &name,
                        const std::vector<std::string> &files,
                        const std::string &genSumName = "_auto_",
@@ -23,12 +27,14 @@ public:
 
   void doAllNow() {
     for (Sample &s : samples_)
-      computeSumNow(s);
+      if (!s.weightSumAvailable)
+        computeSumNow(s);
   }
 
   void doAllOld() {
     for (Sample &s : samples_)
-      computeOldStyle(s);
+      if (!s.weightSumAvailable)
+        computeOldStyle(s);
   }
 
   void doAllMulti();

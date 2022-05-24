@@ -1,6 +1,6 @@
 from typing import List
 import ROOT, os, os.path, re
-from CMGRDF.utils import recursiveHash
+from CMGRDF.utils import recursiveHash, safeName
 
 class Source(object):
     def __init__(self, name : str, files, era = None, friends=None):
@@ -95,10 +95,8 @@ class Source(object):
                 self._bigHashNoFriends = self._bigHash
     def __hash__(self):
         return hash(self.bigHash())
-    def safeName(self):
-        return re.sub("[^A-Za-z0-9_]","",self.name)
     def longId(self):
-        return "%s-%s-%s" % (self.safeName(), self.era if self.era else "", self.bigHash())
+        return "%s-%s-%s" % (safeName(self), self.era if self.era else "", self.bigHash())
     def __str__(self):
         return "Source(%s%s, %d files[%s%s]%s, id %s)" % (
             self.name, (", era %s" % self.era) if self.era else "",

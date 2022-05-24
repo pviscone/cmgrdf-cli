@@ -7,7 +7,7 @@ from typing import Any
 
 import ROOT
 from CMGRDF.histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
-from CMGRDF.utils import Options, MultiReport, recursiveHash
+from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target, Processor
 
@@ -33,6 +33,12 @@ class Plot(Target):
             self.style = self.styleHisto1D
             self._forEquals = (self._expr, self._bins, 
                               [self.getOpt(x) for x in ("includeOverflows","includeOverflow","includeUnderflow")])
+            if type(self._bins) == list:
+                self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self._bins)) 
+            else:
+                nbins, low, high = self._bins
+                self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), int(nbins), low, high)
+            self._template = self._model.GetHistogram()                            
         self._bigHash = None
     def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
@@ -46,14 +52,8 @@ class Plot(Target):
     def hasOpt(self, name):
         return hasattr(self, name)
     def bookHisto1D(self, rdf, sample : Sample, era) -> Any:
-        if type(self._bins) == list:
-            model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), len(self._bins)-1, array('f',self._bins)) 
-        else:
-            nbins, low, high = self._bins
-            model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title",self.name), int(nbins), low, high)
-        self._template = model.GetHistogram()
         rdf, expr = self._prepareExpr(rdf, self._expr, self.name+"__plot_expr_")
-        ret = rdf.Histo1D(model, expr, "weight")
+        ret = rdf.Histo1D(self._model, expr, "weight")
         ret._from = rdf
         return ret
     def finishHisto1D(self, plot, sample : Sample, era) -> Any:
@@ -109,6 +109,8 @@ class Plot(Target):
         if not self._bigHash:
             self._bigHash = recursiveHash(self.name, self.type, self._forEquals)
         return self._bigHash
+    def longId(self):
+        return "%s-%s" % (safeName(self), self.bigHash())
 
 class PlotResult(object):
     def __init__(self,plot,histos,fillTotals=True):
@@ -169,14 +171,14 @@ class PlotMaker(Processor):
         rawReport = self.runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
-        for plotKey, (proc, sample, plot, pfut, vars) in rawReport:
+        for plotKey, (proc, sample, plot, hraw, vars) in rawReport:
             if not isinstance(plot,Plot): continue # there may be other stuff depending on book
-            hist = HistoWithNuisances(plot.finish(pfut.GetValue(), sample, plotKey.era))
+            hist = HistoWithNuisances(hraw)
             if vars:
-                for k in vars.GetKeys():
+                for k in vars.keys():
                     if ":" in k:
                         (var,sign) = str(k).split(":")
-                        hist.addVariation(var, sign, plot.finish(vars[k], sample, plotKey.era))
+                        hist.addVariation(var, sign, vars[k])
                     elif k != "nominal":
                         print("ERROR: unknown variation %s for %s" % (k, plotKey))
             hist = plot.style(hist, proc)

@@ -33,6 +33,25 @@ bool GenWeightProvider::addSample(const std::string &name,
   return true;
 }
 
+bool GenWeightProvider::addSampleWithSum(const std::string &name,
+                                         const std::vector<std::string> &files,
+                                         double sum,
+                                         bool warn) {
+  bool added = addSample(name, files, "", warn);
+  if (added) {
+    samples_.back().setSum(sum);
+  } else {
+    double existingSum = weightSumByFile(files.front());
+    double minScale = std::min(std::abs(sum),std::abs(existingSum));
+    if (std::abs(sum-existingSum) > 1e-7*minScale) {
+      std::cout << "ERROR: for sample " << name << " (file " << files.front() << "), mismatch of sum. found " << sum
+                << ", exising " << existingSum << ", diff " << std::abs(sum - existingSum)
+                << ", relative: " << std::abs(sum - existingSum) / (minScale ? minScale : 1) << std::endl;      
+    }
+  }
+  return added;
+}
+
 bool GenWeightProvider::addSampleAndRun(const std::string &name,
                                         const std::vector<std::string> &files,
                                         const std::string &genSumName,
