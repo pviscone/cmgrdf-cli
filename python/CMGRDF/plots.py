@@ -251,6 +251,13 @@ class PlotSetPrinter(object):
         total = HistoWithNuisances(plot.template); 
         total.SetName(outputName+"_total")
         outputFormats = opts.plotFormats.split(",")
+        if "jupyter" in outputFormats:
+            from IPython.display import Image, HTML, display
+            outputFormats.remove("jupyter")
+            if "png" not in outputFormats:
+                outputFormats.append("png")
+            outputFormats.append("jupyter")
+            display(HTML("<h2>%s</h2>" % outputName))
         outputTDir = ROOT.TFile.Open("%s/%s.root"%(path,outputName),"RECREATE") if "root" in outputFormats else None
         print("Printing %s in %s (formats: %s)" % (outputName,path,outputFormats))
         data = None
@@ -461,10 +468,12 @@ class PlotSetPrinter(object):
                 ROOT.gErrorIgnoreLevel = savErrorLevel;
             elif ext == "root":
                 pass # already being done
+            elif ext == "jupyter":
+                display(Image("%s/%s.png" % (path, outputName)))
             else:
                 raise RuntimeError("Unsupported output format %r"%ext)
         if outputTDir: outputTDir.Close()
-        c1.Close() 
+        c1.Close()
     def addLabel(self,c1,text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033):
         cmsprel = ROOT.TPaveText(x1,y1,x2,y2,"NDC");
         cmsprel.SetTextSize(textSize);
