@@ -33,11 +33,11 @@ class GenWeightProvider:
         getattr(self._cpp, 'doAll'+mode)()
         for (sample,era) in self._samples:
             name = f"{sample.name}:{era}" if era else sample.name
-            #src = sample.source(era)
             sum = self._cpp.weightSumByName(name)
             sample._genWeightSum[era] = sum
             if self._cache: 
                 self._cache.writeSum(sample.source(era), sum)
+            #src = sample.source(era)
             #print("V2 GEN SUM: sample %s, era %r, source %s, file0 %s, sum %r" % (
             #        sample.name, era, src.longId(), src.files[0], sample._genWeightSum[era]))
         if self._cache:

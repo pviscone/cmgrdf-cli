@@ -77,14 +77,12 @@ void GenWeightProvider::doAllMulti() {
 }
 
 std::string GenWeightProvider::LazySum::autoSum(ROOT::RDataFrame &rdf) {
-  auto cols = rdf.GetColumnNames();
-  if (std::find(cols.begin(), cols.end(), "genEventSumw") != cols.end()) {
+  if (rdf.HasColumn("genEventSumw")) {
     return "genEventSumw";
-  } else if (std::find(cols.begin(), cols.end(), "genEventSumw_") != cols.end()) {
+  } else if (rdf.HasColumn("genEventSumw_")) {
     return "genEventSumw_";
   }
-  std::cout << "ERROR: can't find gen sum name in data frame" << std::endl;
-  return "";
+  throw std::logic_error("ERROR: can't find gen sum name in data frame");
 }
 
 bool GenWeightProvider::Sample::bookLazySum() {
@@ -117,6 +115,8 @@ void GenWeightProvider::computeOldStyle(GenWeightProvider::Sample &sample) {
       sample.sumName = "genEventSumw";
     } else if (chain.GetBranch("genEventSumw_") != nullptr) {
       sample.sumName = "genEventSumw_";
+    } else {
+      throw std::logic_error("ERROR: can't find gen sum name in sample "+sample.name);
     }
   }
   chain.Draw("0.5>>htemp(1,0,1)", sample.sumName.c_str(), "GOFF");

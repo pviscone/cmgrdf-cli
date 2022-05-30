@@ -44,14 +44,14 @@ public:
       if (s.name == sampleName)
         return s.weightSum;
     }
-    return -99;
+    throw std::logic_error("Missing weight sum for sample "+sampleName);
   }
 
   double weightSumByFile(const std::string &fileName) {
     int idx = file2sample_[fileName];
     if (idx)
       return samples_[idx - 1].weightSum;
-    return -99;
+    throw std::logic_error("Missing weight sum for file "+fileName);
   }
 
   unsigned int nSamples() const { return samples_.size(); }

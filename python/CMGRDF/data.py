@@ -1,11 +1,17 @@
 from typing import List
-import ROOT, os, os.path, re
+import ROOT, os, os.path, re, glob
 from CMGRDF.utils import recursiveHash, safeName
 
 class Source(object):
     def __init__(self, name : str, files, era = None, friends=None):
-        if type(files) == str: files = [files]
-        else: assert(len(files) >= 1)
+        if type(files) == str:
+            if "*" in files:
+                files = glob.glob(files)
+            else:
+                files = [files]
+        else:
+            assert(len(files) >= 1)
+            assert(not(any(("*" in f) for f in files)))
         self.name = name if name else Source._autoName(files)
         self.files = files
         self.era = era
