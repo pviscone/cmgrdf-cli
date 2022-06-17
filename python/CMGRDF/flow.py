@@ -65,19 +65,31 @@ class Cut(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
     def _attach(self, rdf):
-        return rdf.Filter(self.expr, self.name)
+        try:
+            return rdf.Filter(self.expr, self.name)
+        except:
+            print(f"ERROR attaching Cut({self.name}, {self.expr}")
+            raise
 
 class Define(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
     def _attach(self, rdf):
-        return rdf.Define(self.name, self.expr)
+        try:
+            return rdf.Define(self.name, self.expr)
+        except:
+            print(f"ERROR attaching Define({self.name}, {self.expr}")
+            raise
 
 class ReDefine(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
     def _attach(self, rdf):
-        return rdf.Redefine(self.name, self.expr)
+        try:
+            return rdf.Redefine(self.name, self.expr)
+        except:
+            print(f"ERROR attaching ReDefine({self.name}, {self.expr}")
+            raise
 
 class DefinePerSample(FlowStep):
     def __init__(self, name, provider, **options):
@@ -107,7 +119,11 @@ class AddWeight(SimpleExprFlowStep):
     def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
         super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
     def _attach(self,rdf):
-        return rdf.Redefine("weight","weight*(%s)"%self.expr)
+        try:
+            return rdf.Redefine("weight","weight*(%s)"%self.expr)
+        except:
+            print(f"ERROR attaching AddWeight {self.name}: redefine weight *= {self.expr}")
+            raise
 
 class AddWeightUncertainty(FlowStep):
     def __init__(self, name, exprUp, exprDown=None, nominal="1.0", **options):
