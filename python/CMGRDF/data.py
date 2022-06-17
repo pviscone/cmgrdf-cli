@@ -214,13 +214,15 @@ def _mergeSources(name, samples):
         for s in samples:
             src = s.source(e)
             if src == None: continue
-            assert(len(src.files) == 1)
-            files.append(src.files[0])
-            if friends is None:
-                friends = [[f] for f in src.friends ]
-            else:
-                for i,f in enumerate(src.friends):
-                    friends[i].append(f)
+            files += src.files
+            if src.friends:
+                assert(len(src.files) == 1) # this is not implemented for N(files)>1
+                assert(all(s2.source(e).friends for s2 in samples))
+                if friends is None:
+                    friends = [[f] for f in src.friends ]
+                else:
+                    for i,f in enumerate(src.friends):
+                        friends[i].append(f)
         sources[e] = Source(name, files, era=e, friends=friends)
     return sources if eras != [None] else sources[None]
 
