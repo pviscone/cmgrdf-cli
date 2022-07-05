@@ -76,6 +76,9 @@ class Plot(Target):
         ## Axis
         plot.SetTitle(self.getOpt('title',self.name))
         plot.GetXaxis().SetTitle(self.getOpt('xTitle',self._expr))
+        if self.getOpt('xBinLabels',None) != None:
+            for (i,l) in enumerate(self.getOpt('xBinLabels')):
+                plot.GetXaxis().SetBinLabel(i+1,l) 
         ## Graphics
         if process.getOpt('fillColor',None) != None:
             plot.SetFillColor(process.getOpt('fillColor',0))
@@ -261,6 +264,7 @@ class PlotSetPrinter(object):
         outputTDir = ROOT.TFile.Open("%s/%s.root"%(path,outputName),"RECREATE") if "root" in outputFormats else None
         print("Printing %s in %s (formats: %s)" % (outputName,path,outputFormats))
         data = None
+        outlines = []
         for (proc, hist) in reversed(plot.histos):
             fullName = (os.path.basename(path), outputName, proc.name)
             if proc.isData: 
@@ -271,6 +275,7 @@ class PlotSetPrinter(object):
             if hist.Integral() <= 0: continue
             if proc.isSignal and opts.noStackSignals:
                 plot.restyleAsOutline(hist)
+                outlines.append(hist)
                 continue
             if opts.stack:
                 stack.Add(hist.raw())
@@ -306,6 +311,9 @@ class PlotSetPrinter(object):
         total.GetYaxis().SetTitle(plot.getOpt('yTitle',"Events"))
         total.GetXaxis().SetTitle(plot.getOpt('xTitle',outputName))
         total.GetXaxis().SetNdivisions(plot.getOpt('xNDiv',510))
+        if plot.getOpt('xBinLabels',None) != None:
+            for (i,l) in enumerate(plot.getOpt('xBinLabels')):
+                total.GetXaxis().SetBinLabel(i+1,l) 
         if outputTDir: outputTDir.WriteTObject(stack) 
         islog = plot.getOpt('logy',False); 
         ROOT.gStyle.SetPaperSize(20.,20./plotformat[0]*plotformat[1])
@@ -345,11 +353,16 @@ class PlotSetPrinter(object):
             total.GetXaxis().SetMoreLogLabels(True)
         if data:
             total.SetMaximum(max(total.GetMaximum(),1.3*data[1].GetMaximum()))
+        for o in outlines:
+            total.SetMaximum(max(total.GetMaximum(),1.3*o.GetMaximum()))
         if islog: total.SetMaximum(2*total.GetMaximum())
         if not islog: total.SetMinimum(0)
         total.Draw("HIST")
         if opts.stack:
             stack.Draw("SAME HIST")
+            for o in outlines:
+                print("Drawing %s" % (o.GetName()))
+                o.Draw("SAME HIST")
             total.Draw("AXIS SAME")
         else: 
             if self._options.errors:
@@ -391,35 +404,6 @@ class PlotSetPrinter(object):
                 self.addLabel(c1, opts.extraLabel, .23, .855, .6, .895, align=12, textSize=smallTextSize)
         self.doLegend(p1,plot,total,totalError,opts,locals())
         self.addLabels(p1, hasExpo = total.GetMaximum() > 9e4 and not islog, textSize = smallTextSize, opts = opts, doWide = doWide, lumi = plot.lumi)
-        #  signorm = None; datnorm = None; sfitnorm = None
-        #  if options.showSigShape or options.showIndivSigShapes or options.showIndivSigs: 
-        #      signorms = doStackSignalNorm(pspec,pmap,options.showIndivSigShapes or options.showIndivSigs,extrascale=options.signalPlotScale, norm=not options.showIndivSigs)
-        #      for signorm in signorms:
-        #          if outputTDir: 
-        #              signorm.SetDirectory(outputTDir); #outputTDir.WriteTObject(signorm)
-        #          reMax(total,signorm,islog,doWide=doWide)
-        #  if options.showDatShape: 
-        #      datnorm = doDataNorm(pspec,pmap)
-        #      if datnorm != None:
-        #          if outputTDir: 
-        #              datnorm.SetDirectory(outputTDir); outputTDir.WriteTObject(datnorm)
-        #          reMax(total,datnorm,islog,doWide=doWide)
-        #  if options.showSFitShape: 
-        #      (sfitnorm,sf) = doStackSigScaledNormData(pspec,pmap)
-        #      if sfitnorm != None:
-        #          if outputTDir: 
-        #              sfitnorm.SetDirectory(outputTDir); outputTDir.WriteTObject(sfitnorm)
-        #          reMax(total,sfitnorm,islog,doWide=doWide)
-        #  if options.flagDifferences and len(pmap) == 4:
-        #      new = pmap['signal']
-        #      ref = pmap['background']
-        #      if "TH1" in new.ClassName():
-        #          for b in range(1,new.GetNbinsX()+1):
-        #              if abs(new.GetBinContent(b) - ref.GetBinContent(b)) > options.toleranceForDiff*ref.GetBinContent(b):
-        #                  print "Plot: difference found in %s, bin %d" % (outputName, b)
-        #                  p1.SetFillColor(ROOT.kYellow-10)
-        #                  if p2: p2.SetFillColor(ROOT.kYellow-10)
-        #                  break
         if outputTDir: outputTDir.WriteTObject(c1)
         if opts.showRatio:
             nums = [data] if data else []
@@ -640,11 +624,9 @@ class PlotSetPrinter(object):
         unity.GetYaxis().SetLabelOffset(0.01)
         unity.GetYaxis().SetDecimals(True) 
         unity.GetYaxis().SetTitle(opts.ratioYLabel)
-        binlabels = plot.getOpt("xBinLabels","")
-        if binlabels != "" and len(binlabels.split(",")) == unity.GetNbinsX():
-            blist = binlabels.split(",")
-            for i in range(1,unity.GetNbinsX()+1): 
-                unity.GetXaxis().SetBinLabel(i,blist[i-1]) 
+        if plot.getOpt('xBinLabels',None) != None:
+            for (i,l) in enumerate(plot.getOpt('xBinLabels')):
+                unity.GetXaxis().SetBinLabel(i+1,l) 
             unity.GetXaxis().SetLabelSize(0.15*(textSize/0.035))
         line = ROOT.TLine(unity.GetXaxis().GetXmin(),1,unity.GetXaxis().GetXmax(),1)
         line.SetLineWidth(2);
