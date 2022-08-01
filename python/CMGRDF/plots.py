@@ -83,8 +83,6 @@ class Plot(Target):
             plot.SetBinError(n,hypot(plot.GetBinError(n+1),plot.GetBinError(n)))
             plot.SetBinContent(n+1,0)
             plot.SetBinError(n+1,0)
-#        if self.getOpt('makeSnapshot',True):
-#            rdf.Snapshot("Events",
         return plot
     def styleHisto1D(self, plot, process : Process):
         """Make changes to the plot that affect only the style"""
