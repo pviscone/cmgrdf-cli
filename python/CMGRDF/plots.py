@@ -55,6 +55,19 @@ class Plot(Target):
         rdf, expr = self._prepareExpr(rdf, self._expr, self.name+"__plot_expr_")
         ret = rdf.Histo1D(self._model, expr, "weight")
         ret._from = rdf
+        if self.getOpt('makeSnapshot',False):
+            snapshot_branches = self.getOpt('snapshotBranches',None)
+            print(snapshot_branches)
+            if snapshot_branches != None:
+                branch_list = ROOT.std.vector('std::string')()
+                snapshot_name = "tree_"+self.name+"_"+sample.name+".root"
+                for branch in snapshot_branches:
+                    branch_list.push_back(branch)
+                print("Making snapshot %s with the list of branches given as snapshotBranches..."%snapshot_name)
+                rdf.Snapshot("Events",snapshot_name, branch_list)
+            else:
+                print("Making snapshot %s with all branches - this can be slow..."%snapshot_name)
+       	        rdf.Snapshot("Events",snapshot_name)
         return ret
     def finishHisto1D(self, plot, sample : Sample, era) -> Any:
         """Make changes to the plot that affect the contents"""
@@ -70,6 +83,8 @@ class Plot(Target):
             plot.SetBinError(n,hypot(plot.GetBinError(n+1),plot.GetBinError(n)))
             plot.SetBinContent(n+1,0)
             plot.SetBinError(n+1,0)
+#        if self.getOpt('makeSnapshot',True):
+#            rdf.Snapshot("Events",
         return plot
     def styleHisto1D(self, plot, process : Process):
         """Make changes to the plot that affect only the style"""
