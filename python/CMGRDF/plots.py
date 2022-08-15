@@ -67,7 +67,7 @@ class Plot(Target):
                 rdf.Snapshot("Events",snapshot_name, branch_list)
             else:
                 print("Making snapshot %s with all branches - this can be slow..."%snapshot_name)
-       	        rdf.Snapshot("Events",snapshot_name)
+                rdf.Snapshot("Events",snapshot_name)
         return ret
     def finishHisto1D(self, plot, sample : Sample, era) -> Any:
         """Make changes to the plot that affect the contents"""
@@ -197,6 +197,15 @@ class PlotMaker(Processor):
                         hist.addVariation(var, sign, vars[k])
                     elif k != "nominal":
                         print("ERROR: unknown variation %s for %s" % (k, plotKey))
+            if proc.getOpt("normUncertainty"):
+                nuisname = proc.getOpt("normNuisance","norm_"+proc.name)
+                unc = proc.getOpt("normUncertainty")
+                if type(unc) == float:
+                    kup, kdown = 1.0+unc, 1.0/(1.0+unc)
+                else:
+                    kup, kdown = 1.0+unc[1], 1.0/(1.0-unc[0]) # keep it a logNormal if unc[0] = unc[1]
+                hist.addYieldVariations(nuisname, kup, kdown)
+                #print("Adding norm uncertainty %s (%s) to %s" % (unc, nuisname, plotKey))
             hist = plot.style(hist, proc)
             plots.append(plotKey, (plot, proc, sample, hist))
         # merge the plots
@@ -248,6 +257,7 @@ class PlotSetPrinter(object):
         opts.declare("legendWidth", 0.25, float, help="Legend width")
         opts.declare("legendHeader", "", help="Legend header text")
         opts.declare("legendBorder", False, bool, help="Legend border box")
+        opts.declare("warnAboutNegativeBins", False, bool, help="Warn about bins with negative yields")
         return opts
     def __init__(self,**options):
         self._options = PlotSetPrinter.defaultOptions().update(**options)
@@ -284,7 +294,8 @@ class PlotSetPrinter(object):
                 data = (proc,hist)
                 continue
             # warn if negative values
-            warnAboutNegativeBins(hist,fullName)
+            if opts.warnAboutNegativeBins:
+                warnAboutNegativeBins(hist,fullName)
             if hist.Integral() <= 0: continue
             if proc.isSignal and opts.noStackSignals:
                 plot.restyleAsOutline(hist)

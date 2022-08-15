@@ -50,6 +50,20 @@ def cropNegativeBins(histo):
                 for bz in range(0,histo.GetNbinsZ()+2):
                     if histo.GetBinContent(bx,by,bz) < 0: histo.SetBinContent(bx,by,bz, 0.0)
 
+def cropBinErrorTo100Percent(histo):
+    if "TH1" in histo.ClassName():
+        for b in range(0,histo.GetNbinsX()+2):
+            histo.SetBinError(b, min(histo.GetBinContent(b), histo.GetBinError(b)))
+    elif "TH2" in histo.ClassName():
+        for bx in range(0,histo.GetNbinsX()+2):
+            for by in range(0,histo.GetNbinsY()+2):
+                histo.SetBinError(bx, by, min(histo.GetBinContent(bx,by), histo.GetBinError(bx,by)))
+    elif "TH3" in histo.ClassName():
+        for bx in range(0,histo.GetNbinsX()+2):
+            for by in range(0,histo.GetNbinsY()+2):
+                for bz in range(0,histo.GetNbinsZ()+2):
+                    histo.SetBinError(bx, by, bz, min(histo.GetBinContent(bx,by,bz), histo.GetBinError(bx,by,bz)))
+
 def _isNullHistogram(h):
     if h.Integral() != 0: return False
     if "TH1" in h.ClassName():
@@ -433,6 +447,12 @@ class HistoWithNuisances(object):
             cropNegativeBins(self.central)
             for hs in self.variations.values():
                 for h in hs: cropNegativeBins(h)
+    def cropBinErrorTo100Percent(self, allVariations=True):
+        cropBinErrorTo100Percent(self.nominal)
+        if allVariations:
+            cropBinErrorTo100Percent(self.central)
+            for hs in self.variations.values():
+                for h in hs: cropBinErrorTo100Percent(h)
     def getCentral(self):
         return self.central
     def getVariation(self,alternate):
@@ -443,6 +463,10 @@ class HistoWithNuisances(object):
         return bool(self.variations) 
     def getVariationList(self):
         return list(self.variations.keys())
+    def addYieldVariations(self,name,kup,kdown):
+        hup = _cloneNoDir(self.central); hup.Scale(kup)
+        hdn = _cloneNoDir(self.central); hdn.Scale(kdown)
+        self.variations[name] = (hup, hdn)  
     def addVariation(self,name,sign,histo_varied, clone=True):
         idx = 0 if sign=='up' else 1
         if name not in self.variations: self.variations[name] = [None,None]
@@ -964,8 +988,8 @@ def mergePlots(name,plots):
         for p in plots[1:]: one+=p
     return one
 
-def listAllNuisances(histWithNuisanceMap):
-    return set().union(*(h.getVariationList() for (k,h) in histWithNuisanceMap.items() if k != "data" and h.Integral() >= 0))
+def listAllNuisances(histWithNuisanceItems):
+    return set().union(*(h.getVariationList() for (k,h) in histWithNuisanceItems if k.isData == False and h.Integral() >= 0))
 
 def addMyPOIs(context, histoWithNuisanceMap, mca):
     pois = set()

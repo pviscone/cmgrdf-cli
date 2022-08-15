@@ -51,7 +51,7 @@ For the moment, the only implemented kind of uncertainty is a weight variation v
 
 More complex uncertainties that re-define other branches should also be implementable easily.
 
-Normalization-only uncertainties could be implemented for free scaling the existing histograms, either at the sample or at the process level. This feature was available in CMGTools and is not yet implemented here. Likewise, post-processing of uncertainties (e.g. symmetrization of an uncertainty defined with a single variation) is not implemented.
+Normalization-only are implemented with free scaling the existing histograms, at the process level (they could also be added at the sample level, but it's not implemented). Likewise, post-processing of uncertainties (e.g. symmetrization of an uncertainty defined with a single variation) is not implemented.
 
 ## Caching:
 
@@ -84,7 +84,6 @@ from CMGRDF import *
 
 ### To Do (in random order)
 
- * Normalization Uncertainties in a better way
  * MCGroup support for different xsection values per sample
  * Yield tables with uncertainties
  * Additional generator weights, e.g. for normalized scale variations
@@ -92,6 +91,5 @@ from CMGRDF import *
  * Test uncertainties that modify non-weight columns (e.g. JECs)
  * Test using a CMGTools sample file to process NanoAODs
  * Test roo-fit related stuff
- * Implement creating datacards
  * Test creating friends and skimming
  * Caching of datasets
