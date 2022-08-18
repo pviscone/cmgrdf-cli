@@ -593,7 +593,25 @@ class HistoWithNuisances(object):
                                 (sd-s0),  min(abs(sd/s0 if s0 else 99.999),99.999),  (spd-s0),  min(abs(spd/s0 if s0 else 99.999),99.999)))
             elif not quiet: print("Info: template %s %s %s effective unweighted events %.2f was regularized. kup = %.2f, kdown = %.2f" % (binname, h.GetName(), var, s0**2/s02, spu/s0 if s0 else 999, spd/s0 if s0 else 999))
 
-
+    def asRooDataHist(self,roofitContext=None,approxUnweight=False):
+        if self._rooFit:
+            if roofitContext != None and self._rooFit['context'] != roofitContext:
+                print("I have to regenerate the RooFit setup as it has changed.")
+                self._rooFit = None
+                self._postFit = None
+            else:
+                roofitContext =  self._rooFit['context']
+        if not self._rooFit:
+            if not roofitContext: raise RuntimeError("Must provide a valid RooFitContext to create objects")
+            self.setupRooFit(roofitContext)
+        hraw = _cloneNoDir(self.raw())
+        if approxUnweight and hraw.Integral() > 0:
+            norm = hraw.Integral()
+            err  = self.integralStatError()
+            hraw.Scale(norm/err**2)
+        return ROOT.RooDataHist(self.GetName(), self.GetTitle(), 
+                    ROOT.RooArgList(roofitContext.xvar),
+                    roofitContext.hist2roofit(hraw))
     def rooFitPdfAndNorm(self,roofitContext=None):
         if self._rooFit:
             if roofitContext != None and self._rooFit['context'] != roofitContext:
@@ -1046,8 +1064,8 @@ def addExternalPhysicsModelPOIs(context,histoWithNuisanceMap,mca,processPegs):
 def roofitizeReport(histoWithNuisanceMap, workspace=None, xvarName="x", density=False, context=None):
     # sanity check all inputs, and get one representative histogram
     h0 = None
-    for k,h in histoWithNuisanceMap.items():
-        if k == "data": continue
+    for k,h in histoWithNuisanceMap.histos:
+        if k.isData: continue
         if not isinstance(h, HistoWithNuisances):
             raise RuntimeError("element %s (%s, %s) is not a HistoWithNuisances" % (h, h.GetName() if h else "<nil>"))
         if not str(h.raw().ClassName()).startswith("TH1"): 
@@ -1070,13 +1088,12 @@ def roofitizeReport(histoWithNuisanceMap, workspace=None, xvarName="x", density=
     if not roofit.xvar:
         # create the x variable
         roofit.prepareXVar(h0, density, name=xvarName)
-    for nuis in listAllNuisances(histoWithNuisanceMap):
+    for nuis in listAllNuisances(histoWithNuisanceMap.histos):
         if not workspace.arg(nuis):
             roofit.factory("%s[0,-7,7]" % nuis)
     # now roofitise all objects
-    for k,h in histoWithNuisanceMap.items():
-        if k != "data": 
-            h.setupRooFit(roofit)
+    for k,h in histoWithNuisanceMap.histos:
+        h.setupRooFit(roofit)
     # and return the context
     return roofit
     

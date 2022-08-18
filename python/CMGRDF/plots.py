@@ -144,7 +144,16 @@ class PlotResult(object):
             if bkgs: self.totals["background"] = mergePlots("background", bkgs)
     def __getattr__(self,key):
         return getattr(self.spec,key)
-
+    def histByProcName(self,procName):
+        for (p,h) in self.histos:
+            if p.name == procName:
+                return h
+        return None
+    def histData(self):
+        for (p,h) in self.histos:
+            if p.isData:
+                return h
+        return None
 
 
 def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):

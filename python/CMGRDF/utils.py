@@ -140,6 +140,12 @@ class MultiReport(object):
             gk = k.removeKeys(*keys)
             mergeMap[gk].append(v)
         return mergeMap.items()
+    def allMatchingKey(self,key):
+        return [ (k,p) for (k,p) in self._items if key.isSuperSet(k) ]
+    def getByKey(self,key):
+        alls = self.allMatchingKey(key)
+        assert(len(alls) == 1)
+        return alls[0][1]
 
 def _recursiveAddToHash(obj, hasher):
     if obj == None:
