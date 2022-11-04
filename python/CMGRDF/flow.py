@@ -1,15 +1,34 @@
 import copy
-import hashlib
-import time
 from typing import Any, Dict, List, Mapping, Union
 
 import ROOT
-from CMGRDF.GenWeightProvider import GenWeightProvider
 
-from CMGRDF.data import Process, Source, Sample
-from CMGRDF.utils import MultiKey, MultiReport, _recursiveAddToHash, safeName
+from CMGRDF.data import Sample
+from CMGRDF.utils import _recursiveAddToHash, safeName
 
 class FlowStep(object):
+    """A generic step to the processing flow.
+
+       Subclasses should implement the following methods:
+          * _attach(self, rdf): 
+                add any RDF processing instructions and return the tip of the new graph
+          * _getAdditionalWeights: (optional, the default returns None) 
+                returns a list of column names of weights that are to be 
+                multiplied together in the final event weight
+          * `__eq__(self, other) -> bool`: 
+                return true if this step is identical to the other 
+                and so there's no need to instantiate both.
+                In the implementation, you can call `FlowStep._equals(self, other)` 
+                to check the equivalence of the base class datamembers
+         * `_addToHash(self,hasher):` 
+                Add information about this step to a hash, used for caching.
+                You can implement it as
+                ```
+                    super()._addToHash(hasher)
+                    _recursiveAddToHash( (all your datamembers), hasher) 
+                ```
+
+    """
     def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
         self.name = name
         self.onMC = onMC
@@ -27,13 +46,17 @@ class FlowStep(object):
         if self.eras and (era not in self.eras):
             return False
         return True
-    def attach(self, rdf):
+    def _getAdditionalWeights(self): 
+        return None
+    def attach(self, rdf, weights):
         rdf2 = self._attach(rdf)
         if rdf2 != rdf:
             rdf2._from = rdf
-            return rdf2
-        else:
-            return rdf
+        w = self._getAdditionalWeights()
+        if w:
+            weights = weights[:] + w
+        return (rdf2, weights)
+
     @staticmethod
     def _equals(obj1,obj2):
         return (obj1.name == obj2.name and 
@@ -92,6 +115,12 @@ class ReDefine(SimpleExprFlowStep):
             raise
 
 class DefinePerSample(FlowStep):
+    """Attaches a DefinePerSample node.   
+       
+       This currently needs to be implemented by defining a C++ class with a method
+            `ROOT::RDF::RNode attachAsDefinePerSample(ROOT::RDF::RNode &rdf, const std::string &colName)`
+       since Python callbacks don't work (as of ROOT 6.26.04)
+    """
     def __init__(self, name, provider, **options):
         super().__init__(name, **options)
         self.provider = provider
@@ -107,6 +136,7 @@ class DefinePerSample(FlowStep):
         return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name)
 
 class DefineDefault(SimpleExprFlowStep):
+    """Defines a variable if it's not already present in the tree"""
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
     def _attach(self, rdf):
@@ -115,28 +145,69 @@ class DefineDefault(SimpleExprFlowStep):
             return rdf
         return rdf.Define(self.name,self.expr)
 
-class AddWeight(SimpleExprFlowStep):
-    def __init__(self, name, expr, onData=False, onDataDriven=False, **options):
-        super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
-    def _attach(self,rdf):
+class Vary(SimpleExprFlowStep):
+    """Attaches a rdf Vary node of simple type, with the name of the column and
+       an expression that should return `RVec<T>` of varied values.
+
+       Normally, it should be a vector of size 2, with element `0` being the
+       down variation, and element `1` being the up variation.
+
+       You can specify a nuisance name, if not it will be set to the column name
+    """
+    def __init__(self, name, expr, variationTags=["down","up"], nuisName=None, **options):
+        super().__init__(name, expr, **options)
+        self.variationTags = variationTags
+        self.nuisName = nuisName if nuisName else name
+    def _attach(self, rdf):
         try:
-            return rdf.Redefine("weight","weight*(%s)"%self.expr)
+            return rdf.Vary(self.name, self.expr, variationTags=self.variationTags, variationName=self.nuisName)
         except:
-            print(f"ERROR attaching AddWeight {self.name}: redefine weight *= {self.expr}")
+            print(f"ERROR attaching Vary({self.name}, {self.expr}, variationTags={self.variationTags}, variationName={self.nuisName}")
             raise
 
+class AddWeight(SimpleExprFlowStep):
+    """Attaches one weight to the RDF.
+       
+       If the weight already exists as a column, you can just specify the name.
+       If not, you should specify a name and an expression to compute it, and it will `Define` it
+
+       **Note:** by default, weights are applied only on MC, not on data
+    """
+    def __init__(self, name, expr="", onData=False, onDataDriven=False, **options):
+        super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
+    def _attach(self,rdf):
+        if self.expr and (self.expr != self.name):
+            try:
+                return rdf.Define(self.name,self.expr)
+            except:
+                print(f"ERROR attaching AddWeight {self.name}: {self.expr}")
+                raise
+        return rdf
+    def _getAdditionalWeights(self): 
+        return [ self.name ]
+
 class AddWeightUncertainty(FlowStep):
-    def __init__(self, name, exprUp, exprDown=None, nominal="1.0", **options):
+    """Attaches one weight uncertainty.
+       
+       You must specify a name, an optional nominal expression value (default is 1.0),
+       an up variation expression, and an optional down variation (default: nominal^2/up)
+
+       **Note:** by default, weights are applied only on MC, not on data
+    """
+    def __init__(self, name, exprUp, exprDown=None, nominal="1.0", nuisName=None, **options):
         super().__init__(name, **options)
         self.nominal = nominal
         if exprDown is not None:
             self.vars = (exprDown, exprUp)
         else:
-            self.vars = ("({0})/({1})".format(nominal,exprUp), exprUp)
+            self.vars = ("({0})*({0})/({1})".format(nominal,exprUp), exprUp)
+        self.nuisName = nuisName if nuisName else name
     def _attach(self,rdf):
         rdf = rdf.Define(self.name, str(self.nominal))
-        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down","up"])
-        return rdf.Redefine("weight","weight*(%s)"%self.name)
+        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down","up"], variationName=self.nuisName)
+        return rdf
+    def _getAdditionalWeights(self): 
+        return [ self.name ]
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.nominal == other.nominal and self.vars == other.vars
@@ -148,6 +219,7 @@ class AddWeightUncertainty(FlowStep):
 
 
 class Flow(object):
+    """A sequence of steps, with a name."""
     def __init__(self, name, *steps, **options):
         self.name = name
         self.steps = Flow._flatten(steps) # type: List[FlowStep]
@@ -175,6 +247,13 @@ class Flow(object):
     def append(self, *steps):
         self.steps += Flow._flatten(steps)
         return self
+    def replace(self, name, *steps):
+        matches = [i for (i,s) in enumerate(self.steps) if s.name == name]
+        if len(matches) != 1:
+            raise RuntimeError(f"Looking for step {name} in flow {self.name}, found {matches}")
+        idx = matches[0]
+        self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx+1:]
+        return self
     def filterSteps(self, filter):
         self.steps = [ s for s in self.steps if filter(s)]
         return self
@@ -191,141 +270,63 @@ class Flow(object):
         self.steps = newSteps
         if not found: raise RuntimeError("Not found step %s in flow %s" % (name,self.name))
         return self
-    def attach(self, rdf, sample : Sample, era):
-        assert(isinstance(sample,Sample))
-        for s in self.steps:
-            if s.appliesTo(sample,era):
-                rdf = s.attach(rdf)
-        return rdf
+
 
 class Target(object):
-    def __init__(self, name):
+    """An endpoint of the graph, e.g. a plot, yield, or similar."""
+    def __init__(self, name, mcOnly=False):
         self.name = name
+        self.mcOnly = mcOnly
     def attach(self, rdf, sample, era):
         raise RuntimeError("Must be implemented by subclass")
-    def finish(self, rdf, sample, era):
-        pass
+    def bookVariations(self, future):
+        """Calls RDF.Experimental.VariationsFor or any customization of it"""
+        return ROOT.RDF.Experimental.VariationsFor(future)
+    def finish(self, value, sample, era):
+        """Performs any post-processing of the nominal value returned by the RDF future.
+           This is done before caching, so it should do manipulations that affect the
+           content (e.g. handling overflows), while presentation aspects (e.g. labels)
+           are better done later so that they can be changed even when the object is read from cache."""
+        return value
+    def finishFuture(self, future, sample, era):
+        """Receive a future for the nominal value, unwraps it and return the value.
+           By defalut it just calls `finish(future.GetValue(), sample, era)`"""
+        return self.finish(future.GetValue(), sample, era)
+    def finishVarFuture(self, varfuture, sample, era):
+        """Receive the RDF variations for an object, and by default unpacks them into a python map"""
+        return dict((k, self.finish(varfuture[k], sample, era)) for k in varfuture.GetKeys())
     def longId(self):
+        """If different from None, it should be an unique and it will allow the result to be cached."""
         return None
 
-class _Branch(object):
-    def __init__(self, step : FlowStep, rdf, hasher = None):
-        self.step = step
-        self.rdf = rdf
-        self.branches = [] # type: List["_Branch"]
-        self.leaves = dict() # type: Dict[Target, Any]
-        self.hasher = hashlib.sha256() if hasher == None else hasher # type: hashlib.sha256
-        if step: step._addToHash(self.hasher)
-    def maybeBranch(self, step : FlowStep, verbose=False):
-        for b in self.branches:
-            if b.step == step:
-                if verbose: print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
-                return b
-        b = _Branch(step, step.attach(self.rdf), self.hasher.copy())
-        if verbose: print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
-        self.branches.append(b)
-        return b
-    def longId(self):
-        return "%s-%s" % (safeName(self.step), self.hasher.hexdigest())
-
-class Processor(object):
-    def __init__(self, cache = None):
-        self._trees = dict() # type: Dict[Source,_Branch]
-        self._summer = GenWeightProvider(cache = cache)
-        self._lumiMap = dict() # type: Dict[MultiKey, float]
-        self._cache = cache
-        self._toCache = dict()
-        self.clear()
-    def clear(self):
-        self._futures = []
-        self._fromCache = []
-        self._toCache.clear()
-        self._trees.clear()
-    def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False):
-        if source not in self._trees:
-            if verbose: print("Created new source tree for %s" % source.longId())
-            self._trees[source] = _Branch(None,source.createRDF(treeName))
-        else:
-            if verbose: print("Reused source for %s" % source.longId())
-        tree = self._trees[source]
-        for step in flow.steps:
-            tree = tree.maybeBranch(step, verbose=verbose)
-        return tree
-    def _bookCutFlowReports(self):
-        return [(src, b.rdf.Report()) for (src,b) in self._trees.items()]
-    def bookedLumi(self, multiKey):
-        if multiKey not in self._lumiMap: 
-            lumi = sum([l for (k,l) in self._lumiMap.items() if multiKey.isSuperSet(k)])
-            self._lumiMap[multiKey] = lumi
-        return self._lumiMap[multiKey]
-    def book(self, processes : List[Process], lumi, flows : Union[Flow,List[Flow]], targets : List[Target], eras=None, taskName="", withUncertainties=False, logPerformance=True):
-        t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._futures))
-        if eras is None: 
-            eras = [None]
-            lumi = {None:lumi}
-        for p in processes:
-            for s in p.samples:
-                if s.isMC: 
-                    s.bookSumWeight(self._summer, eras)
-        if isinstance(flows,Flow): flows = [flows]
-        for flow in flows:
-            for era in eras:
-                self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = lumi[era]
-                for proc in processes:
-                    procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
-                    for sample in proc.samples:
-                        src = sample.source(era)
-                        if not src: continue
-                        sampleKey = procKey.addKeys(sample=sample.name)
-                        if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
-                        else:
-                            sflow = sample.customizeFlow(flow.clone(), era=era)
-                        branch = self._growBranch(src, sflow)
-                        for t in targets:
-                            plotKey = sampleKey.addKeys(name = t.name)
-                            k3 = (src.longId(), branch.longId(), t.longId()) if self._cache else None
-                            if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):
-                                (res, resvar) = self._cache.getPlot(k3)
-                                self._fromCache.append((plotKey, proc, sample, t, res, resvar))
-                            else:
-                                if t not in branch.leaves:
-                                    branch.leaves[t] = t.attach(branch.rdf, sample, era)
-                                fut = branch.leaves[t]
-                                vars = ROOT.RDF.Experimental.VariationsFor(fut) if withUncertainties else None
-                                if self._cache and k3[-1] is not None: self._toCache[plotKey] = k3
-                                self._futures.append((plotKey, proc, sample, t, fut, vars))
-        t1 = time.perf_counter()
-        n1 = (self._summer.nSamples(), len(self._futures))
-        if logPerformance: print("Booked %d sums and %d targets in %.3fs" % ((n1[0]-n0[0]),(n1[1]-n0[1]),t1-t0))
-        return self
-    def runAllRaw(self, logPerformance=True, makeCutFlowReports=False):
-        """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
-        self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
-        t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._futures))
-        self._summer.runAll()
-        t0b = time.perf_counter()
-        if logPerformance: print("Filled %d sums in %.3fs" % (n0[0],t0b-t0))
-        # run the graphs
-        if self._futures:
-            ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
-            t1 = time.perf_counter()
-            if logPerformance: print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0],n0[1],t1-t0,t1-t0b))
-        # finalize the plots
-        ret = MultiReport()
-        for (plotKey, proc, sample, target, future, vars) in self._futures:
-            result = target.finish(future.GetValue(), sample, plotKey.era)
-            resvars = dict((k,target.finish(vars[k], sample, plotKey.era)) for k in vars.GetKeys()) if vars else None
-            if plotKey in self._toCache:
-                self._cache.writePlot(self._toCache[plotKey], result, resvars)
-            ret.append(plotKey, (proc, sample, target, result, resvars))
-        for (plotKey, proc, sample, target, result, resvars) in self._fromCache:
-            ret.append(plotKey, (proc, sample, target, result, resvars))
+class Yield(Target):
+    """Computes an event yield (sum of the weights), with optional stat and syst uncertainties"""
+    def __init__(self, name, weight="weight", mcOnly=False):
+        super(Yield, self).__init__(name, mcOnly=mcOnly)
+        self.weight = weight
+    def attach(self, rdf, sample, era):
+        fut = rdf.Sum(self.weight)
+        fut._rdf = rdf
+        return fut
+    def attachSumw2(self, rdf):
+        return rdf.Define(self.weight+"2", self.weight+"*"+self.weight).Sum(self.weight+"2")
+    def bookVariations(self, future):
+        sum2 = self.attachSumw2(future._rdf)
+        return (sum2, ROOT.RDF.Experimental.VariationsFor(future))
+    def finishVarFuture(self, varfuture, sample, era):
+        ret = dict()
+        if type(varfuture) == tuple:
+            sum2, systs = varfuture
+            ret = dict((k, systs[k]) for k in systs.GetKeys())        
+            ret[""] = sum2.GetValue()
+        else: 
+            ret[""] = varfuture.GetValue()
         return ret
-    def printRawCutFlowReports(self):
-        for source, report in sorted(self._reports, key = lambda p : p[0].longId()):
-            print("Cut flow for %s" % source.longId())
-            report.GetValue().Print()
-            print("")
+    def __eq__(self, other):
+        if other.__class__ == Yield:
+            return self.name == other.name and self.weight == other.weight
+        return False
+    def __hash__(self):
+        return hash(self.longId())
+    def longId(self):
+        return "%s-%s" % (safeName(self), self.weight)        

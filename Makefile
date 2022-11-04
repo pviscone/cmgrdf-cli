@@ -9,6 +9,7 @@ INC_DIR = include
 LIB_DIR = lib
 OBJ_DIR = obj
 PY_DIR = python
+EXT_DIR = externals
 
 LIBNAME=CMGRDF
 SONAME=lib$(LIBNAME).so
@@ -19,6 +20,9 @@ ROOTLDFLAGS   = $(shell root-config --ldflags)
 LDFLAGS       = $(ROOTLDFLAGS) -shared -Wl,-soname,$(SONAME) -Wl,-E -Wl,-z,defs -fPIC
 SRCS = $(notdir $(shell ls $(SRC_DIR)/*.cc ))
 OBJS = $(SRCS:.cc=.o) 
+
+# Rochester Corrections
+OBJS += $(notdir $(patsubst %.cc,%.o,$(wildcard $(EXT_DIR)/RoccoR/RoccoR.cc)))
 
 #Makefile Rules ---------------------------------------------------------------
 .PHONY: clean dirs obj lib env
@@ -32,16 +36,14 @@ dirs:
 
 obj: 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cc $(INC_DIR)/%.h
-	$(CC) $(CCFLAGS) -I $(INC_DIR) -I $(SRC_DIR) -c $< -o $@
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cc $(SRC_DIR)/%.h
-	$(CC) $(CCFLAGS) -I $(INC_DIR) -I $(SRC_DIR) -c $< -o $@
+	$(CC) $(CCFLAGS) -I $(INC_DIR) -I $(SRC_DIR) -I $(EXT_DIR) -c $< -o $@
 
 #---------------------------------------
 
-lib: dirs ${LIB_DIR}/$(SONAME)
-${LIB_DIR}/$(SONAME):$(addprefix $(OBJ_DIR)/,$(OBJS)) 
-#	@echo "\n*** Building $(SONAME) library:"
-	$(LD) $(LDFLAGS) $(BOOST_INC) $(addprefix $(OBJ_DIR)/,$(OBJS))  $(SOFLAGS) -o $@ $(LIBS)
+lib: $(LIB_DIR)/$(SONAME) | dirs
+$(LIB_DIR)/$(SONAME):$(addprefix $(OBJ_DIR)/,$(notdir $(OBJS)))
+	$(LD) $(LDFLAGS) $^  $(SOFLAGS) -o $@ $(LIBS)
+
 
 #---------------------------------------
 
@@ -62,7 +64,32 @@ debug:
 	@echo "OBJS: $(OBJS)"
 	@echo "SRCS: $(SRCS)"
 
+#---------------------------------------
+## Rochester corrections
+$(OBJ_DIR)/RoccoR.o: externals/RoccoR/RoccoR.cc externals/RoccoR/RoccoR.h
+	$(CC) $(CCFLAGS) -I $(INC_DIR) -I $(SRC_DIR) -c $< -o $@
+
+#---------------------------------------
 env:
-	@echo "export CMGRDF=$(MAIN_DIR)"
-	@echo "export PYTHONPATH=$(MAIN_DIR)/python:$(PYTHONPATH)"
-	@echo "export LD_LIBRARY_PATH=$(MAIN_DIR)/lib:$(LD_LIBRARY_PATH)"
+	@echo 'export CMGRDF=$(MAIN_DIR);'
+	@echo 'export PYTHONPATH=$${CMGRDF}/python:$${PYTHONPATH};'
+	@echo 'export LD_LIBRARY_PATH=$${CMGRDF}/lib:$${LD_LIBRARY_PATH};'
+	@test -d $(MAIN_DIR)/externals/HiggsAnalysis/CombinedLimit && \
+	   echo 'export COMBINE=$${CMGRDF}/externals/HiggsAnalysis/CombinedLimit/build;' && \
+	   echo 'export PATH=$${COMBINE}/bin:$${PATH};' && \
+	   echo 'export LD_LIBRARY_PATH=$${COMBINE}/lib:$${LD_LIBRARY_PATH};' && \
+	   echo 'export PYTHONPATH=$${COMBINE}/lib/python:$${COMBINE}/lib:$${PYTHONPATH};' || \
+	   true;
+	@which correction > /dev/null 2>&1 && \
+	   echo 'export CORRECTIONLIB=$$(correction config --incdir | sed s+/include$$++)' && \
+	   echo 'export LD_LIBRARY_PATH=$${CORRECTIONLIB}/lib:$${LD_LIBRARY_PATH};' || \
+	   true;	   
+	@test -d $(MAIN_DIR)/externals/correctionlib && \
+	   echo 'export CORRECTIONLIB=$${CMGRDF}/externals/correctionlib/correctionlib;' && \
+	   echo 'export LD_LIBRARY_PATH=$${CORRECTIONLIB}/lib:$${LD_LIBRARY_PATH};' && \
+	   echo 'export PYTHONPATH=$${CORRECTIONLIB}:$${PYTHONPATH};' || \
+	   true;	   
+	@test -d $(MAIN_DIR)/externals/onnxruntime-linux-x64-1.11.1 && \
+	   echo 'export ONNXRUNTIME=$${CMGRDF}/externals/onnxruntime-linux-x64-1.11.1;' && \
+	   echo 'export LD_LIBRARY_PATH=$${ONNXRUNTIME}/lib:$${LD_LIBRARY_PATH};'  || \
+	   true;

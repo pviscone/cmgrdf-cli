@@ -278,9 +278,9 @@ plots = [
 lumi = {2017:41.5, 2018:59.7}
 
 ROOT.EnableImplicitMT(16)
-maker = PlotMaker()
+maker = Processor()
 #verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo)
 maker.book(data["prompt"]+data["mcfakes"]+data["data"],lumi,flow_SR["med"],plots,eras=[2018],taskName="mcFakes")
-result_plots = maker.runAll()
+result_plots = maker.runPlots()
 printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi[2018], showRatio=True, showErrors=True)
 printer.printSet(result_plots, "../plots/003/sos/cmgrdf/{era}/{flow}_{taskName}")

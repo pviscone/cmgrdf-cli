@@ -1,17 +1,17 @@
-from math import hypot, sqrt, ceil
+from math import hypot, ceil
 import re
 import os, os.path
 from array import array
-import time
 from typing import Any
 
 import ROOT
 from CMGRDF.histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
 from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
-from CMGRDF.flow import Target, Processor
+from CMGRDF.flow import Target
 
 def _unTLatex(string : str) -> str:
+    """Replaces a root-formatted string with plaintext"""
     string = string.replace("#chi","x").replace("#rightarrow","->").replace("#minus","-")
     string = re.sub(r"#(mu|tau|gamma)", r"\1", string)
     string = re.sub(r"#bar\{(\w+)\}", r"\1bar", string)
@@ -19,13 +19,12 @@ def _unTLatex(string : str) -> str:
     return string
 
 class Plot(Target):
-    def __init__(self, name, *args, **options):
-        super(Plot, self).__init__(name)
+    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, **options):
+        super(Plot, self).__init__(name, mcOnly=mcOnly)
         for k,v in options.items():
             setattr(self, k, v)
-        t = options["type"] if "type" in options else "Histo1D"
-        self.type = t
-        if t == "Histo1D":
+        self.type = typ
+        if typ == "Histo1D":
             self._expr = args[0]
             self._bins = args[1]
             self.attach = self.bookHisto1D
@@ -129,6 +128,7 @@ class Plot(Target):
         return "%s-%s" % (safeName(self), self.bigHash())
 
 class PlotResult(object):
+    """A plot, with the specifications, the histograms with all the individual components and possibly some totals"""
     def __init__(self,plot,histos,fillTotals=True):
         self.spec = plot
         self.name = plot.name
@@ -191,56 +191,6 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     h.poissonGraph = ret ## attach it so it doesn't get deleted
     return ret
 
-class PlotMaker(Processor):
-    def runAll(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs):
-        rawReport = self.runAllRaw(logPerformance=logPerformance, **kwargs)
-        t0 = time.perf_counter()
-        plots = MultiReport()
-        for plotKey, (proc, sample, plot, hraw, vars) in rawReport:
-            if not isinstance(plot,Plot): continue # there may be other stuff depending on book
-            hist = HistoWithNuisances(hraw)
-            if vars:
-                for k in vars.keys():
-                    if ":" in k:
-                        (var,sign) = str(k).split(":")
-                        hist.addVariation(var, sign, vars[k])
-                    elif k != "nominal":
-                        print("ERROR: unknown variation %s for %s" % (k, plotKey))
-            if proc.getOpt("normUncertainty"):
-                nuisname = proc.getOpt("normNuisance","norm_"+proc.name)
-                unc = proc.getOpt("normUncertainty")
-                if type(unc) == float:
-                    kup, kdown = 1.0+unc, 1.0/(1.0+unc)
-                else:
-                    kup, kdown = 1.0+unc[1], 1.0/(1.0-unc[0]) # keep it a logNormal if unc[0] = unc[1]
-                hist.addYieldVariations(nuisname, kup, kdown)
-                #print("Adding norm uncertainty %s (%s) to %s" % (unc, nuisname, plotKey))
-            hist = plot.style(hist, proc)
-            plots.append(plotKey, (plot, proc, sample, hist))
-        # merge the plots
-        keysToRemove = []
-        if mergeSamples: keysToRemove.append("sample")
-        if mergeEras: keysToRemove.append("era")
-        merged = MultiReport()
-        for mergedKey, mergeList in plots.groupRemoving(*keysToRemove):
-            plot = mergeList[0][0]
-            proc = mergeList[0][1]
-            hists = [r[-1] for r in mergeList]
-            if mergeSamples:
-                merged.append(mergedKey, (plot, proc, mergePlots(proc.name, hists)))
-            else:
-                merged.append(mergedKey, (plot, proc, sample, mergePlots(proc.name, hists)))
-        keysToRemove = ["process"] if mergeSamples else ["process","sample"]
-        results = MultiReport()
-        for mergedKey, mergeList in merged.groupRemoving(*keysToRemove):
-            plot = mergeList[0][0]
-            histos = [r[1:] for r in mergeList]
-            result = PlotResult(plot, histos)
-            results.append(mergedKey, result)
-            result.lumi = self.bookedLumi(mergedKey.removeKeys("name"))
-        if logPerformance: print("Merged %d plots in %.3fs" % (len(plots),time.perf_counter()-t0))
-        return results
-
 class PlotSetPrinter(object):
     @staticmethod
     def defaultOptions():
@@ -295,12 +245,12 @@ class PlotSetPrinter(object):
             display(HTML("<h2>%s</h2>" % outputName))
         outputTDir = ROOT.TFile.Open("%s/%s.root"%(path,outputName),"RECREATE") if "root" in outputFormats else None
         print("Printing %s in %s (formats: %s)" % (outputName,path,outputFormats))
-        data = None
+        data = []
         outlines = []
         for (proc, hist) in reversed(plot.histos):
             fullName = (os.path.basename(path), outputName, proc.name)
             if proc.isData: 
-                data = (proc,hist)
+                data.append( (proc,hist) )
                 continue
             # warn if negative values
             if opts.warnAboutNegativeBins:
@@ -317,6 +267,7 @@ class PlotSetPrinter(object):
                 plot.restyleAsOutline(hist)
                 stack.Add(hist.raw())
                 total.SetMaximum(max(total.GetMaximum(),1.3*hist.GetMaximum()))
+            if outputTDir: hist.writeToFile(outputTDir)
             if opts.showErrors and not(opts.stack):
                 hist.SetMarkerColor(hist.GetFillColor())
                 hist.SetMarkerStyle(21)
@@ -327,6 +278,7 @@ class PlotSetPrinter(object):
         if stack.GetNhists() == 0:
             print("ERROR: for %s, all histograms are empty\n " % str(fullName))
             return
+        if outputTDir: total.writeToFile(outputTDir)
         # define aspect ratio
         doWide = opts.widePlot or plot.getOpt("Wide",False)
         plotformat = [1200,600] if doWide else [600,600]
@@ -385,7 +337,7 @@ class PlotSetPrinter(object):
             total.GetXaxis().SetNoExponent(True)
             total.GetXaxis().SetMoreLogLabels(True)
         if data:
-            total.SetMaximum(max(total.GetMaximum(),1.3*data[1].GetMaximum()))
+            total.SetMaximum(max(total.GetMaximum(),max(1.3*d[1].GetMaximum() for d in data)))
         for o in outlines:
             total.SetMaximum(max(total.GetMaximum(),1.3*o.GetMaximum()))
         if islog: total.SetMaximum(2*total.GetMaximum())
@@ -407,10 +359,11 @@ class PlotSetPrinter(object):
             total.SetMaximum(plot.getOpt('moreY',1.0)*total.GetMaximum())
         totalError = self.doShadedUncertainty(total) if opts.showErrors else None
         #is2D = total.InheritsFrom("TH2")
-        if data:
-            (dproc,dhist) = data
+        for dproc, dhist in data:
+            if outputTDir: dhist.writeToFile(outputTDir)
             if opts.poisson:
                 pdata = getDataPoissonErrors(dhist, True, True)
+                if outputTDir: outputTDir.WriteTObject(pdata)
                 pdata.Draw("PZ SAME")
             else:
                 dhist.Draw("E SAME")
@@ -439,7 +392,7 @@ class PlotSetPrinter(object):
         self.addLabels(p1, hasExpo = total.GetMaximum() > 9e4 and not islog, textSize = smallTextSize, opts = opts, doWide = doWide, lumi = plot.lumi)
         if outputTDir: outputTDir.WriteTObject(c1)
         if opts.showRatio:
-            nums = [data] if data else []
+            nums = data
             den = total
             self.doRatioHists(p2, plot, nums, den, opts, locals())
             total.GetXaxis().SetLabelOffset(999) ## send them away

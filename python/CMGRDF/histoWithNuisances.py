@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from ast import Yield
 from math import sqrt,hypot,log,exp
 import copy
 from array import array
+from os import stat
 import ROOT
 
 def _cloneNoDir(hist,name=''):
@@ -227,7 +229,206 @@ class PostFitSetup(object):
             log.append( (nfmt+"     %10.4f     %10.4f +- %10.4f      [ %10.4f , %10.4f ]") % (
                             n, pre.getVal(), post.getVal(), post.getError(), pre.getMin(), pre.getMax() ) )
         return log
-        
+
+class YieldWithNuisances(object):
+    def __init__(self, name, value_central, stat_uncertainty = 0, nominal=None, variations={}):
+        self.name = name
+        self.central = value_central
+        self.stat    = stat_uncertainty
+        self.nominal = nominal if nominal != None else self.central 
+        self.variations = copy.copy(variations)
+        self._rooFit  = None
+        self._postFit = None
+        self._usePostFit = True        
+    def __getstate__(self):
+        """Needed to pickle"""
+        return dict(name = self.name, central=self.central, nominal=self.nominal, stat=self.stat, variations=self.variations)
+    def __setstate__(self,state):
+        """Needed to un-pickle"""
+        self.name = state['name']
+        self.central = state['central']
+        self.nominal = state['nominal']
+        self.stat = state['stat']
+        self.variations = dict(state['variations'].items())
+        self._rooFit  = None
+        self._postFit = None
+        self._usePostFit = True
+    def printVariations(self):
+        print(f'central: {self.central}')
+        print(f'stat: {self.stat}')
+        for (x,(v1,v2)) in self.variations.items():
+            print(f'  variation {x} : up {v1}  down {v2}')
+        print('')
+    def Scale(self,x):
+        if self._rooFit and 'norm' in self._rooFit:
+            self._rooFit['norm'].setNominalValue(self.central * x)
+        self.central *= x
+        self.nominal *= x
+        self.variations = dict((k,(v[0]*x, v[1]*x)) for (k,v) in self.variations.items)
+    def addRooFitScaleFactor(self,roofunc):
+        if not self._rooFit: raise RuntimeError("Component was not roofitized before")
+        if "norm" not in self._rooFit: self._makeNorm()
+        self._rooFit["norm"].addOtherFactor(roofunc)
+        self._rooFit["scaleFactors"][roofunc.GetName()] = roofunc
+    def rooFitScaleFactors(self):
+        if self._rooFit:
+            if "scaleFactors" in self._rooFit: 
+                return self._rooFit["scaleFactors"]
+        return {}
+    def raw(self):
+        return self.nominal if self._usePostFit else self.central
+    def systAsymm(self,toadd=None):
+        """return the overall syst uncertainty (down, up)"""
+        if toadd == []: return (0, 0)
+        if self._postFit and self._usePostFit and toadd != None: raise RuntimeError("Selection of nuisances yet implemented for post-fit")
+        if self._postFit and self._usePostFit:
+            if "norm" not in self._rooFit: self._makeNorm()
+            toys = self._postFit.postFitToys()
+            wvars = self._rooFit["workspace"].allVars()
+            norm = self._rooFit["norm"]
+            roofit = self._rooFit["context"]
+            x0 = norm.getVal()
+            sumw2 = 0.
+            for i in range(toys.numEntries()):
+                wvars.assignValueOnly(toys.get(i))
+                sumw2 += (norm.getVal() - x0)**2
+            err = sqrt(sumw2)
+            return (-err,err)
+        else:
+            up2, down2 = 0., 0.
+            for var in (toadd if toadd != None else self.variations.keys()):
+                vup, vdn = self.variations[var]
+                up2 += max(0, max(vup,vdn)-self.central)**2
+                down2 += max(0, self.central-min(vup,vdn))**2
+            return (-sqrt(down2), sqrt(up2))
+    def syst(self, toadd=None):
+        asym = self.systAsymm(toadd)
+        return sqrt((asym[0]**2+asym[1]**2)/2)
+    def totAsymm(self):
+        systA = self.systAsymm()
+        return (-hypot(self.stat, -systA[0]), hypot(self.stat, systA[1]))
+    def tot(self):
+        return hypot(self.stat, self.syst())
+    def getCentral(self):
+        return self.central
+    def getVariation(self,alternate):
+        return self.variations[alternate]
+    def hasVariation(self,alternate):
+        return (alternate in self.variations)
+    def hasVariations(self):
+        return bool(self.variations) 
+    def getVariationList(self):
+        return list(self.variations.keys())
+    def addYieldVariations(self,name,kup,kdown):
+        self.variations[name] = (self.central * kup, self.central * kdown)          
+    def addVariation(self,name,sign,yield_varied):
+        idx = 0 if sign=='up' else 1
+        if name not in self.variations: self.variations[name] = [None,None]
+        self.variations[name][idx] = yield_varied
+        # invalidate caches
+        if self._rooFit or self._postFit:
+            print("WARNING: adding a variantion on an object that already has roofit/postfit info")
+            self._rooFit  = None
+            self._postFit = None
+    def rooNorm(self,roofitContext=None):
+        if self._rooFit:
+            if roofitContext != None and self._rooFit['context'] != roofitContext:
+                print("I have to regenerate the RooFit setup as it has changed.")
+                self._rooFit = None
+                self._postFit = None
+        if not self._rooFit:
+            if not roofitContext: raise RuntimeError("Must provide a valid RooFitContext to create objects")
+            self.setupRooFit(roofitContext)
+        if "norm" not in self._rooFit:
+            self._makeNorm()
+        return self._rooFit["norm"]
+    def setPostFitInfo(self,postFitSetup,applyIt):
+        if self._rooFit == None:
+            raise RuntimeError("Can't setPostFitInfo if you don't have a valid roofit setup")
+        self._postFit = postFitSetup
+        if applyIt: self._doPostFit()
+        else:       self._doPreFit()
+    def _doPreFit(self):
+        self._usePostFit = False
+        self.nominal = self.central
+        if self._rooFit and self._postFit and self._postFit.fitResult:
+            self._rooFit["workspace"].allVars().assignValueOnly(self._postFit.fitResult.floatParsInit())
+    def _doPostFit(self):
+        self._usePostFit = True
+        roofit = self._rooFit["context"]
+        roofit.workspace.allVars().assignValueOnly(self._postFit.fitResult.floatParsFinal())
+        if self.central == 0: return
+        if "norm" not in self._rooFit: self._makeNorm()
+        self.nominal = self._rooFit["norm"].getVal()
+    def setupRooFit(self,roofitContext):
+        if self._rooFit: 
+            if self._rooFit["context"] == roofitContext:
+                return
+            print("WARNING, discarding already existing RooFit context")
+        self._rooFit = { "context":roofitContext, "workspace":roofitContext.workspace }
+    def _makeNorm(self):
+        self.cropNegativeBins() # can't do with this
+        roofitContext = self._rooFit["context"]
+        norm0 = self.central.Integral()
+        normfactor = ROOT.ProcessNormalization(self.name, "", norm0)
+        for var,(hup,hdown) in self.variations.items():
+            nuis = roofitContext.workspace.var(var)
+            if not nuis: raise RuntimeError(f"ERROR: can't find nuisance {var} needed for {self.name}")
+            if norm0==0: raise RuntimeError(f'zero central normalization for ' + self.name)
+            if abs(hup.Integral()/norm0-1)>1e-5 or abs(hdown.Integral()/norm0-1)>1e-5:
+                kup   = min(max(0.1, hup/norm0),   10) # sanitze
+                kdown = min(max(0.1, hdown/norm0), 10) # sanitze
+                normfactor.addAsymmLogNormal(kdown, kup, nuis) 
+        self._rooFit["norm"] = normfactor
+        self._rooFit["scaleFactors"] = {}
+    def _dropNorm(self):
+        if self._rooFit:
+            for k in "norm", "scaleFactors":
+                if k in self._rooFit: del self._rooFit[k]
+    def _canAdd(self, x : "YieldWithNuisances"):
+        #if isinstance(x,YieldSumWithNuisances): return False
+        return set(self.rooFitScaleFactors().keys()) == set(x.rooFitScaleFactors().keys())
+    def __iadd__(self , x : "YieldWithNuisances"):
+        if not self._canAdd(x):
+            raise RuntimeError("Not yet implemented, but could be")
+            #return YieldSumWithNuisances([self, x])
+        central = self.central + x.central
+        nominal = self.nominal + x.nominal
+        stat = hypot(self.stat, x.stat)
+        variations = dict()
+        for k,(up1,dn1) in self.variations.items():
+            if k in x.variations:
+                up2,dn2 = x.variations[k]
+                variations[k] = (up1+up2, dn1+dn2)
+            else:
+                variations[k] = (up1 + x.central, dn1 + x.central)
+        for k,(up2,dn2) in x.variations.items():
+            if k not in variations:
+                variations[k] = (self.central+up2, self.central+dn2)
+        self.central = central
+        self.nominal = nominal
+        self.stat = stat
+        self.variations = variations
+        self._dropNorm()
+        return self
+    def __add__(self, x : "YieldWithNuisances"):
+        if not self._canAdd(x):
+            raise RuntimeError("Not yet implemented, but could be")
+            #return YieldSumWithNuisances([self, x])
+        h = self.Clone(self.name)
+        h += x
+        return h
+    def Clone(self, name = None):
+        return YieldWithNuisances(name if name != None else self.name, self.central, self.stat, nominal=self.nominal, variations=self.variations)
+    def Add(self, other : "YieldWithNuisances", scaleFactor=None):
+        if scaleFactor is None:
+            self += other
+        else:
+            scaledCopy = other.Clone()
+            scaledCopy.Scale(scaleFactor)
+            self += scaledCopy
+
+
 class HistoWithNuisances(object):
     def __init__(self,histo_central,reset=False):
         if isinstance(histo_central, HistoWithNuisances): raise RuntimeError("Created with HWN instead of THn or TGraph")
@@ -415,6 +616,17 @@ class HistoWithNuisances(object):
         if relative:
             iup /= i0; idown /= i0
         return sqrt(0.5*(iup**2+idown**2)) if symmetrize else (-idown,iup)
+    def integralWithNuisances(self):
+        central = self.central.Integral()
+        nominal = self.raw().Integral()
+        stat = self.integralStatError()
+        variations = dict((k,(up.Integral(), dn.Integral())) for (k,(up,dn)) in self.variations)
+        ywn = YieldWithNuisances(central, stat, nominal=nominal, variations=variations)
+        if self._rooFit:
+            ywn._rooFit = dict((k,v) for (k,v) in self._rooFit.items() if k in ("context","workspace","norm","scaleFactors"))
+        ywn._postFit = self._postFit
+        ywn._usePostFit = self._usePostFit
+        return ywn
     def graphAsymmTotalErrors(self,toadd=None,relative=False):
         if "TH1" not in self.central.ClassName(): raise RuntimeError("Unsupported for non-TH1")
         h = self.raw()
@@ -676,7 +888,7 @@ class HistoWithNuisances(object):
             if abs(hup.Integral()/norm0-1)>1e-5 or abs(hdown.Integral()/norm0-1)>1e-5:
                 kup   = min(max(0.1, hup.Integral()/norm0),   10) # sanitze
                 kdown = min(max(0.1, hdown.Integral()/norm0), 10) # sanitze
-                normfactor.addAsymmLogNormal(kdown, kup, nuis) 
+                normfactor.addAsymmLogNormal(kdown, kup, nuis)
         pdf = ROOT.FastVerticalInterpHistPdf2("%s_pdf" % self.nominal.GetName(),     "", roofitContext.xvar, templates, nuisances, 1., 1)
         self._rooFit["norm"] = normfactor
         self._rooFit["pdf"] = pdf
@@ -750,7 +962,7 @@ class HistoWithNuisances(object):
         h._postFit = self._postFit
         h._usePostFit = self._usePostFit
         return h
-    def writeToFile(self,tfile,writeVariations=True,takeOwnership=True):
+    def writeToFile(self,tfile,writeVariations=True,takeOwnership=False):
         tfile.WriteTObject(self.nominal, self.nominal.GetName())
         for key,vals in self.variations.items():
             tfile.WriteTObject(vals[0], self.GetName()+"_"+key+"Up")
@@ -993,8 +1205,10 @@ def mergePlots(name,plots):
     if isinstance(one, HistoWithNuisances):
         if any(p for p in plots[1:] if not one._canAdd(p)):
             return SumWithNuisances(name,plots)
+    elif isinstance(one, YieldWithNuisances):
+        assert(not(any(p for p in plots[1:] if not one._canAdd(p))))
     one = one.Clone(name)
-    if isinstance(one, HistoWithNuisances):
+    if isinstance(one, HistoWithNuisances) or isinstance(one, YieldWithNuisances):
         for p in plots[1:]: one+=p
     elif isinstance(one, ROOT.TH1):
         for p in plots[1:]: one.Add(p)
@@ -1009,56 +1223,59 @@ def mergePlots(name,plots):
 def listAllNuisances(histWithNuisanceItems):
     return set().union(*(h.getVariationList() for (k,h) in histWithNuisanceItems if k.isData == False and h.Integral() >= 0))
 
-def addMyPOIs(context, histoWithNuisanceMap, mca):
-    pois = set()
-    for p in mca.listBackgrounds(allProcs=True) + mca.listSignals(allProcs=True):
-        if p not in histoWithNuisanceMap: continue
-        if histoWithNuisanceMap[p].Integral() <= 0: continue
-        (pdf,norm) = histoWithNuisanceMap[p].rooFitPdfAndNorm()
-        if mca.getProcessOption(p,'FreeFloat',False):
-            normTermName = mca.getProcessOption(p,'PegNormToProcess',p)
-            print("%s scale as %s" % (p, normTermName))
-            poi = context.factory('r_%s[1,%g,%g]' % (normTermName, 0.0, 5))
-            norm.addOtherFactor(poi)
-            pois.add('r_%s' % normTermName)
-    return pois
- 
-def addExternalDefaultPOI(context,histoWithNuisanceMap,mca,poiName):
-    if context.workspace.var(poiName):
-        return
-    poi = context.workspace.factory("%s[1]" % poiName); context.workspace.nodelete.append(poi)
-    poi.setConstant(False)
-    poi.removeRange()
-    for p in mca.listSignals(allProcs=True):
-        if p not in histoWithNuisanceMap: continue
-        h = histoWithNuisanceMap[p]
-        if h.Integral() > 0:
-            h.addRooFitScaleFactor(poi)
-
-def addExternalPhysicsModelPOIs(context,histoWithNuisanceMap,mca,processPegs):
-    pois  = set(v for (p,v) in processPegs)
-    done = True
-    for p in pois:
-        if p in ("0","1"): continue
-        if not context.workspace.var(p):
-            done = False; break
-    if done: return
-    for poiName in pois:
-        if poiName in ("1","0"): continue
-        poi = context.workspace.factory("%s[1]" % poiName); context.workspace.nodelete.append(poi)
-        poi.removeRange()
-        poi.setConstant(False)
-    for p in mca.listSignals(allProcs=True)+mca.listBackgrounds(allProcs=True):
-        if p not in histoWithNuisanceMap: continue
-        h = histoWithNuisanceMap[p]
-        if h.Integral() <= 0: continue
-        poi = mca.getProcessOption(p,'PegNormToProcess',None)
-        if poi == None or poi == "1":
-            continue
-        elif poi == "0":
-            h.Scale(0);
-        else:
-            h.addRooFitScaleFactor(context.workspace.var(poi))
+## To be ported later
+#def addMyPOIs(context, histoWithNuisanceMap, mca):
+#    pois = set()
+#    for p in mca.listBackgrounds(allProcs=True) + mca.listSignals(allProcs=True):
+#        if p not in histoWithNuisanceMap: continue
+#        if histoWithNuisanceMap[p].Integral() <= 0: continue
+#        (pdf,norm) = histoWithNuisanceMap[p].rooFitPdfAndNorm()
+#        if mca.getProcessOption(p,'FreeFloat',False):
+#            normTermName = mca.getProcessOption(p,'PegNormToProcess',p)
+#            print("%s scale as %s" % (p, normTermName))
+#            poi = context.factory('r_%s[1,%g,%g]' % (normTermName, 0.0, 5))
+#            norm.addOtherFactor(poi)
+#            pois.add('r_%s' % normTermName)
+#    return pois
+# 
+## To be ported later
+#def addExternalDefaultPOI(context,histoWithNuisanceMap,mca,poiName):
+#    if context.workspace.var(poiName):
+#        return
+#    poi = context.workspace.factory("%s[1]" % poiName); context.workspace.nodelete.append(poi)
+#    poi.setConstant(False)
+#    poi.removeRange()
+#    for p in mca.listSignals(allProcs=True):
+#        if p not in histoWithNuisanceMap: continue
+#        h = histoWithNuisanceMap[p]
+#        if h.Integral() > 0:
+#            h.addRooFitScaleFactor(poi)
+#
+## To be ported later
+#def addExternalPhysicsModelPOIs(context,histoWithNuisanceMap,mca,processPegs):
+#    pois  = set(v for (p,v) in processPegs)
+#    done = True
+#    for p in pois:
+#        if p in ("0","1"): continue
+#        if not context.workspace.var(p):
+#            done = False; break
+#    if done: return
+#    for poiName in pois:
+#        if poiName in ("1","0"): continue
+#        poi = context.workspace.factory("%s[1]" % poiName); context.workspace.nodelete.append(poi)
+#        poi.removeRange()
+#        poi.setConstant(False)
+#    for p in mca.listSignals(allProcs=True)+mca.listBackgrounds(allProcs=True):
+#        if p not in histoWithNuisanceMap: continue
+#        h = histoWithNuisanceMap[p]
+#        if h.Integral() <= 0: continue
+#        poi = mca.getProcessOption(p,'PegNormToProcess',None)
+#        if poi == None or poi == "1":
+#            continue
+#        elif poi == "0":
+#            h.Scale(0);
+#        else:
+#            h.addRooFitScaleFactor(context.workspace.var(poi))
 
  
 def roofitizeReport(histoWithNuisanceMap, workspace=None, xvarName="x", density=False, context=None):

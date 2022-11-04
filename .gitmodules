@@ -1,0 +1,6 @@
+[submodule "externals/RoccoR"]
+	path = externals/RoccoR
+	url = ssh://git@gitlab.cern.ch:7999/akhukhun/roccor.git
+[submodule "externals/HiggsAnalysis/CombinedLimit"]
+	path = externals/HiggsAnalysis/CombinedLimit
+	url = https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git

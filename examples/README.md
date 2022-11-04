@@ -23,13 +23,14 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
 * `run_datacards_ttV_ttHH_2018c.py`: demonstrate simple datacard production:
    * This will make plots and datacards for ttZ, inclusively and split by flavour
    * Datacards can be processed from combine with
-   ```
+   ```bash
    combineCards.py $(for f in flow_tight_Z*.txt; do echo .=$f; done)  > flow_combined.txt
    for f in flow_*txt; do text2workspace.py $f || break; done
    for f in flow_*txt; do echo $f; combine -M Significance --signif ${f/.txt/.root} | grep 'Significance:'; echo; done
    for f in flow_*txt; do echo $f; combine -M MultiDimFit --algo=singles ${f/.txt/.root} | grep '68%'; echo; done
    ```
-
+ * `run_SFs_ttHH_2018c.py`:
+   * Make plots and event yields applying some POG corrections and scale factors
 
 ## Complex examples
 

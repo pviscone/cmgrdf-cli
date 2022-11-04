@@ -1,8 +1,7 @@
 from CMGRDF import *
-from CMGRDF.cache import SimpleCache
 import ROOT
 
-P0=localOrEOS("NanoTrees_SOS_070220_v6_skim_2lep_met125","/scratch/gpetrucc","/eos/cms/store/cmst3/group/tthlep/peruzzi/")
+P0=localOrEOS("NanoTrees_SOS_070220_v6_skim_2lep_met125","/scratch/gpetrucc","/eos/cms/store/cmst3/group/susy/SOS/")
 P=P0+"/{era}/{name}.root"
 PF=P0+"/{era}/recleaner/{name}_Friend.root"
 PFMC=P0+"/{era}/jetmetUncertainties/{name}_Friend.root"
@@ -29,6 +28,5 @@ plots = [
 lumi = {2017:41.5, 2018:59.7}
 
 ROOT.EnableImplicitMT(8)
-cache = SimpleCache("cmgrdf_cache.dir")
-results = PlotMaker(cache = cache).book(data, lumi, cuts, plots, eras=[2017,2018]).runAll()
+results = Processor(cache = SimpleCache()).book(data, lumi, cuts, plots, eras=[2017,2018]).runPlots()
 PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)").printSet(results, "plots/001/friends/cmgrdf/{era}")

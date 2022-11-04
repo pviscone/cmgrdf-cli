@@ -3,18 +3,16 @@ import ROOT
 
 P=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_091019_v6pre")
 PD=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
-DYuncs = Append(AddWeightUncertainty("DYxsec",1.2),
-                AddWeightUncertainty("DYnj","std::pow(1.05,nJet)","std::pow(0.95,nJet)")) 
-TTuncs = Append(AddWeightUncertainty("TTxsec",1.3))
+DYuncs = Append(AddWeightUncertainty("DYnj","std::pow(1.05,nJet)","std::pow(0.95,nJet)"))
 
 data = [
-    Process("TT", [MCSample("TTJets_DiLepton",P+"/{name}.root", xsec="xsec", hooks=[TTuncs])], label="t#bar{t}", fillColor=ROOT.kOrange+3, signal=True),
+    Process("TT", [MCSample("TTJets_DiLepton",P+"/{name}.root", xsec="xsec", normUncertainty=1.3)], label="t#bar{t}", fillColor=ROOT.kOrange+3, signal=True),
     Process("DY", [MCSample("DYJetsToLL_M50",P+"/{name}.root", xsec="xsec", hooks=[DYuncs]),
-                   MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec", hooks=[DYuncs])], label="DY", fillColor=ROOT.kAzure+10),
+                   MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec", hooks=[DYuncs])], normUncertainty=1.2, label="DY", fillColor=ROOT.kAzure+10),
     Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,PD+"/{name}.root") for era in "ABCD"]),
 ]
 cuts = Flow("dilep",
-        AddWeight("prescaleFromSkim","prescaleFromSkim", onData=True, onDataDriven=True),
+        AddWeight("prescaleFromSkim", onData=True, onDataDriven=True),
         #DefinePerSample("year","2018"), # already in NTuple
         Cut("trigger", "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8"),
         Cut("2l", "nLepGood >= 2"),
@@ -32,19 +30,19 @@ cuts = Flow("dilep",
         )
 
 plots = [ 
-        Plot("mll", "mll", (120,12,132), xTitle="m(ll)", legend="TL"),
-        Plot("nJet30", "nJet30", (6,1.5,7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10),
-        Plot("nBJet30", "nBJet30", (5,-0.5,4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10),
-        Plot("met", "MET_pt", (75,0,150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10),
+        Plot("mll", "mll", (120,12,132), xTitle="m(ll)", legend="TL", _jitTypes=("float","double")),
+        Plot("nJet30", "nJet30", (6,1.5,7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int","double")),
+        Plot("nBJet30", "nBJet30", (5,-0.5,4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int","double")),
+        Plot("met", "MET_pt", (75,0,150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10, _jitTypes=("float","double")),
 ]
 
 lumi = 59.
 
 ROOT.EnableImplicitMT(8)
-maker = PlotMaker()
+maker = Processor()
 #verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo)
+#verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10)
 maker.book(data,lumi,cuts,plots,withUncertainties=True)
-#sys.exit()
-result_plots = maker.runAll()
+result_plots = maker.runPlots()
 printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi, showRatio=True)
 printer.printSet(result_plots, "plots/002/dilep-uncertainties/cmgrdf")

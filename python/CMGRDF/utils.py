@@ -1,6 +1,6 @@
 from collections import defaultdict
 import struct
-from typing import List
+from typing import Union
 import copy
 import hashlib
 import sys
@@ -16,7 +16,7 @@ class OptionDecl(object):
         self.kwargs = kwargs
 
 class Options(object):
-    def __init__(self, *optionDeclarations : List[OptionDecl]):
+    def __init__(self, *optionDeclarations : list[OptionDecl]):
         self._values = dict()
         self._declarations = []
         for opt in optionDeclarations:
@@ -67,7 +67,7 @@ class Options(object):
         ret._values = dict(self._values.items())
         ret._values.update(**kwargs)
         return ret
-    def cloneAndExtend(self, *optionDeclarations : List[OptionDecl]):
+    def cloneAndExtend(self, *optionDeclarations : list[OptionDecl]):
         ret = Options()
         ret._values = copy.copy(self._values)
         ret._declarations = copy.copy(self._declarations)
@@ -76,6 +76,7 @@ class Options(object):
         return ret
 
 class MultiKey(object):
+    """A multi-field key to identify results, e.g. a histogram by its selection flow, variable name, and sample used"""
     def __init__(self, **kwargs):
         self._keys = sorted(kwargs.keys())
         self._values = dict(kwargs.items())
@@ -96,16 +97,21 @@ class MultiKey(object):
     def __contains__(self, name : str):
         return name in self._values
     def isSuperSet(self, other : "MultiKey"):
+        """Returns true if our key is a superset of `other`, i.e. if all our fields match those of `other`,
+        (but `other` may have more fields that we don't have)"""
         return all((other._values[k] == v) for k,v in self._values.items())
-    def removeKeys(self, *keysToRemove : List[str]):
+    def removeKeys(self, *keysToRemove : list[str]):
+        """Produces a new multi-key removing the specified fields"""
         assert(all((k in self._keys) for k in keysToRemove))
         filtered = dict((k,v) for (k,v) in self.items() if k not in keysToRemove)
         return MultiKey(**filtered)
     def selectKeys(self, *keys):
+        """Produces a new multi-key selecting only the specified fields"""
         assert(all((k in self._keys) for k in keys))
         filtered = dict((k,v) for (k,v) in self.items() if k in keys)
         return MultiKey(**filtered)
     def addKeys(self, **kwargs):
+        """Produces a new multi-key adding the specified fields"""
         extended = copy.copy(self._values)
         for (k,v) in kwargs.items():
             assert(k not in extended)
@@ -124,6 +130,7 @@ class MultiKey(object):
         return "MultiKey(%s)" % (",".join("%s=%r"%(k,self._values[k]) for k in self._keys))
 
 class MultiReport(object):
+    """A list of pairs (multi-key, object) with some convenience methods for extracting them."""
     def __init__(self, *items):
         self._items = list(items)
         for item in items:
@@ -135,12 +142,14 @@ class MultiReport(object):
     def __iter__(self):
         return iter(self._items)
     def groupRemoving(self,*keys):
+        """Return a map wh"""
         mergeMap = defaultdict(list)
         for k,v in self._items:
             gk = k.removeKeys(*keys)
             mergeMap[gk].append(v)
         return mergeMap.items()
     def allMatchingKey(self,key):
+        """Get the subset of (key,value) pairs whose key matches all the fields in this key"""
         return [ (k,p) for (k,p) in self._items if key.isSuperSet(k) ]
     def getByKey(self,key):
         alls = self.allMatchingKey(key)
@@ -190,3 +199,27 @@ def localOrEOS(dir,localroot,eosroot,eosurl="root://eoscms.cern.ch/"):
     if not eosroot.startswith("root://"):
         eosroot = eosurl + eosroot
     return os.path.join(eosroot,dir)
+
+class NormUncertainty(object):
+    def __init__(self, name : str, value : Union[float,tuple[float,float]], eras=None):
+        self.name = name
+        self.value = value
+        if type(value) == float:
+            self.kappaUp = value
+            self.kappaDown = 1./value
+        elif type(value) in (list,tuple) and len(value) == 2 and type(value[0]) == float:
+            self.kappaDown = value[0]
+            self.kappaUp = value[1]
+        else:
+            raise RuntimeError("Unsupported value %r (type %s) for norm uncertainty %s" % (value, type(value), name))
+        self.eras = eras
+    @staticmethod
+    def parse(optionValue, defaultName : str):
+        if optionValue == None:
+            return []
+        elif type(optionValue) == float or (type(optionValue) in (tuple,list) and type(optionValue[0]) == float):
+            return [NormUncertainty(defaultName, optionValue)]
+        elif type(optionValue) == list and isinstance(optionValue[0], NormUncertainty):
+            return optionValue[:]
+        else:
+            return [NormUncertainty(k,v) for (k,v) in optionValue.items()]

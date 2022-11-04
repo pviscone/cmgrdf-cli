@@ -1,8 +1,9 @@
 from CMGRDF import *
 import ROOT
 
-P=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_091019_v6pre")
-PD=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
+P=localOrEOS("2018","/data/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_091019_v6pre")
+PD=localOrEOS("2018","/data/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
+print(f"Reading from {P}, {PD}");
 data_dilep = [
     Process("DY", [MCSample("DYJetsToLL_M50",P+"/{name}.root", xsec="xsec"),
                    MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec")], label="DY", fillColor=ROOT.kAzure+10, signal=True),
@@ -12,7 +13,7 @@ data_dilep = [
     Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,PD+"/{name}.root") for era in "ABCD"]),
 ]
 cuts_dilep = Flow("dilep",
-        AddWeight("prescaleFromSkim","prescaleFromSkim", onData=True, onDataDriven=True),
+        AddWeight("prescaleFromSkim", onData=True, onDataDriven=True),
         Cut("trigger", "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8"),
         Cut("2l", "nLepGood >= 2"),
         Cut("pt2515", "LepGood_pt[0] > 25 && LepGood_pt[1] > 15"),
@@ -33,10 +34,10 @@ plots_trilep = plots_dilep + [
 lumi = 59.
 
 ROOT.EnableImplicitMT(8)
-maker = PlotMaker()
+maker = Processor()
 maker.book(data_dilep,lumi,cuts_dilep,plots_dilep)
 maker.book(data_dilep,lumi,cuts_trilep,plots_trilep)
-result_plots = maker.runAll(makeCutFlowReports=True)
-maker.printRawCutFlowReports()
+result_plots = maker.runPlots()#makeCutFlowReports=True)
+#maker.printRawCutFlowReports()
 printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True)
 printer.printSet(result_plots, "plots/001/{flow}/cmgrdf")

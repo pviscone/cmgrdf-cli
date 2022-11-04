@@ -1,12 +1,10 @@
-from re import A
 from CMGRDF import *
-from CMGRDF.data import Source
-from CMGRDF.cache import SimpleCache
 import ROOT
 
 from CMGRDF.stat import DatacardWriter
 
-P=localOrEOS("TREES_TTHH_2018C_150622","/data/shared","/eos/cms/store/cmst3/group/tthlep")+"/{name}.root"
+LOCAL="/scratch/gpetrucc" if os.path.exists("/scratch/gpetrucc") else "/data/shared"
+P=localOrEOS("TREES_TTHH_2018C_150622",LOCAL,"/eos/cms/store/cmst3/group/tthlep")+"/{name}.root"
 if P.startswith("/eos") and not os.path.isdir("/eos"): P = "root://eoscms.cern.ch/"+P
 
 def mkMC(name, parts=0):
@@ -170,10 +168,10 @@ flavSplits = [
 procs_3l_tight = [
         Process("TopZ", [mcSamples["TTZ"],mcSamples["TZQ"],mcSamples["TWZ"]], label="t#bar{t}Z+tZ", fillColor=ROOT.kGreen+1, signal=True),
         Process("TTW", [mcSamples["TTW"]], label="t#bar{t}W", fillColor=ROOT.kGreen+3),
-        Process("VZ", [mcSamples["WZ3l"],mcSamples["ZZ4l"]], label="WZ+ZZ", fillColor=ROOT.kRed-7, normUncertainty=0.3),
-        Process("DY", mcSamples["DY"], label="DY", fillColor=ROOT.kAzure+10, normUncertainty=1.0),
-        Process("WW", mcSamples["WW2l"], label="WW", fillColor=ROOT.kAzure+2, normUncertainty=1.0),
-        Process("TT", [mcSamples["TT2l"],mcSamples["TW"]], label="t#bar{t}+tW", fillColor=ROOT.kViolet-4, normUncertainty=0.5),
+        Process("VZ", [mcSamples["WZ3l"],mcSamples["ZZ4l"]], label="WZ+ZZ", fillColor=ROOT.kRed-7, normUncertainty=1.3),
+        Process("DY", mcSamples["DY"], label="DY", fillColor=ROOT.kAzure+10, normUncertainty=2.0),
+        Process("WW", mcSamples["WW2l"], label="WW", fillColor=ROOT.kAzure+2, normUncertainty=2.0),
+        Process("TT", [mcSamples["TT2l"],mcSamples["TW"]], label="t#bar{t}+tW", fillColor=ROOT.kViolet-4, normUncertainty=1.5),
         Data(dataSamples)
 ]
 plots_3l_tight = [ 
@@ -189,13 +187,12 @@ plots_3l_tight = [
 ]
 
 lumi = 6.90
-cache = SimpleCache("cmgrdf_cache_cards_ttHH.dir")
 ROOT.EnableImplicitMT(16)
-maker = PlotMaker(cache = cache)
+maker = Processor(cache = SimpleCache())
 maker.book(procs_3l_tight,lumi,cuts_tight,plots_3l_tight,withUncertainties=True)
 for split in flavSplits:
     maker.book(procs_3l_tight,lumi,split,plots_3l_tight,withUncertainties=True)
-result_plots = maker.runAll()
+result_plots = maker.runPlots()
 printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0,2.49))
 printer.printSet(result_plots, "plots/008/{flow}")
 

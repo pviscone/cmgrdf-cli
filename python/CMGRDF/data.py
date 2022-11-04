@@ -1,8 +1,9 @@
-from typing import List
-import ROOT, os, os.path, re, glob
-from CMGRDF.utils import recursiveHash, safeName
+from typing import Union
+import ROOT, os, os.path, glob
+from CMGRDF.utils import recursiveHash, safeName, NormUncertainty
 
 class Source(object):
+    """Base class that wraps a list of files from which an RDF can be created"""
     def __init__(self, name : str, files, era = None, friends=None):
         if type(files) == str:
             if "*" in files:
@@ -111,22 +112,32 @@ class Source(object):
             self.bigHash()
         )
     @staticmethod
-    def _autoName(files: List[str]) -> str:
+    def _autoName(files: list[str]) -> str:
         assert(files)
         if len(files) > 1 or files[0].endswith("/*.root"):
             return os.path.basename(os.path.dirname(files[0]))
         else:
             return os.path.basename(files[0]).replace("*","").replace(".root","")
 
+
 class Sample(object):
-    #options = Options(
-    #                OptionDecl("eras", None, help="If specified, it can be a list of eras (e.g. years)"))
-    def __init__(self, name : str, source, hooks=[], eras=None, friends=None, **kwargs):
+    """A set of files, possibly era-dependent, to be processed homogeneously.
+       This is just a base class, users should normally use the subclasses MCSample, DataSample or DataDrivenSample
+
+       It can have hooks that modify the processing flow, and normalization uncertainties.
+    """
+    def __init__(self, name : str, source, hooks=[], eras=None, friends=None, normUncertainty=None, **kwargs):
         """source can be any 4 of the following:
              - a source object, if this sample doesn't have a list of eras
              - a dict (era -> Source) if this sample has a list of eras.
              - a string, being a file name or directory name or glob string, which may include {name} and/or {era} inside
              - a dict (era -> String) if this sample has a list of eras
+           normUncertainty can be any of the following:
+             - None
+             - a list of NormUncertainty objects
+             - a float (logNormal kappa)
+             - a tuple (kappaLow, kappaHigh)
+             - a dict with keys being the nuisance names, and values being kappas or kappa tuples
         """
         self.name = name
         self._hooks = hooks[:]
@@ -148,6 +159,7 @@ class Sample(object):
         self.isMC = False
         self.isDataDriven = False
         self.isData = False
+        self.normUncertainties = NormUncertainty.parse(normUncertainty, "norm_"+name)
     def source(self, era = None):
         if era != None:
             assert(self.eras != None)
@@ -168,11 +180,15 @@ class Sample(object):
             if flow2 != flow:
                 flow2._from = flow
                 flow = flow2
-        if era:
-            flow.filterSteps(lambda s : s.appliesTo(self,era))
-        return flow
+        return flow.filterSteps(lambda s : s.appliesTo(self,era))
 
 class MCSample(Sample): 
+    """A MC sample.
+
+       By default, events are normalized by multiplying them by the specified genWeight, 
+       divided by the sum of those weights across the whole sample, 
+       multiplied by the specified cross section (in picobarns), 
+       and by the luminosity specified in the processing. """
     def __init__(self, name : str, source, genWeightName="genWeight", genWeightSum=None, genSumWeightName="_auto_", xsec="1.0", **kwargs):
         super().__init__(name, source, **kwargs)
         self.genWeightName = genWeightName
@@ -188,11 +204,10 @@ class MCSample(Sample):
         self.isMC = True
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
-        from CMGRDF.flow import DefinePerSample, Define
+        from CMGRDF.flow import DefinePerSample, AddWeight
         return flow2.prepend(
                 DefinePerSample("genWeightSum", sumWeightProvider),
-                Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
-                Define("weight", "sampleWeight*({})".format(getattr(self,"weight",1))))
+                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000,getattr(self,"weight",1))))
     def genWeightSum(self,era=None):
         assert((self.eras is None) == (era == None))
         return self._genWeightSum[era]
@@ -227,7 +242,11 @@ def _mergeSources(name, samples):
     return sources if eras != [None] else sources[None]
 
 class MCGroup(Sample): 
-    def __init__(self, name : str, samples : List[MCSample], moreHooks=[], extraWeight=None):
+    """A group of MC samples that are processed together unformly except for the normalization 
+       from the genWeights, that is to be computed separately for each sample.
+       Useful e.g. for samples binned at gen level and that can be used all together.
+       This allows the framework to build a single RDF graph, and saves some overheads."""
+    def __init__(self, name : str, samples : list[MCSample], moreHooks=[], extraWeight=None):
         super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
         self.samples = samples
         self._hooks = samples[0]._hooks[:]
@@ -244,16 +263,16 @@ class MCGroup(Sample):
         self.isMC = True
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
-        from CMGRDF.flow import DefinePerSample, Define
+        from CMGRDF.flow import DefinePerSample, AddWeight
         return flow2.prepend(
                 DefinePerSample("genWeightSum", sumWeightProvider),
-                Define("sampleWeight", "{0}*{1}*{2}/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000)),
-                Define("weight", "sampleWeight*({})".format(self.weight)))
+                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000,getattr(self,"weight",1))))
     def bookSumWeight(self, sumWeightProvider, eras):
         for s in self.samples:
             sumWeightProvider.bookEras(s, eras)
 
 class DataDrivenSample(Sample): 
+    """A sample for a data driven background estimate, and so not scaled by luminosity."""
     def __init__(self, name, source, weight="1", **options):
         super().__init__(name, source, **options)
         self.weight = weight
@@ -262,31 +281,40 @@ class DataDrivenSample(Sample):
         self.isData = False
     def customizeFlow(self, flow, era):
         flow2 = super().customizeFlow(flow, era=era)
-        from CMGRDF.flow import Define
-        return flow2.prepend(
-                Define("weight", getattr(self,"weight","1")))
+        if self.weight not in ("1", 1):
+            from CMGRDF.flow import AddWeight
+            return flow2.prepend(
+                        AddWeight("weight", str(getattr(self,"weight","1"))))
+        else:
+            return flow2
 
 class DataSample(DataDrivenSample): 
+    """The data sample"""
     def __init__(self,name,samples,**options):
         super().__init__(name, samples, **options)
         self.isData = True
 
 class Process(object):
-    def __init__(self,name,samples,**options):
+    """A group of one or more samples that are added up together as a single entry in plots or datacards.
+       You can specify a more pretty label for it (by default it uses the computer-friendly name of it)
+       It can have addional nomalization uncertainties, specified as in the Sample class."""
+    def __init__(self, name : str, samples : Union[Sample,list[Sample]], signal=False, label=None, normUncertainty=None, **options):
         self.name = name
         if isinstance(samples,Sample):
-            samples = [samples]
-        self.samples = samples
+            self.samples = [samples]
+        else:
+            self.samples = list(samples)
         for k,v in options.items():
             setattr(self,k,v)
-        if "label" not in options: self.label = self.name
+        self.label = label if label is not None else self.name
         self.isData = False
-        self.isSignal = self.getOpt("signal",False)
+        self.isSignal = signal
+        self.normUncertainties = NormUncertainty.parse(normUncertainty, "norm_"+name)
     def getOpt(self, name, default=None):
         return getattr(self, name, default)
 
 class Data(Process):
-    def __init__(self,samples,**options):
-        if "label" not in options: options["label"] = "Data"
-        super(Data,self).__init__("data",samples,**options)
+    """The data process, containing all the data samples"""
+    def __init__(self, samples, label="Data", **options):
+        super(Data,self).__init__("data",samples,label=label,**options)
         self.isData = True

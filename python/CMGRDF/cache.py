@@ -1,4 +1,4 @@
-import os, time, json, pickle, ROOT
+import os, time, json, pickle, sys, ROOT
 
 from CMGRDF.data import Source
 
@@ -66,7 +66,10 @@ class CacheLayer(object):
         pickle.dump(obj, open(fullpath,'wb'))
 
 class SimpleCache(object):
-    def __init__(self, root, cacheSums=True, cachePlots=True, cacheDatasets=False, **kwargs):
+    def __init__(self, root="__auto__", cacheSums=True, cachePlots=True, cacheDatasets=False, **kwargs):
+        if root == "__auto__":
+            root = sys.argv[0].rsplit(".py",1)[0]+"_cache.dir"
+            print("Using cache dir %s" % root)
         self._sums = SumCache(os.path.join(root,"sums.json")) if cacheSums else None
         self._data = CacheLayer(os.path.join(root,"data"), **kwargs) if cacheDatasets else None
         self._plots = CacheLayer(os.path.join(root,"plots"), **kwargs) if cachePlots else None
