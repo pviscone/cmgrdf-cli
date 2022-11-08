@@ -188,9 +188,13 @@ class MCSample(Sample):
        By default, events are normalized by multiplying them by the specified genWeight, 
        divided by the sum of those weights across the whole sample, 
        multiplied by the specified cross section (in picobarns), 
-       and by the luminosity specified in the processing. """
+       and by the luminosity specified in the processing.
+       
+       For samples that area already weighted, specify genWeightName = None, xsec = None, weight = ... """
     def __init__(self, name : str, source, genWeightName="genWeight", genWeightSum=None, genSumWeightName="_auto_", xsec="1.0", **kwargs):
         super().__init__(name, source, **kwargs)
+        assert((xsec is None) == (genWeightName is None))
+        assert((genWeightName is not None) or ('weight' in kwargs))
         self.genWeightName = genWeightName
         if self.eras:
             if genWeightSum:
@@ -205,9 +209,13 @@ class MCSample(Sample):
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
         from CMGRDF.flow import DefinePerSample, AddWeight
-        return flow2.prepend(
-                DefinePerSample("genWeightSum", sumWeightProvider),
-                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000,getattr(self,"weight",1))))
+        if self.genWeightName:
+            return flow2.prepend(
+                    DefinePerSample("genWeightSum", sumWeightProvider),
+                    AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName,self.xsec,luminosity*1000,getattr(self,"weight",1))))
+        else:
+            return flow2.prepend(AddWeight("weight", self.weight))
+
     def genWeightSum(self,era=None):
         assert((self.eras is None) == (era == None))
         return self._genWeightSum[era]

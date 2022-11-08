@@ -1,10 +1,9 @@
 import copy
-from typing import Any, Dict, List, Mapping, Union
 
 import ROOT
 
 from CMGRDF.data import Sample
-from CMGRDF.utils import _recursiveAddToHash, safeName
+from CMGRDF.utils import _recursiveAddToHash, recursiveHash, safeName, selectColumns
 
 class FlowStep(object):
     """A generic step to the processing flow.
@@ -104,11 +103,25 @@ class Define(SimpleExprFlowStep):
             print(f"ERROR attaching Define({self.name}, {self.expr}")
             raise
 
-class ReDefine(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
+class Alias(SimpleExprFlowStep):
+    def __init__(self, name, column, **options):
+        super().__init__(name, column, **options)
     def _attach(self, rdf):
         try:
+            return rdf.Alias(self.name, self.expr)
+        except:
+            print(f"ERROR attaching Alias({self.name}, {self.expr}")
+            raise
+
+class ReDefine(SimpleExprFlowStep):
+    def __init__(self, name, expr, defineIfMissing = False, **options):
+        super().__init__(name, expr, **options)
+        self.defineIfMissing = defineIfMissing
+    def _attach(self, rdf):
+        try:
+            if self.defineIfMissing:
+                if self.name not in rdf.GetColumnNames():
+                    return rdf.Define(self.name, self.expr)
             return rdf.Redefine(self.name, self.expr)
         except:
             print(f"ERROR attaching ReDefine({self.name}, {self.expr}")
@@ -217,12 +230,44 @@ class AddWeightUncertainty(FlowStep):
         _recursiveAddToHash(self.nominal, hasher)
         _recursiveAddToHash(self.vars, hasher)
 
+class ComputeTotalWeight(SimpleExprFlowStep):
+    """Computes the total weight, by issuing the necessary Define, Redefine or Alias"""
+    def __init__(self, weights=[], name="weight"):
+        super().__init__(name, "*".join(weights))
+        self.weights = weights
+    def _attach(self,rdf):
+        existing = self.name in rdf.GetColumnNames()
+        if len(self.weights) == 0:
+            if existing: 
+                #print(f"Warning, new dummy define of {self.name} while a column exists in the RDF\n")
+                return rdf.Redefine(self.name, "1.f")
+            else:
+                return rdf.Define(self.name, "1.f")
+        elif len(self.weights) == 1:
+            if existing:
+                if self.weights[0] == self.name:
+                    #print(f"Not doing anything for ({self.name}, {self.expr})")
+                    return rdf # nothing to do
+                else:
+                    #print(f"Using Redefine[1]({self.name}, {self.expr})")
+                    return rdf.Redefine(self.name, self.expr)
+            else:
+                #print(f"Using Alias({self.name}, {self.expr})")
+                return rdf.Alias(self.name, self.expr)
+        else:
+            if existing:
+                #print(f"Using Redefine({self.name}, {self.expr})")
+                return rdf.Redefine(self.name, self.expr)
+            else:
+                #print(f"Using Define({self.name}, {self.expr})")
+                return rdf.Define(self.name, self.expr)
+
 
 class Flow(object):
     """A sequence of steps, with a name."""
     def __init__(self, name, *steps, **options):
         self.name = name
-        self.steps = Flow._flatten(steps) # type: List[FlowStep]
+        self.steps = Flow._flatten(steps) # type: list[FlowStep]
         for k,v in options.items():
             setattr(self, k, v)
     @staticmethod
@@ -241,6 +286,24 @@ class Flow(object):
         ret.steps = copy.copy(self.steps)
         ret._from = self
         return ret
+    def upToStep(self, step, included=True):
+        newsteps = []
+        for s in self.steps:
+            newsteps.append(s)
+            if s.name == step:
+                if not included: newsteps.pop()
+                break
+        self.steps = newsteps
+        return self
+    def fromStep(self, step, included=True):
+        newsteps = []
+        for s in reversed(self.steps):
+            newsteps.append(s)
+            if s.name == step:
+                if not included: newsteps.pop()
+                break
+        self.steps = reversed(newsteps)
+        return self
     def prepend(self, *steps):
         self.steps[0:0] = Flow._flatten(steps)
         return self
@@ -329,4 +392,4 @@ class Yield(Target):
     def __hash__(self):
         return hash(self.longId())
     def longId(self):
-        return "%s-%s" % (safeName(self), self.weight)        
+        return "%s-%s" % (safeName(self), self.weight)

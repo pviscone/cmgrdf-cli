@@ -29,12 +29,16 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
    for f in flow_*txt; do echo $f; combine -M Significance --signif ${f/.txt/.root} | grep 'Significance:'; echo; done
    for f in flow_*txt; do echo $f; combine -M MultiDimFit --algo=singles ${f/.txt/.root} | grep '68%'; echo; done
    ```
+
  * `run_SFs_ttHH_2018c.py`:
    * Make plots and event yields applying some POG corrections and scale factors
 
-## Complex examples
+ * `run_snapshots_ttHH_2018c.py`:
+   * Make snapshots for skimming and rerun from snapshots
 
-These are mostly for development and stress-testing more complex stuff and replicating CMGTools features.
+## Older examples
+
+These were mostly for development and stress-testing more complex stuff and replicating CMGTools features, and may not be fully up to date
 
 * `sos/run_sos.py`: runs some plots from the Run 2 SOS  analysis:
   * implement the full MCC corrections as (Re)Defines and DefineDefault

@@ -200,6 +200,38 @@ def localOrEOS(dir,localroot,eosroot,eosurl="root://eoscms.cern.ch/"):
         eosroot = eosurl + eosroot
     return os.path.join(eosroot,dir)
 
+def selectColumns(rdf, columnSel : list[str], columnVeto : list[str]):
+    import ROOT, re
+    cols = list(map(str,rdf.GetColumnNames()))
+    newcols = list(map(str,rdf.GetDefinedColumnNames()))
+    oldcols = list(set(cols).difference(newcols))
+    sel = set(cols) if columnSel == [] else set() # type: set[str]
+    for pat in columnSel:
+        if pat == "#new": sel.update(newcols)
+        elif pat == "#old": sel.update(oldcols)
+        else:
+            pat = re.compile(pat+"$")
+            for c in cols:
+                if re.match(pat, c):
+                    sel.add(c)
+    for pat in columnVeto:
+        if pat == "#new": sel.difference_update(newcols)
+        elif pat == "#old": sel.difference_update(oldcols)
+        else:
+            pat = re.compile(pat+"$")
+            for c in cols:
+                if re.match(pat, c):
+                    sel.discard(c)        
+    ret = ROOT.std.vector(ROOT.std.string)()
+    ret.reserve(len(sel))
+    if ROOT.gROOT.GetVersionInt() < 62606:
+        ## Hack for NanoAOD until https://github.com/root-project/root/pull/11032
+        cols.sort(key = lambda c : c[0] != "n") # put columns starting with "n" first
+    for c in cols:
+        if c in sel:
+            ret.push_back(c)
+    return ret
+
 class NormUncertainty(object):
     def __init__(self, name : str, value : Union[float,tuple[float,float]], eras=None):
         self.name = name
