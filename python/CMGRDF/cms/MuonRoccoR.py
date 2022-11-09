@@ -19,35 +19,36 @@ for _era in "2016aUL 2016bUL 2017UL 2018UL".split():
            static RoccoR rc("<PATH>/RoccoR<ERA>.txt");
            return rc;
         }
-    """.replace("<PATH>",roccorPath).replace("<ERA>",_era))
+    """.replace("<PATH>", roccorPath).replace("<ERA>", _era))
+
 
 def _corrPt(RocEra, eras=None):
-    return [ Define("Muon_pt_uncorr", 
-                        "Muon_pt",
-                        eras = eras),
-             ReDefine("Muon_pt",
-                        f"MuRoccoR_pT_MC(muRoccoR_{RocEra}(),Muon_pt,Muon_eta,Muon_phi,Muon_charge,Muon_genPartIdx,GenPart_pt)",
-                        onMC=True,
-                        onData=False, 
-                        onDataDriven=False,
-                        eras = eras),
-             ReDefine("Muon_pt",
-                        f"MuRoccoR_pT_data(muRoccoR_{RocEra}(),Muon_pt,Muon_eta,Muon_phi,Muon_charge)",
-                        onMC=False,
-                        onData=True, 
-                        onDataDriven=True,
-                        eras = eras),
-             Vary("Muon_pt", 
-                        f"MuRoccoR_pT_MC_syst(muRoccoR_{RocEra}(),Muon_pt_uncorr,Muon_eta,Muon_phi,Muon_charge,Muon_genPartIdx,GenPart_pt,2)", 
-                        nuisName="CMS_scale_m",
-                        onMC=True,
-                        onData=False, 
-                        onDataDriven=False,
-                        eras = eras) ]
-MuRocCorrMC2016pre  = _corrPt("2016aUL")
+    return [Define("Muon_pt_uncorr",
+                   "Muon_pt",
+                   eras=eras),
+            ReDefine("Muon_pt",
+                     f"MuRoccoR_pT_MC(muRoccoR_{RocEra}(),Muon_pt,Muon_eta,Muon_phi,Muon_charge,Muon_genPartIdx,GenPart_pt)",
+                     onMC=True,
+                     onData=False,
+                     onDataDriven=False,
+                     eras=eras),
+            ReDefine("Muon_pt",
+                     f"MuRoccoR_pT_data(muRoccoR_{RocEra}(),Muon_pt,Muon_eta,Muon_phi,Muon_charge)",
+                     onMC=False,
+                     onData=True,
+                     onDataDriven=True,
+                     eras=eras),
+            Vary("Muon_pt",
+                 f"MuRoccoR_pT_MC_syst(muRoccoR_{RocEra}(),Muon_pt_uncorr,Muon_eta,Muon_phi,Muon_charge,Muon_genPartIdx,GenPart_pt,2)",
+                 nuisName="CMS_scale_m",
+                 onMC=True,
+                 onData=False,
+                 onDataDriven=False,
+                 eras=eras)]
+
+
+MuRocCorrMC2016pre = _corrPt("2016aUL")
 MuRocCorrMC2016post = _corrPt("2016bUL")
 MuRocCorrMC2017 = _corrPt("2017UL")
 MuRocCorrMC2018 = _corrPt("2018UL")
-MuRocCorrMC = sum([ _corrPt(era.replace("pre","a").replace("post","b")+"UL", eras=[era]) for era in run2eras ],[])
-
-
+MuRocCorrMC = sum([_corrPt(era.replace("pre", "a").replace("post", "b") + "UL", eras=[era]) for era in run2eras], [])

@@ -1,39 +1,39 @@
 from CMGRDF import *
 import ROOT
 
-P=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_091019_v6pre")
-PD=localOrEOS("2018","/scratch/gpetrucc/NanoTrees_TTH_v6","/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
-DYuncs = Append(AddWeightUncertainty("DYnj","std::pow(1.05,nJet)","std::pow(0.95,nJet)"))
+P = localOrEOS("2018", "/scratch/gpetrucc/NanoTrees_TTH_v6", "/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_091019_v6pre")
+PD = localOrEOS("2018", "/scratch/gpetrucc/NanoTrees_TTH_v6", "/eos/cms/store/cmst3/group/tthlep/peruzzi/NanoTrees_TTH_090120_v6_triggerFix")
+DYuncs = Append(AddWeightUncertainty("DYnj", "std::pow(1.05,nJet)", "std::pow(0.95,nJet)"))
 
 data = [
-    Process("TT", [MCSample("TTJets_DiLepton",P+"/{name}.root", xsec="xsec", normUncertainty=1.3)], label="t#bar{t}", fillColor=ROOT.kOrange+3, signal=True),
-    Process("DY", [MCSample("DYJetsToLL_M50",P+"/{name}.root", xsec="xsec", hooks=[DYuncs]),
-                   MCSample("DYJetsToLL_M10to50_LO",P+"/{name}.root", xsec="xsec", hooks=[DYuncs])], normUncertainty=1.2, label="DY", fillColor=ROOT.kAzure+10),
-    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019"%era,PD+"/{name}.root") for era in "ABCD"]),
+    Process("TT", [MCSample("TTJets_DiLepton", P + "/{name}.root", xsec="xsec", normUncertainty=1.3)], label="t#bar{t}", fillColor=ROOT.kOrange + 3, signal=True),
+    Process("DY", [MCSample("DYJetsToLL_M50", P + "/{name}.root", xsec="xsec", hooks=[DYuncs]),
+                   MCSample("DYJetsToLL_M10to50_LO", P + "/{name}.root", xsec="xsec", hooks=[DYuncs])], normUncertainty=1.2, label="DY", fillColor=ROOT.kAzure + 10),
+    Data([DataSample("DoubleMuon_Run2018%s_25Oct2019" % era, PD + "/{name}.root") for era in "ABCD"]),
 ]
 cuts = Flow("dilep",
-        AddWeight("prescaleFromSkim", onData=True, onDataDriven=True),
-        #DefinePerSample("year","2018"), # already in NTuple
-        Cut("trigger", "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8"),
-        Cut("2l", "nLepGood >= 2"),
-        Cut("pt2515", "LepGood_pt[0] > 25 && LepGood_pt[1] > 15"),
-        Cut("dimuons", "LepGood_pdgId[0]*LepGood_pdgId[1] == -13*13"),
-        Define("Jet_good", "Jet_pt > 30 && abs(Jet_eta) < 2.4"),
-        Define("Jet_bMedium", "Jet_good && Jet_btagDeepFlavB >= deepFlavB_WPMedium(year)"),
-        Define("mll", "mass_2(LepGood_pt[0],LepGood_eta[0],LepGood_phi[0],LepGood_mass[0],"+
-                              "LepGood_pt[1],LepGood_eta[1],LepGood_phi[1],LepGood_mass[1])"),
-        Define("nJet30","Sum(Jet_good)"),
-        Define("nBJet30","Sum(Jet_bMedium)"),
-        Cut("minMll", "mll > 12"),
-        Cut("2j", "nJet30 >= 2"),
-        #Cut("1b", "nBJet30 >= 1"),
-        )
+            AddWeight("prescaleFromSkim", onData=True, onDataDriven=True),
+            #DefinePerSample("year","2018"), # already in NTuple
+            Cut("trigger", "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8"),
+            Cut("2l", "nLepGood >= 2"),
+            Cut("pt2515", "LepGood_pt[0] > 25 && LepGood_pt[1] > 15"),
+            Cut("dimuons", "LepGood_pdgId[0]*LepGood_pdgId[1] == -13*13"),
+            Define("Jet_good", "Jet_pt > 30 && abs(Jet_eta) < 2.4"),
+            Define("Jet_bMedium", "Jet_good && Jet_btagDeepFlavB >= deepFlavB_WPMedium(year)"),
+            Define("mll", "mass_2(LepGood_pt[0],LepGood_eta[0],LepGood_phi[0],LepGood_mass[0]," +
+                   "LepGood_pt[1],LepGood_eta[1],LepGood_phi[1],LepGood_mass[1])"),
+            Define("nJet30", "Sum(Jet_good)"),
+            Define("nBJet30", "Sum(Jet_bMedium)"),
+            Cut("minMll", "mll > 12"),
+            Cut("2j", "nJet30 >= 2"),
+            #Cut("1b", "nBJet30 >= 1"),
+            )
 
-plots = [ 
-        Plot("mll", "mll", (120,12,132), xTitle="m(ll)", legend="TL", _jitTypes=("float","double")),
-        Plot("nJet30", "nJet30", (6,1.5,7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int","double")),
-        Plot("nBJet30", "nBJet30", (5,-0.5,4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int","double")),
-        Plot("met", "MET_pt", (75,0,150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10, _jitTypes=("float","double")),
+plots = [
+    Plot("mll", "mll", (120, 12, 132), xTitle="m(ll)", legend="TL", _jitTypes=("float", "double")),
+    Plot("nJet30", "nJet30", (6, 1.5, 7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int", "double")),
+    Plot("nBJet30", "nBJet30", (5, -0.5, 4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int", "double")),
+    Plot("met", "MET_pt", (75, 0, 150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10, _jitTypes=("float", "double")),
 ]
 
 lumi = 59.
@@ -42,7 +42,7 @@ ROOT.EnableImplicitMT(8)
 maker = Processor()
 #verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo)
 #verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10)
-maker.book(data,lumi,cuts,plots,withUncertainties=True)
+maker.book(data, lumi, cuts, plots, withUncertainties=True)
 result_plots = maker.runPlots()
-printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)"%lumi, showRatio=True)
+printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)" % lumi, showRatio=True)
 printer.printSet(result_plots, "plots/002/dilep-uncertainties/cmgrdf")

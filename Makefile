@@ -25,7 +25,7 @@ OBJS = $(SRCS:.cc=.o)
 OBJS += $(notdir $(patsubst %.cc,%.o,$(wildcard $(EXT_DIR)/RoccoR/RoccoR.cc)))
 
 #Makefile Rules ---------------------------------------------------------------
-.PHONY: clean dirs obj lib env code-format
+.PHONY: clean dirs obj lib env code-format py-checks
 
 all: dirs obj lib compile_python
 
@@ -48,7 +48,7 @@ $(LIB_DIR)/$(SONAME):$(addprefix $(OBJ_DIR)/,$(notdir $(OBJS)))
 #---------------------------------------
 
 compile_python:
-	python3 -m compileall -q python 
+	python3 -m compileall -q $(PY_DIR) 
 
 #---------------------------------------
 
@@ -56,7 +56,7 @@ clean:
 # 	@echo "*** Cleaning all directories and dictionaries ..."
 	@rm -rf $(OBJ_DIR) 
 	@rm -rf $(LIB_DIR) 
-	@rm -rf python/*pyc python/*/*pyc
+	@rm -rf $(PY_DIR)/*pyc $(PY_DIR)/*/*pyc
 
 #---------------------------------------
 
@@ -72,7 +72,7 @@ $(OBJ_DIR)/RoccoR.o: externals/RoccoR/RoccoR.cc externals/RoccoR/RoccoR.h
 #---------------------------------------
 env:
 	@echo 'export CMGRDF=$(MAIN_DIR);'
-	@echo 'export PYTHONPATH=$${CMGRDF}/python:$${PYTHONPATH};'
+	@echo 'export PYTHONPATH=$${CMGRDF}/$(PY_DIR):$${PYTHONPATH};'
 	@echo 'export LD_LIBRARY_PATH=$${CMGRDF}/lib:$${LD_LIBRARY_PATH};'
 	@test -d $(MAIN_DIR)/externals/HiggsAnalysis/CombinedLimit && \
 	   echo 'export COMBINE=$${CMGRDF}/externals/HiggsAnalysis/CombinedLimit/build;' && \
@@ -98,3 +98,7 @@ code-format:
 	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/cs8_amd64_gcc11/external/llvm/12.0.1-8ff3e9a0c002e74c1a2109fac8a0dcbb/etc/profile.d/init.sh"
 	find $(INC_DIR)  $(SRC_DIR) -type f -name '*.cc' -or -name '*.h'  | xargs -n 1 clang-format -i
 	find $(INC_DIR)  $(SRC_DIR) -type f | perl -e '$$errs=0; while(<>) { m/.(cxx|cpp|hxx|hpp|hh|icc)/ and print "Bad extension: $$_" and $$errs=1;}; exit $$errs;' 
+	find $(PY_DIR) examples -name '*.py' | xargs -n 1 autopep8 -i -a -a
+
+py-checks:
+	find $(PY_DIR) examples -name '*.py' | xargs -n 1 flake8
