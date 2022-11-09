@@ -347,6 +347,22 @@ class PlotSetPrinter(object):
         totalError = self.doShadedUncertainty(total) if opts.showErrors else None
         #is2D = total.InheritsFrom("TH2")
         for dproc, dhist in data:
+            blind = plot.getOpt('blinded',"None");
+            xblind = [9e99,-9e99]
+            if re.match(r'(bin|x)\s*([<>]?)\s*(\+|-)?\d+(\.\d+)?|(\+|-)?\d+(\.\d+)?\s*<\s*(bin|x)\s*<\s*(\+|-)?\d+(\.\d+)?', blind):
+                xfunc = (lambda h,b: b)             if 'bin' in blind else (lambda h,b : h.GetXaxis().GetBinCenter(b));
+                test  = eval("lambda bin : "+blind) if 'bin' in blind else eval("lambda x : "+blind) 
+                (dproc,hdata) = data
+                for b in range(1,hdata.GetNbinsX()+1):
+                    if test(xfunc(hdata,b)):
+                        print("blinding bin %d, x = [%s, %s]"%(b, hdata.GetXaxis().GetBinLowEdge(b),hdata.GetXaxis().GetBinUpEdge(b)))
+                        hdata.SetBinContent(b,0)
+                        hdata.SetBinError(b,0)
+                        xblind[0] = min(xblind[0],hdata.GetXaxis().GetBinLowEdge(b))
+                        xblind[1] = max(xblind[1],hdata.GetXaxis().GetBinUpEdge(b))
+                print("final blinded range x = [%s, %s]"%(xblind[0],xblind[1]))
+            elif blind != "None":
+                raise RuntimeError("Unrecongnized value for 'Blinded' option, stopping here")
             if outputTDir: dhist.writeToFile(outputTDir)
             if opts.poisson:
                 pdata = getDataPoissonErrors(dhist, True, True)
@@ -469,10 +485,10 @@ class PlotSetPrinter(object):
             if proc.isData:
                 dataEntries.append((hist.raw(),proc.label,"LPE"))
             elif proc.isSignal:
-                if hist.Integral() < opts.legendCutOffBackgrounds*totvalue: continue
+                if hist.Integral() < opts.legendCutOffSignals*totvalue: continue
                 sigEntries.append((hist.raw(),proc.label,mcStyle[0]))
             else:
-                if hist.Integral() < opts.legendCutOffSignals*totvalue: continue
+                if hist.Integral() < opts.legendCutOffBackgrounds*totvalue: continue
                 bgEntries.append((hist.raw(),proc.label,mcStyle[1]))
         entries = dataEntries + sigEntries + bgEntries 
         if totalError:  entries.append((totalError,"Total unc.","F"))
