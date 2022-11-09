@@ -20,7 +20,7 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
 
 * `run_simpleCache_sos.py`: demonstration of **caching** sums and plots.
 
-* `run_datacards_ttV_ttHH_2018c.py`: demonstrate simple **datacard production**:
+* `run_datacards_ttV_ttHH_2018c.py`: demonstrate simple **datacard production** and **post-fit plots** using combine output
    * This will make plots and datacards for ttZ, inclusively and split by flavour
    * Datacards can be processed from combine with
    ```bash

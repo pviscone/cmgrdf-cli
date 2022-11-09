@@ -16,7 +16,7 @@ def _projectionXNoDir(hist2d, name, y1, y2):
     ax = hist2d.GetXaxis()
     xbins = array('f', [(ax.GetBinLowEdge(b + 1) if b < nx else ax.GetBinUpEdge(b)) for b in range(0, nx + 1)])
     proj = ROOT.TH1D(name, name, nx, xbins)
-    proj.SetDirectory(None)
+    proj.SetDirectory(ROOT.nullptr)
     proj.GetXaxis().SetTitle(ax.GetTitle())  # in case
     ys = range(y1, y2 + 1)
     for ix in range(1, nx + 1):
@@ -180,7 +180,7 @@ class RooFitContext(object):
         if ROOT.gROOT.FindObject(name + "__" + self.xvar.GetName()):
             ROOT.gROOT.FindObject(name + "__" + self.xvar.GetName()).Delete()
         histo = pdf.createHistogram(name, self.xvar)
-        histo.SetDirectory(None)
+        histo.SetDirectory(ROOT.nullptr)
         return self.roofit2hist(histo, normobj.getVal(), target=target, add=add)
 
     def imp(self, obj, *args):
@@ -994,7 +994,7 @@ class HistoWithNuisances(object):
                                 ROOT.RooArgList(roofitContext.xvar),
                                 roofitContext.hist2roofit(hraw))
 
-    def rooFitPdfAndNorm(self, roofitContext=None):
+    def rooFitPdfAndNorm(self, roofitContext : RooFitContext = None):
         if self._rooFit:
             if roofitContext is not None and self._rooFit['context'] != roofitContext:
                 print("I have to regenerate the RooFit setup as it has changed.")
@@ -1008,7 +1008,7 @@ class HistoWithNuisances(object):
             self._makePdfAndNorm()
         return (self._rooFit["pdf"], self._rooFit["norm"])
 
-    def setPostFitInfo(self, postFitSetup, applyIt):
+    def setPostFitInfo(self, postFitSetup : PostFitSetup, applyIt : bool):
         if self._rooFit is None:
             raise RuntimeError("Can't setPostFitInfo if you don't have a valid roofit setup")
         self._postFit = postFitSetup
@@ -1111,11 +1111,13 @@ class HistoWithNuisances(object):
                 v1.Merge(other)
             else:
                 v1.Add(v2)
+
+        if self.central == self.nominal and x.central != x.nominal:
+            self.nominal = _cloneNoDir(self.central, self.central.GetName())
         adder(self.central, x.central)
         if self.central != self.nominal:
             adder(self.nominal, x.nominal)
         elif x.central != x.nominal:
-            self.nominal = _cloneNoDir(self.central, self.central.GetName())
             adder(self.nominal, x.nominal)
         for var in set(list(vars1.keys()) + list(vars2.keys())):
             for idx in range(2):
@@ -1144,17 +1146,17 @@ class HistoWithNuisances(object):
 
     def projectionX(self, name, iy1, iy2):
         h = HistoWithNuisances(_projectionXNoDir(self.central, name, iy1, iy2))
-        h.central.SetDirectory(None)
+        h.central.SetDirectory(ROOT.nullptr)
         for v, p in self.variations.items():
             h.variations[v] = (_projectionXNoDir(p[0], "%s_%s_up" % (name, v), iy1, iy2),
                                _projectionXNoDir(p[1], "%s_%s_down" % (name, v), iy1, iy2))
             for hi in h.variations[v]:
-                hi.SetDirectory(None)
+                hi.SetDirectory(ROOT.nullptr)
         if self.nominal == self.central:
             h.nominal = h.central
         else:
             h.nominal = _projectionXNoDir(self.nominal, name + "_nominal", iy1, iy2)
-            h.nominal.SetDirectory(None)
+            h.nominal.SetDirectory(ROOT.nullptr)
         if self._rooFit:
             h.setupRooFit(self._rooFit["context"])
         h._postFit = self._postFit
@@ -1564,44 +1566,3 @@ def listAllNuisances(histWithNuisanceItems):
 #            h.Scale(0);
 #        else:
 #            h.addRooFitScaleFactor(context.workspace.var(poi))
-
-
-def roofitizeReport(histoWithNuisanceMap, workspace=None, xvarName="x", density=False, context=None):
-    # sanity check all inputs, and get one representative histogram
-    h0 = None
-    for k, h in histoWithNuisanceMap.histos:
-        if k.isData:
-            continue
-        if not isinstance(h, HistoWithNuisances):
-            raise RuntimeError("element %s (%s, %s) is not a HistoWithNuisances" % (h, h.GetName() if h else "<nil>", type(h)))
-        if not str(h.raw().ClassName()).startswith("TH1"):
-            raise RuntimeError("element %s (%s, %s) is not a TH1" % (h, h.GetName() if h else "<nil>", h.ClassName() if h else "<nil>"))
-        if h.Integral() <= 0:
-            continue
-        if h0 is None:
-            h0 = h
-    if h0 is None:
-        raise RuntimeError("Empty report")
-    roofit = context
-    if context is not None:
-        if workspace is not None and workspace != context.workspace:
-            raise RuntimeError("Mismatch between workspaces")
-        workspace = context.workspace
-    else:
-        # setup the context
-        if workspace is None:
-            workspace = ROOT.RooWorkspace("w", "w")
-        if not hasattr(workspace, 'nodelete'):
-            workspace.nodelete = []
-        roofit = RooFitContext(workspace)
-    if not roofit.xvar:
-        # create the x variable
-        roofit.prepareXVar(h0, density, name=xvarName)
-    for nuis in listAllNuisances(histoWithNuisanceMap.histos):
-        if not workspace.arg(nuis):
-            roofit.factory("%s[0,-7,7]" % nuis)
-    # now roofitise all objects
-    for k, h in histoWithNuisanceMap.histos:
-        h.setupRooFit(roofit)
-    # and return the context
-    return roofit

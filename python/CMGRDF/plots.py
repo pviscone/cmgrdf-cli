@@ -6,7 +6,7 @@ from array import array
 from typing import Any
 
 import ROOT
-from CMGRDF.histoWithNuisances import HistoWithNuisances, mergePlots, warnAboutNegativeBins
+from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitContext, listAllNuisances, mergePlots, warnAboutNegativeBins
 from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target
@@ -140,17 +140,9 @@ class PlotResult(object):
         self.template = self.spec._template
         self.histos = [(k, h if isinstance(h, HistoWithNuisances) else HistoWithNuisances(h)) for (k, h) in histos]
         self.totals = {}
+        self._roofit = None
         if fillTotals:
-            sigs, bkgs = [], []
-            for k, h in histos:
-                if k.isSignal:
-                    sigs.append(h)
-                elif not k.isData:
-                    bkgs.append(h)
-            if sigs:
-                self.totals["signal"] = mergePlots("signal", sigs)
-            if bkgs:
-                self.totals["background"] = mergePlots("background", bkgs)
+            self.fillTotals()
 
     def __getattr__(self, key):
         return getattr(self.spec, key)
@@ -166,6 +158,73 @@ class PlotResult(object):
             if p.isData:
                 return h
         return None
+
+    def fillTotals(self):
+        sigs, bkgs = [], []
+        for k, h in self.histos:
+            if k.isSignal:
+                sigs.append(h)
+            elif not k.isData:
+                bkgs.append(h)
+        if sigs:
+            self.totals["signal"] = mergePlots("signal", sigs)
+        if bkgs:
+            self.totals["background"] = mergePlots("background", bkgs)
+
+    def initRooFit(self, workspace=None, xvarName="x", density=False, context : RooFitContext = None):
+        """Set up RooFit for all the plots"""
+        if self._roofit:
+            print("Warning, calling initRooFit twice on PlotResult {self.name}")
+        # sanity check all inputs, and get one representative histogram
+        h0 = None
+        for k, h in self.histos:
+            if k.isData:
+                continue
+            if not str(h.raw().ClassName()).startswith("TH1"):
+                raise RuntimeError("element %s (%s, %s) is not a TH1" % (h, h.GetName() if h else "<nil>", h.ClassName() if h else "<nil>"))
+            if h.Integral() <= 0:
+                continue
+            if h0 is None:
+                h0 = h
+        if h0 is None:
+            raise RuntimeError("Empty report")
+        roofit = context
+        if context is not None:
+            if workspace is not None and workspace != context.workspace:
+                raise RuntimeError("Mismatch between workspaces")
+            workspace = context.workspace
+        else:
+            # setup the context
+            if workspace is None:
+                workspace = ROOT.RooWorkspace("w", "w")
+            if not hasattr(workspace, 'nodelete'):
+                workspace.nodelete = []
+            roofit = RooFitContext(workspace)
+        if not roofit.xvar:
+            # create the x variable
+            roofit.prepareXVar(h0, density, name=xvarName)
+        for nuis in listAllNuisances(self.histos):
+            if not workspace.arg(nuis):
+                roofit.factory("%s[0,-7,7]" % nuis)
+        # now roofitise all objects
+        for k, h in self.histos:
+            h.setupRooFit(roofit)
+        # and return the context
+        self._roofit = roofit
+
+    def getRooFit(self):
+        if self._roofit is None:
+            self.initRooFit()
+        return self._roofit
+
+    def setPostFit(self, posfit : PostFitSetup, applyIt : bool):
+        if not self._roofit:
+            self.initRooFit()
+        for (p, h) in self.histos:
+            if not p.isData:
+                h.setPostFitInfo(posfit, applyIt)
+        # remake totals
+        self.fillTotals()
 
 
 def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
@@ -471,7 +530,6 @@ class PlotSetPrinter(object):
                     if syst:
                         dump.write(" +/- %9.2f (syst) = +/- %9.2f (all)" % (syst, hypot(stat, syst)))
                     dump.write("\n")
-                total
                 if data:
                     dump.write(("-" * (maxlen + 45)) + "\n")
                     dump.write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % ('DATA', dhist.Integral()))

@@ -1,6 +1,5 @@
 from CMGRDF import *
 import ROOT
-from CMGRDF.histoWithNuisances import roofitizeReport
 
 from CMGRDF.stat import DatacardWriter
 
@@ -106,7 +105,7 @@ SIGNAME = "TTHGG"
 BIN = cuts_tight.name
 c1 = ROOT.TCanvas("c1", "c1")
 mggPlotReport = result_plots.getByKey(MultiKey(name="mggFine"))
-roofit = roofitizeReport(mggPlotReport)
+roofit = mggPlotReport.getRooFit()
 roofit.imp(roofit.xvar)
 roofit.factory("Gaussian::sig_ttH(%s, mean_ttH[125,110,130],sigma_ttH[1,0.5,5])" % roofit.xname)
 roofit.factory("Exponential::sig_nonres(%s, slope_expo[0,-5,5])" % roofit.xname)

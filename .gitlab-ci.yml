@@ -54,6 +54,7 @@ code-checks:
 run-tests:
   stage: test
   before_script:
+    - yum install -y libSM
     - source $LCG_REL_PATH/setup.sh
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh

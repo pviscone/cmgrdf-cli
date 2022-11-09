@@ -1,5 +1,6 @@
 from CMGRDF import *
 import ROOT
+from CMGRDF.histoWithNuisances import PostFitSetup
 
 from CMGRDF.stat import DatacardWriter
 
@@ -201,3 +202,23 @@ printer.printSet(result_plots, "plots/008/{flow}")
 
 cardMaker = DatacardWriter()
 cardMaker.makeCards(result_plots, MultiKey(name="minMll"), "plots/008/datacards/flow_{flow}")
+
+## Now we combine the datacards and run a fit
+os.system("""
+pushd plots/008/datacards &&
+combineCards.py $(for f in flow_tight_Z*.txt; do echo .=$f; done)  > flow_combined.txt &&
+for f in tight combined; do text2workspace.py flow_${f}.txt || break; done &&
+for f in tight combined; do combine -M FitDiagnostics flow_${f}.root -n _${f} --customStartingPoint --setParameters r=1 || break; done &&
+popd
+""")
+
+## And we make some post-fit plots
+postfit = MultiReport()
+for fit in ("tight", "combined"):
+    fFitDiag = ROOT.TFile.Open(f"plots/008/datacards/fitDiagnostics_{fit}.root")
+    fitResult = fFitDiag.Get("fit_b")
+    postFitSetup = PostFitSetup(fitResult=fitResult)
+    for key, plot in result_plots:
+        plot.setPostFit(postFitSetup, applyIt=True)
+        postfit.append(key, plot)
+    printer.printSet(postfit, f"plots/008/postfit_{fit}/{{flow}}")
