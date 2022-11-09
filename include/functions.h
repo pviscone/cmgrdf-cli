@@ -53,24 +53,23 @@ float mass_3(float pt1,
              float m3);
 float phi_3(float pt1, float phi1, float pt2, float phi2, float pt3, float phi3);
 
-float pt_4(float pt1, float phi1, float pt2, float phi2, float pt3, float phi3, float pt4, float phi4) ;
-float mass_4(
-    float pt1,
-    float eta1,
-    float phi1,
-    float m1,
-    float pt2,
-    float eta2,
-    float phi2,
-    float m2,
-    float pt3,
-    float eta3,
-    float phi3,
-    float m3,
-    float pt4,
-    float eta4,
-    float phi4,
-    float m4);
+float pt_4(float pt1, float phi1, float pt2, float phi2, float pt3, float phi3, float pt4, float phi4);
+float mass_4(float pt1,
+             float eta1,
+             float phi1,
+             float m1,
+             float pt2,
+             float eta2,
+             float phi2,
+             float m2,
+             float pt3,
+             float eta3,
+             float phi3,
+             float m3,
+             float pt4,
+             float eta4,
+             float phi4,
+             float m4);
 
 float mt_llv(float ptl1, float phil1, float ptl2, float phil2, float ptv, float phiv);
 float mt_lllv(float ptl1, float phil1, float ptl2, float phil2, float ptl3, float phil3, float ptv, float phiv);

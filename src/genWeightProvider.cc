@@ -42,11 +42,11 @@ bool GenWeightProvider::addSampleWithSum(const std::string &name,
     samples_.back().setSum(sum);
   } else {
     double existingSum = weightSumByFile(files.front());
-    double minScale = std::min(std::abs(sum),std::abs(existingSum));
-    if (std::abs(sum-existingSum) > 1e-7*minScale) {
+    double minScale = std::min(std::abs(sum), std::abs(existingSum));
+    if (std::abs(sum - existingSum) > 1e-7 * minScale) {
       std::cout << "ERROR: for sample " << name << " (file " << files.front() << "), mismatch of sum. found " << sum
                 << ", exising " << existingSum << ", diff " << std::abs(sum - existingSum)
-                << ", relative: " << std::abs(sum - existingSum) / (minScale ? minScale : 1) << std::endl;      
+                << ", relative: " << std::abs(sum - existingSum) / (minScale ? minScale : 1) << std::endl;
     }
   }
   return added;
@@ -92,7 +92,7 @@ bool GenWeightProvider::Sample::bookLazySum() {
   }
   return false;
 }
-const ROOT::RDF::RResultPtr<double> & GenWeightProvider::Sample::lazyHandle() {
+const ROOT::RDF::RResultPtr<double> &GenWeightProvider::Sample::lazyHandle() {
   assert(lazySum);
   return (lazySum->sum);
 }
@@ -116,7 +116,7 @@ void GenWeightProvider::computeOldStyle(GenWeightProvider::Sample &sample) {
     } else if (chain.GetBranch("genEventSumw_") != nullptr) {
       sample.sumName = "genEventSumw_";
     } else {
-      throw std::logic_error("ERROR: can't find gen sum name in sample "+sample.name);
+      throw std::logic_error("ERROR: can't find gen sum name in sample " + sample.name);
     }
   }
   chain.Draw("0.5>>htemp(1,0,1)", sample.sumName.c_str(), "GOFF");

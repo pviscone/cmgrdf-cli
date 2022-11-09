@@ -25,7 +25,7 @@ OBJS = $(SRCS:.cc=.o)
 OBJS += $(notdir $(patsubst %.cc,%.o,$(wildcard $(EXT_DIR)/RoccoR/RoccoR.cc)))
 
 #Makefile Rules ---------------------------------------------------------------
-.PHONY: clean dirs obj lib env
+.PHONY: clean dirs obj lib env code-format
 
 all: dirs obj lib compile_python
 
@@ -93,3 +93,8 @@ env:
 	   echo 'export ONNXRUNTIME=$${CMGRDF}/externals/onnxruntime-linux-x64-1.11.1;' && \
 	   echo 'export LD_LIBRARY_PATH=$${ONNXRUNTIME}/lib:$${LD_LIBRARY_PATH};'  || \
 	   true;
+
+code-format:
+	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/cs8_amd64_gcc11/external/llvm/12.0.1-8ff3e9a0c002e74c1a2109fac8a0dcbb/etc/profile.d/init.sh"
+	find $(INC_DIR)  $(SRC_DIR) -type f -name '*.cc' -or -name '*.h'  | xargs -n 1 clang-format -i
+	find $(INC_DIR)  $(SRC_DIR) -type f | perl -e '$$errs=0; while(<>) { m/.(cxx|cpp|hxx|hpp|hh|icc)/ and print "Bad extension: $$_" and $$errs=1;}; exit $$errs;' 

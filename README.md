@@ -87,11 +87,12 @@ The typical processing mode would be to submit one or more tasks, and then tell 
    * The process defines the display options like a pretty label, colors, etc.
    * Normalization-only uncertainties can be attached to the processes, and will be applied to all the samples they contain
 
-## Processing: Flow, Steps 
+## Processing: Flow, Steps, Targets
 
 * A Flow is a sequence of processing steps: cuts, variable definitions, ...
   * Steps can be shared across multiple flows (e.g. common definitions or preselection cuts)
   * Some steps may apply only on some sample types (MC, Data, ...) or eras, and individual Sample may have further hooks to customize the flow applied to them
+* A target is some end result, which currently can be a Plot, a Yield or a Snapshot
 * When data has to be processed, the tool takes care of assembling for each source a RooDataFrame the full RooDataFrame graph, and if multiple flows share a common initial part the corresponding RooDataFrame nodes are only created once.
 
 ## Uncertainties
@@ -117,8 +118,6 @@ A simplified caching system is implemented and can be optionally used, as in the
 
 The caching system relies on hashes of the input file names (and, if the files are local, their modification time) and the whole processing history (cuts, defines, ...) that is implemented via string expressions. It cannot track changes in externally called C++ code or data files.
 
-Support for caching of the full set of selected events via `Snapshot()` will also soon be added.
-
 
 ## Runnig in SWAN and Jupyter
 
@@ -142,11 +141,11 @@ from CMGRDF import *
 
  * MCGroup support for different xsection values per sample
  * Pretty printout of yield tables with uncertainties
- * Cleaning up Snapshot implementation, and allow running from snapshot trees (skimming) or using them as friend trees
+ * Using snapshots as friend trees
+ * Cache events with snapshots
  * Additional generator weights, e.g. for normalized scale variations
  * Test a fake rate method
  * Test roo-fit related stuff
- * Caching of datasets
  * Test distributed processing
  * Batch processing for skimming or friend production?
  * CI, building reference documentation

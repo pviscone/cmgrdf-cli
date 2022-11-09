@@ -76,7 +76,7 @@ float pt_4(float pt1, float phi1, float pt2, float phi2, float pt3, float phi3, 
   phi3 -= phi1;
   phi4 -= phi1;
   return std::hypot(pt1 + pt2 * std::cos(phi2) + pt3 * std::cos(phi3) + pt4 * std::cos(phi4),
-                     pt2 * std::sin(phi2) + pt3 * std::sin(phi3) + pt4 * std::sin(phi4));
+                    pt2 * std::sin(phi2) + pt3 * std::sin(phi3) + pt4 * std::sin(phi4));
 }
 
 float mass_4(float pt1,

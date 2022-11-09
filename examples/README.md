@@ -18,9 +18,9 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
    * use some Defines and C++ functions from `functions.h` to e.g. define good b-tagged jets, make invariant masses, ...
    * implement uncertainties using weights
 
-* `run_simpleCache_sos.py`: demonstration of caching sums and plots.
+* `run_simpleCache_sos.py`: demonstration of **caching** sums and plots.
 
-* `run_datacards_ttV_ttHH_2018c.py`: demonstrate simple datacard production:
+* `run_datacards_ttV_ttHH_2018c.py`: demonstrate simple **datacard production**:
    * This will make plots and datacards for ttZ, inclusively and split by flavour
    * Datacards can be processed from combine with
    ```bash
@@ -30,11 +30,9 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
    for f in flow_*txt; do echo $f; combine -M MultiDimFit --algo=singles ${f/.txt/.root} | grep '68%'; echo; done
    ```
 
- * `run_SFs_ttHH_2018c.py`:
-   * Make plots and event yields applying some POG corrections and scale factors
+ * `run_SFs_ttHH_2018c.py`: Make plots and event yields applying some **POG corrections and scale factors** 
 
- * `run_snapshots_ttHH_2018c.py`:
-   * Make snapshots for skimming and rerun from snapshots
+ * `run_snapshots_ttHH_2018c.py`: Make **snapshots** for skimming, e.g. for simple skimming or mva training, and rerun from snapshots
 
 ## Older examples
 

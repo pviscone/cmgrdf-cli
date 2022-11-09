@@ -16,10 +16,7 @@ public:
                  const std::vector<std::string> &files,
                  const std::string &genSumName = "_auto_",
                  bool warn = false);
-  bool addSampleWithSum(const std::string &name,
-                 const std::vector<std::string> &files,
-                 double sum, 
-                 bool warn = false);                 
+  bool addSampleWithSum(const std::string &name, const std::vector<std::string> &files, double sum, bool warn = false);
   bool addSampleAndRun(const std::string &name,
                        const std::vector<std::string> &files,
                        const std::string &genSumName = "_auto_",
@@ -44,14 +41,14 @@ public:
       if (s.name == sampleName)
         return s.weightSum;
     }
-    throw std::logic_error("Missing weight sum for sample "+sampleName);
+    throw std::logic_error("Missing weight sum for sample " + sampleName);
   }
 
   double weightSumByFile(const std::string &fileName) {
     int idx = file2sample_[fileName];
     if (idx)
       return samples_[idx - 1].weightSum;
-    throw std::logic_error("Missing weight sum for file "+fileName);
+    throw std::logic_error("Missing weight sum for file " + fileName);
   }
 
   unsigned int nSamples() const { return samples_.size(); }
@@ -64,7 +61,9 @@ public:
   class CopiableCaller {
   public:
     CopiableCaller(GenWeightProvider *provider = nullptr) : provider_(provider) {}
-    double operator()(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo &id) { return provider_->weightBySampleInfo(id); }
+    double operator()(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo &id) {
+      return provider_->weightBySampleInfo(id);
+    }
 
   private:
     GenWeightProvider *provider_;
@@ -103,7 +102,7 @@ private:
 
     std::unique_ptr<LazySum> lazySum;
     bool bookLazySum();
-    const ROOT::RDF::RResultPtr<double> &lazyHandle() ;
+    const ROOT::RDF::RResultPtr<double> &lazyHandle();
     void doneLazy();
   };
 
