@@ -61,3 +61,7 @@ run-tests:
     - cd examples
   script:
     - make
+  artifacts:
+    paths:
+      - plots
+    when: always

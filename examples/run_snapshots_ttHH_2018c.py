@@ -205,8 +205,8 @@ print("")
 
 skim3l = cuts_tight.clone("skim3l").upToStep("3l")
 skimpath = "skim3l/{name}.root"
-if os.path.exists("/data/" + os.getlogin()):
-    skimpath = "/data/" + os.getlogin() + "/" + skimpath
+if os.path.exists("/tmp"):
+    skimpath = "/tmp/" + skimpath
 print(f"Making skim {skim3l.name} at {skimpath}")
 maker.clear().book(procs_3l_tight, lumi, skim3l, Snapshot(skimpath, columnSel=["#new", "run", "lumi", "event", "weight", "nJet", "Jet_.*", "MET_.*"], columnVeto=["genWeightSum", "mcSampleWeight"], compression=None))
 report = maker.runSnapshots()
