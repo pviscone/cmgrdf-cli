@@ -163,8 +163,8 @@ cuts_tight = Flow("tight",
                   Cut("1b", "nBJetMedium30 >= 1"),
                   )
 leps = [("e", 11), ("m", 13)]
-Zcuts = dict((l + l, Cut(f"Z{l}{l}", f"abs(LepTight_pdgId[lepZ[0]]) == {id}")) for (l, id) in leps)
-Wcuts = dict((l, Cut(f"W{l}v", f"abs(LepTight_pdgId[lepW]) == {id}")) for (l, id) in leps)
+Zcuts = dict((l + l, Cut(f"Z{l}{l}", f"abs(LepTight_pdgId[lepZ[0]]) == {pid}")) for (l, pid) in leps)
+Wcuts = dict((l, Cut(f"W{l}v", f"abs(LepTight_pdgId[lepW]) == {pid}")) for (l, pid) in leps)
 flavSplits = [
     cuts_tight.clone(f"tight_Z{ll}_W{l}v").append(Zcuts[ll], Wcuts[l]) for ll in ("ee", "mm") for l in ("e", "m")
 ]

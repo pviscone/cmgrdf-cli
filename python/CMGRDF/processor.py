@@ -137,7 +137,6 @@ class Processor(object):
                                 if t not in branch.leaves:
                                     branch.leaves[t] = t.attach(branch.rdf, sample, era)
                                 fut = branch.leaves[t]
-                                vars = True if hasUncertainties else None
                                 if withUncertainties and hasUncertainties:
                                     # postpone to all at the end, to avoid multiple JITs
                                     futuresToVary.append((plotKey, proc, sample, t, fut))
@@ -148,8 +147,8 @@ class Processor(object):
                                 if self._cache and k3[-1] is not None:
                                     self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            vars = t.bookVariations(fut)
-            self._futures.append((plotKey, proc, sample, t, fut, vars))
+            futvars = t.bookVariations(fut)
+            self._futures.append((plotKey, proc, sample, t, fut, futvars))
         t1 = time.perf_counter()
         n1 = (self._summer.nSamples(), len(self._futures))
         if logPerformance:
@@ -202,7 +201,6 @@ class Processor(object):
                                         if t not in wbranch.leaves:
                                             wbranch.leaves[t] = t.attach(wbranch.rdf, sample, era)
                                         fut = wbranch.leaves[t]
-                                        vars = True if hasUncertainties else None
                                         if withUncertainties and hasUncertainties:
                                             # postpone to all at the end, to avoid multiple JITs
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
@@ -211,8 +209,8 @@ class Processor(object):
                                         if self._cache and k3[-1] is not None:
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            vars = ROOT.RDF.Experimental.VariationsFor(fut)
-            self._futures.append((plotKey, proc, sample, t, fut, vars))
+            fvars = ROOT.RDF.Experimental.VariationsFor(fut)
+            self._futures.append((plotKey, proc, sample, t, fut, fvars))
         t1 = time.perf_counter()
         n1 = (self._summer.nSamples(), len(self._futures))
         if logPerformance:
@@ -238,9 +236,9 @@ class Processor(object):
                     print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0], n0[1], t1 - t0, t1 - t0b))
             # finalize the plots
             ret = MultiReport()
-            for (plotKey, proc, sample, target, future, vars) in self._futures:
+            for (plotKey, proc, sample, target, future, fvars) in self._futures:
                 result = target.finishFuture(future, sample, plotKey.era)
-                resvars = target.finishVarFuture(vars, sample, plotKey.era) if vars else None
+                resvars = target.finishVarFuture(fvars, sample, plotKey.era) if fvars else None
                 if plotKey in self._toCache:
                     if isinstance(target, Snapshot):
                         target.toCache(result, self._toCache[plotKey])
@@ -262,15 +260,15 @@ class Processor(object):
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
-        for plotKey, (proc, sample, plot, hraw, vars) in rawReport:
+        for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:
             if not isinstance(plot, Plot):
                 continue  # there may be other stuff depending on book
             hist = HistoWithNuisances(hraw)
-            if vars:
-                for k in vars.keys():
+            if hvars:
+                for k in hvars.keys():
                     if ":" in k:
                         (var, sign) = str(k).split(":")
-                        hist.addVariation(var, sign, vars[k])
+                        hist.addVariation(var, sign, hvars[k])
                     elif k != "nominal":
                         print("ERROR: unknown variation %s for %s" % (k, plotKey))
             for nuis in sample.normUncertainties + proc.normUncertainties:
@@ -311,17 +309,17 @@ class Processor(object):
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
-        for plotKey, (proc, sample, plot, hraw, vars) in rawReport:
+        for plotKey, (proc, sample, plot, evyield, yvars) in rawReport:
             if not isinstance(plot, Yield):
                 continue  # there may be other stuff depending on book
-            hist = YieldWithNuisances(plot.name, hraw)
-            if vars:
-                for k in vars.keys():
+            hist = YieldWithNuisances(plot.name, evyield)
+            if yvars:
+                for k in yvars.keys():
                     if ":" in k:
                         (var, sign) = str(k).split(":")
-                        hist.addVariation(var, sign, vars[k])
+                        hist.addVariation(var, sign, yvars[k])
                     elif k == "":  # sum(weight2)
-                        hist.stat = sqrt(vars[k])
+                        hist.stat = sqrt(yvars[k])
                     elif k != "nominal":
                         print("ERROR: unknown variation %s for %s" % (k, plotKey))
             for nuis in sample.normUncertainties + proc.normUncertainties:
@@ -351,7 +349,7 @@ class Processor(object):
     def runSnapshots(self, logPerformance=True):
         rawReport = self._runAllRaw(logPerformance=logPerformance)
         plots = MultiReport()
-        for plotKey, (proc, sample, plot, hraw, vars) in rawReport:
+        for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:
             if not isinstance(plot, Snapshot):
                 continue  # there may be other stuff depending on book
             plots.append(plotKey, hraw)

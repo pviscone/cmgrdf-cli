@@ -372,8 +372,8 @@ class Flow(object):
         self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx + 1:]
         return self
 
-    def filterSteps(self, filter):
-        self.steps = [s for s in self.steps if filter(s)]
+    def filterSteps(self, stepFilter):
+        self.steps = [s for s in self.steps if stepFilter(s)]
         return self
 
     def insertBeforeOrAfter(self, when : str, name, *steps):

@@ -9,10 +9,10 @@ import re
 
 
 class OptionDecl(object):
-    def __init__(self, name, default=None, type=str, cmdline=None, **kwargs):
+    def __init__(self, name, default=None, opttype=str, cmdline=None, **kwargs):
         self.name = name
         self.default = default
-        self.type = type
+        self.type = opttype
         self.cmdline = cmdline
         self.kwargs = kwargs
 
@@ -22,9 +22,9 @@ class Options(object):
         self._values = dict()
         self._declarations = []
         for opt in optionDeclarations:
-            self.declare(opt.name, default=opt.default, type=opt.type, cmdline=opt.cmdline, **opt.kwargs)
+            self.declare(opt.name, default=opt.default, opttype=opt.type, cmdline=opt.cmdline, **opt.kwargs)
 
-    def declare(self, name, default=None, type=str, cmdline=None, **kwargs):
+    def declare(self, name, default=None, opttype=str, cmdline=None, **kwargs):
         self._declarations.append((name, default, type, cmdline, kwargs))
         if name in self._values:
             if default is not None:
@@ -34,8 +34,8 @@ class Options(object):
         return self
 
     def addToParser(self, parser):
-        for (name, default, type, cmdline, kwargs) in self._declarations:
-            if type == bool:
+        for (name, default, opttype, cmdline, kwargs) in self._declarations:
+            if opttype == bool:
                 if not cmdline:
                     cmdline = ["--no" + name] if default else ["--" + name]
                 action = "store_false" if default else "store_true"
@@ -43,7 +43,7 @@ class Options(object):
             else:
                 if not cmdline:
                     cmdline = ["--" + name]
-                parser.add_argument(*cmdline, dest=name, type=type, default=self._values[name], **kwargs)
+                parser.add_argument(*cmdline, dest=name, type=opttype, default=self._values[name], **kwargs)
 
     def __getattr__(self, name : str):
         return self._values[name]
@@ -243,13 +243,13 @@ def recursiveHash(*objs):
     return hasher.hexdigest()
 
 
-def localOrEOS(dir, localroot, eosroot, eosurl="root://eoscms.cern.ch/"):
-    localPath = os.path.join(localroot, dir)
+def localOrEOS(path, localroot, eosroot, eosurl="root://eoscms.cern.ch/"):
+    localPath = os.path.join(localroot, path)
     if os.path.isdir(localPath):
         return localPath
     if not eosroot.startswith("root://"):
         eosroot = eosurl + eosroot
-    return os.path.join(eosroot, dir)
+    return os.path.join(eosroot, path)
 
 
 def selectColumns(rdf, columnSel : list[str], columnVeto : list[str]):

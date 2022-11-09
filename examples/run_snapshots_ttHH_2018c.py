@@ -161,12 +161,7 @@ cuts_tight = Flow("tight",
                   Cut("3jets", "nJet30 >= 3"),
                   Cut("1b", "nBJetMedium30 >= 1"),
                   )
-leps = [("e", 11), ("m", 13)]
-Zcuts = dict((l + l, Cut(f"Z{l}{l}", f"abs(LepTight_pdgId[lepZ[0]]) == {id}")) for (l, id) in leps)
-Wcuts = dict((l, Cut(f"W{l}v", f"abs(LepTight_pdgId[lepW]) == {id}")) for (l, id) in leps)
-flavSplits = [
-    cuts_tight.clone(f"tight_Z{ll}_W{l}v").append(Zcuts[ll], Wcuts[l]) for ll in ("ee", "mm") for l in ("e", "m")
-]
+
 procs_3l_tight = [
     Process("TopZ", [mcSamples["TTZ"], mcSamples["TZQ"], mcSamples["TWZ"]], label="t#bar{t}Z+tZ", fillColor=ROOT.kGreen + 1, signal=True),
     Process("TTW", [mcSamples["TTW"]], label="t#bar{t}W", fillColor=ROOT.kGreen + 3),
@@ -176,6 +171,7 @@ procs_3l_tight = [
     Process("TT", [mcSamples["TT2l"], mcSamples["TW"]], label="t#bar{t}+tW", fillColor=ROOT.kViolet - 4, normUncertainty=1.5),
     Data(dataSamples)
 ]
+
 plots_3l_tight = [
     Plot("l1pt", "LepTight_pt[0]", (20, 20, 240), xTitle="p_{T}(l1)"),
     Plot("l2pt", "LepTight_pt[1]", (20, 00, 150), xTitle="p_{T}(l2)"),

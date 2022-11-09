@@ -6,7 +6,7 @@
 The package requires a recent version of ROOT, python3, and related dependencies.
 On a CentOS Stream 8 machine with CVMFS, e.g. lxplus8.cern.ch, you can get all of it with
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
 ```
 
 ### Installation
@@ -22,16 +22,16 @@ make -j 3
 #### Combine (recommended)
 ```bash
 pushd externals/HiggsAnalysis/CombinedLimit 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
 export PATH=${PATH}:${PWD}/build/bin
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD}/build/lib
 export PYTHONPATH=${PYTHONPATH}:${PWD}/build/lib/python:${PWD}/build/lib
-export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos8-gcc11-opt
+export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt
 make -j 8; make
 popd
 ```
 
-#### Correctionlib (recommended) (already included in LCG 102, dev3 and dev4 stacks)
+#### Correctionlib (recommended) (already included in LCG 102, 102b, dev3 and dev4 stacks)
 
 If you're using a recent LCG stack, e.g 102 or dev3 or dev4, correctionlib is already installed. You can check for other versions in https://lcginfo.cern.ch/pkg/correctionlib/.
 

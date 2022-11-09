@@ -122,13 +122,13 @@ class MuonIDIsoSFDefine(Define):
 
 
 MuonSFs = dict()
-for id in "Loose", "Medium", "MediumPrompt":
+for muid in "Loose", "Medium", "MediumPrompt":
     for era in run2eras:
-        MuonSFs[(f"{id}Id", era)] = MuonIDSFDefine(id, era)
-    MuonSFs[f"{id}Id"] = [MuonIDSFDefine(id, era, eras=[era]) for era in run2eras]
+        MuonSFs[(f"{muid}Id", era)] = MuonIDSFDefine(muid, era)
+    MuonSFs[f"{muid}Id"] = [MuonIDSFDefine(muid, era, eras=[era]) for era in run2eras]
     for iso in ("Loose", "Tight"):
-        if iso == "Tight" and id == "Loose":
+        if iso == "Tight" and muid == "Loose":
             continue
         for era in run2eras:
-            MuonSFs[(f"{id}Id_{iso}Iso", era)] = MuonIDIsoSFDefine(id, iso, era)
-        MuonSFs[f"{id}Id_{iso}Iso"] = [MuonIDIsoSFDefine(id, iso, era, eras=[era]) for era in run2eras]
+            MuonSFs[(f"{muid}Id_{iso}Iso", era)] = MuonIDIsoSFDefine(muid, iso, era)
+        MuonSFs[f"{muid}Id_{iso}Iso"] = [MuonIDIsoSFDefine(muid, iso, era, eras=[era]) for era in run2eras]

@@ -19,8 +19,8 @@ class SumCache(object):
     def get(self, source : Source):
         return self._cache[source.longId()][0]
 
-    def write(self, source : Source, sum : float):
-        self._cache[source.longId()] = (sum, time.time())
+    def write(self, source : Source, wsum : float):
+        self._cache[source.longId()] = (wsum, time.time())
 
     def commitToDisk(self):
         if not os.path.isdir(os.path.dirname(self._fileName)):
@@ -78,9 +78,9 @@ class CacheLayer(object):
 
     def write(self, path, obj):
         fullpath = os.path.join(self._root, path)
-        dir = os.path.dirname(fullpath)
-        if not os.path.isdir(dir):
-            os.makedirs(dir)
+        pathdir = os.path.dirname(fullpath)
+        if not os.path.isdir(pathdir):
+            os.makedirs(pathdir)
         pickle.dump(obj, open(fullpath, 'wb'))
 
 
@@ -100,9 +100,9 @@ class SimpleCache(object):
         assert self._sums
         return self._sums.get(source)
 
-    def writeSum(self, source : Source, sum : float):
+    def writeSum(self, source : Source, wsum : float):
         if self._sums:
-            self._sums.write(source, sum)
+            self._sums.write(source, wsum)
 
     def hasPlot(self, k3):
         """Check with key beign a tuple(sourceid, flowid, targetid)"""
@@ -114,9 +114,9 @@ class SimpleCache(object):
         key = os.path.join(*k3)
         return self._plots.get(key)
 
-    def writePlot(self, k3, plot, vars):
+    def writePlot(self, k3, plot, plotvars):
         key = os.path.join(*k3)
-        self._plots.write(key, (plot, vars))
+        self._plots.write(key, (plot, plotvars))
 
     def commitSums(self):
         if self._sums:
