@@ -306,6 +306,25 @@ class ComputeTotalWeight(SimpleExprFlowStep):
                 return rdf.Define(self.name, self.expr)
 
 
+class Marker(FlowStep):
+    """ A Flow step that does nothing at all, but can be used as a marker in the cut flow"""
+
+    def __init__(self, name, doc="", **options):
+        super().__init__(name, **options)
+        self.doc = doc
+
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self.doc == other.doc
+        return id(self) == id(other)
+
+    def _addToHash(self, hasher):
+        super()._addToHash(hasher)
+
+    def _attach(self, rdf):
+        return rdf
+
+
 class Flow(object):
     """A sequence of steps, with a name."""
 

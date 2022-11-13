@@ -532,7 +532,9 @@ class PlotSetPrinter(object):
                     dump.write("\n")
                 if data:
                     dump.write(("-" * (maxlen + 45)) + "\n")
-                    dump.write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % ('DATA', dhist.Integral()))
+                    for dproc, dhist in data:
+                        label = "DATA" if len(data) == 1 else dproc.label
+                        dump.write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % (label, dhist.Integral()))
                 for logname, loglines in getattr(plot, "allLogs", []):
                     dump.write("\n\n --- %s --- \n" % logname)
                     for line in loglines:

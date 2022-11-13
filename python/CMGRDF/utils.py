@@ -1,6 +1,6 @@
 from collections import defaultdict
 import struct
-from typing import Union
+from typing import Any, Union
 import copy
 import hashlib
 import sys
@@ -9,7 +9,7 @@ import re
 
 
 class OptionDecl(object):
-    def __init__(self, name, default=None, opttype=str, cmdline=None, **kwargs):
+    def __init__(self, name : str, default=None, opttype : Any = str, cmdline=None, **kwargs):
         self.name = name
         self.default = default
         self.type = opttype
@@ -18,14 +18,14 @@ class OptionDecl(object):
 
 
 class Options(object):
-    def __init__(self, *optionDeclarations : list[OptionDecl]):
-        self._values = dict()
+    def __init__(self, *optionDeclarations : OptionDecl):
+        self._values: dict[str, Any] = dict()
         self._declarations = []
         for opt in optionDeclarations:
             self.declare(opt.name, default=opt.default, opttype=opt.type, cmdline=opt.cmdline, **opt.kwargs)
 
-    def declare(self, name, default=None, opttype=str, cmdline=None, **kwargs):
-        self._declarations.append((name, default, type, cmdline, kwargs))
+    def declare(self, name : str, default : Any = None, opttype : Any = str, cmdline=None, **kwargs):
+        self._declarations.append((name, default, opttype, cmdline, kwargs))
         if name in self._values:
             if default is not None:
                 raise RuntimeError("Duplicate definition of " + name)

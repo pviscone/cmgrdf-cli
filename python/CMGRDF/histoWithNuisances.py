@@ -306,7 +306,7 @@ class YieldWithNuisances(object):
             self._rooFit['norm'].setNominalValue(self.central * x)
         self.central *= x
         self.nominal *= x
-        self.variations = dict((k, (v[0] * x, v[1] * x)) for (k, v) in self.variations.items)
+        self.variations = dict((k, (v[0] * x, v[1] * x)) for (k, v) in self.variations.items())
 
     def addRooFitScaleFactor(self, roofunc):
         if not self._rooFit:

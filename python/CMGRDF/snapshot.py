@@ -15,8 +15,8 @@ class Snapshot(Target):
 
     def __init__(self,
                  filename : str,
-                 columnSel : Union[str, list[str]] = None,
-                 columnVeto : Union[str, list[str]] = None,
+                 columnSel : Union[str, list[str], None] = None,
+                 columnVeto : Union[str, list[str], None] = None,
                  compression : tuple[str, int] = ("ZLIB", 1),
                  treeName="Events"):
         super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
@@ -27,7 +27,7 @@ class Snapshot(Target):
         self.compression = ("ZLIB", 0) if compression is None else compression
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
 
-    def fromCache(self, sample, era, k3, verbose=True):
+    def fromCache(self, sample, era, k3, verbose=False):
         outname = self.filename.format(era=era, name=sample.name)
         sourceid, branchid, selfid = k3
         if os.path.exists(outname):
@@ -38,7 +38,8 @@ class Snapshot(Target):
                     if meta['sourceid'] == sourceid:
                         if meta['branchid'] == branchid:
                             if meta['id'] == selfid:
-                                print(f"Not remaking snapshot {outname} for {sample.name}")
+                                if verbose:
+                                    print(f"Not remaking snapshot {outname} for {sample.name}")
                                 ret = ROOT.RDataFrame(self.treeName, outname)
                                 ret.fname = outname
                                 ret.entries = meta['entries']
@@ -50,13 +51,14 @@ class Snapshot(Target):
                     pass
         return None
 
-    def toCache(self, snapshot, k3, verbose=True):
+    def toCache(self, snapshot, k3, verbose=False):
         sourceid, branchid, selfid = k3
         metafile = snapshot.fname.replace(".root", "") + ".meta.json"
         meta = dict(sourceid=sourceid, branchid=branchid, id=selfid,
                     entries=snapshot.entries, size=snapshot.size)
         try:
-            print(f"Saving metadata in {metafile} for {k3}")
+            if verbose:
+                print(f"Saving metadata in {metafile} for {k3}")
             json.dump(meta, open(metafile, 'w'))
         except BaseException:
             pass

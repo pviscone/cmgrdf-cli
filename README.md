@@ -119,7 +119,9 @@ A simplified caching system is implemented and can be optionally used, as in the
 The caching system relies on hashes of the input file names (and, if the files are local, their modification time) and the whole processing history (cuts, defines, ...) that is implemented via string expressions. It cannot track changes in externally called C++ code or data files.
 
 
-## Runnig in SWAN and Jupyter
+## Runnig in Jupyter and SWAN
+
+To use CMGRDF in a jupyter notebook, simply start `jupyter-notebook --no-browser --port NNNN` from the PC where CMGRDF is installed and after initializing the environment, and then connect to it from your browser (typically you need to `ssh -L NNNN:127.0.0.1:NNNN` to redirect your local port and avoid the firewall)
 
 The library can also be used under SWAN: https://swan.cern.ch/
  * Open SWAN with a recent LGC stack (e.g. the development version), and create a project under SWAN
@@ -148,4 +150,4 @@ from CMGRDF import *
  * Test roo-fit related stuff
  * Test distributed processing
  * Batch processing for skimming or friend production?
- * CI, building reference documentation
+ * More CI & building reference documentation

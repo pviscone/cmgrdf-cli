@@ -1,6 +1,7 @@
 import ROOT
 from CMGRDF import *
 from CMGRDF.data import Sample
+from CMGRDF.collectionUtils import DefineSkimmedCollection
 
 LOCAL = "/scratch/gpetrucc" if os.path.exists("/scratch/gpetrucc") else "/data/shared"
 P = localOrEOS("TREES_TTHH_2018C_150622", LOCAL, "/eos/cms/store/cmst3/group/tthlep") + "/{name}.root"
@@ -135,8 +136,8 @@ cuts_tight = Flow("tight",
                          "LepGood_sip3d < 6 && "                                           # cut on the 3D impact parameter significance (LepGood has no cut)
                          "LepGood_miniPFRelIso_all < 0.15"),                                # tighter cut on isolation (LepGood has a cut at 0.4)
                   ## And now define nLepTight and LepTight_<var> copying from LepGood applying the selection
-                  Define("nLepTight", "Sum(LepGood_tightSel)"),
-                  [Define(f"LepTight_{x}", f"LepGood_{x}[LepGood_tightSel]") for x in ("pt", "eta", "phi", "mass", "charge", "pdgId", "dxy", "dz", "sip3d", "miniPFRelIso_all", "jetIdx")],
+                  DefineSkimmedCollection("LepTight", "LepGood", mask="LepGood_tightSel",
+                                          members=("pt", "eta", "phi", "mass", "charge", "pdgId", "dxy", "dz", "sip3d", "miniPFRelIso_all", "jetIdx")),
                   ## Now we can define a selection with 3 leptons
                   Cut("3l", "nLepTight >= 3"),
                   Cut("ptX1515", "LepTight_pt[0] > (abs(LepTight_pdgId[0])==11?35:25) && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
@@ -155,7 +156,7 @@ cuts_tight = Flow("tight",
                   Define("Jet_sel", "Jet_pt > 30 && abs(Jet_eta) < 2.4 && Jet_jetId > 1"),
                   Define("LepTight_forJetCleaning", "LepTight_pt > 15"),
                   Define("Jet_noLep", "cleanByIndex(Jet_sel,LepTight_forJetCleaning,LepTight_jetIdx)"),
-                  [Define(f"JetGood_{v}", f"Jet_{v}[Jet_noLep]") for v in ("pt", "eta", "phi", "mass", "btagDeepFlavB")],
+                  DefineSkimmedCollection("JetGood", "Jet", ("pt", "eta", "phi", "mass", "btagDeepFlavB"), mask="Jet_noLep"),
                   Define("nJet30", "Sum(JetGood_pt > 30)"),
                   Define("nBJetMedium30", "Sum(JetGood_pt > 30 && JetGood_btagDeepFlavB >= 0.2783)"),
                   Cut("3jets", "nJet30 >= 3"),

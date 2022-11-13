@@ -9,7 +9,7 @@ from CMGRDF.GenWeightProvider import GenWeightProvider
 from CMGRDF.histoWithNuisances import HistoWithNuisances, YieldWithNuisances, mergePlots
 from CMGRDF.utils import MultiKey, MultiReport, safeName
 from CMGRDF.data import Source, Process
-from CMGRDF.flow import AddWeight, AddWeightUncertainty, ComputeTotalWeight, Cut, FlowStep, Flow, Target, Yield
+from CMGRDF.flow import ComputeTotalWeight, Alias, Define, ReDefine, DefineDefault, Vary, FlowStep, Flow, Target, Yield
 from CMGRDF.plots import Plot, PlotResult
 from CMGRDF.snapshot import Snapshot
 
@@ -187,7 +187,7 @@ class Processor(object):
                         branch = self._growBranch(src, None, verbose=verbose)
                         for step in sflow.steps:
                             branch = branch.maybeBranch(step, verbose=verbose)
-                            if type(step) in (Cut, AddWeight, AddWeightUncertainty):
+                            if type(step) not in (Alias, Define, ReDefine, DefineDefault, Vary):
                                 if (cutNames is None) or (step.name in cutNames):
                                     wbranch = branch.maybeBranch(ComputeTotalWeight(branch.weights), verbose=verbose)
                                     hasUncertainties = bool(wbranch.rdf.GetVariations().AsString())

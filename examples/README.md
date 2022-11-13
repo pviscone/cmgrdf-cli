@@ -32,7 +32,12 @@ Here are some example python scripts for CMGRDF to demonstrate some plotting and
 
  * `run_SFs_ttHH_2018c.py`: Make plots and event yields applying some **POG corrections and scale factors** 
 
- * `run_snapshots_ttHH_2018c.py`: Make **snapshots** for skimming, e.g. for simple skimming or mva training, and rerun from snapshots
+ * `run_snapshots_ttHH_2018c.py`: 
+   * Make **snapshots** for skimming, e.g. for simple skimming or mva training, and rerun from snapshots. 
+   * Test **cut flows** with event yields and uncertainties
+   * Test **DefineSkimmedCollection**
+
+ * `run_jupyter.ipynb`: Example of running CMGRDF into a jupyter notebook
 
 ## Older examples
 
