@@ -76,8 +76,9 @@ The typical processing mode would be to submit one or more tasks, and then tell 
 
 * A Source is a file, or set of files, from which a RooDataFrame can be created. It is normally created by internally by the Sample class.
 * A Sample is a homoneneous set of events used for one purpose, typically corresponding to a dataset in DAS. There are 3 specific subclasses: `MCSample`, `DataDrivenSample` or `DataSample`, depending on the content.
-   * `MCSample` must have a cross seciton (`xsec`) and a gen weight name (the default picks the names used in NanoAOD). The sum of gen weights can be precomputed or the tool itself can compute it later when needed from the Runs tree.
+   * `MCSample` normally must have a cross section (`xsec`) and a gen weight name (the default picks the names used in NanoAOD). The sum of gen weights can be precomputed or the tool itself can compute it later when needed from the Runs tree.
       * The code supports different implementation of computing the sum: early and lazy computation using RDataframe or a simple synchronous one using TChain. The default is the TChain implementation since with the present version of ROOT the RDataframe introduces has a significant overhead for such a simple processing.
+      * If using instead MC samples that have already a precomputed per-event weight that accounts for cross section and luminosity, e.g. produced from a `Snapshot`, by setting both  the `xsec` and the `genWeightName` to `None`, and defining `weight` appropriately.
    * All samples can have customizations for the event processing, e.g. extra gen-level cuts, applications of the fake rate, sample-specifc uncertainties, ...
    * If eras are used, a sample has to have a list of one or more eras for which it is available.
    * A sample can be created by passing a path (file name, directory name, file pattern, ...) that may include `{name}` and `{era}` placeholders, or by passing either a Source object or a dictionary mapping eras to source objects
