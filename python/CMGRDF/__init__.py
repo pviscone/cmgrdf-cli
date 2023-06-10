@@ -7,6 +7,7 @@ ROOT.gSystem.Load("libCMGRDF.so")
 ROOT.gInterpreter.ProcessLine(".O3")
 ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${CMGRDF}/include"))
 ROOT.gInterpreter.ProcessLine('#include "functions.h"')
+ROOT.gInterpreter.ProcessLine('#include "jsonFilter.h"')
 
 from CMGRDF.utils import MultiKey, MultiReport, localOrEOS, NormUncertainty
 from CMGRDF.data import Source, MCSample, MCGroup, DataDrivenSample, DataSample, Process, Data
