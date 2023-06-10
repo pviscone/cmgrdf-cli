@@ -129,7 +129,7 @@ class Source(object):
         )
 
     @staticmethod
-    def _autoName(files: list[str]) -> str:
+    def _autoName(files: "list[str]") -> str:
         assert (len(files) != 0)
         if len(files) > 1 or files[0].endswith("/*.root"):
             return os.path.basename(os.path.dirname(files[0]))
@@ -167,7 +167,11 @@ class Sample(object):
                 friendFiles = dict((era, [f.format(name=name, era=era) for f in friends] if friends else None) for era in self.eras)
                 self._sources = dict((era, Source('', source.format(name=name, era=era), era=era, friends=friendFiles[era])) for era in self.eras)
             else:
-                self._sources = dict((era, source[era]) for era in self.eras)
+                friendFiles = dict((era, [f.format(name=name, era=era) for f in friends] if friends else None) for era in self.eras)
+                if isinstance(source[self.eras[0]], str):
+                    self._sources = dict((era, Source('', source[era].format(name=name, era=era), era=era, friends=friendFiles[era])) for era in self.eras)
+                else:
+                    self._sources = dict((era, source[era]) for era in self.eras)
         elif isinstance(source, Source):
             assert (friends is None)  # should have been put in the Source object
             self._source = source
@@ -179,7 +183,7 @@ class Sample(object):
         self.isData = False
         self.normUncertainties = NormUncertainty.parse(normUncertainty, "norm_" + name)
 
-    def source(self, era=None):
+    def source(self, era=None) -> Source:
         if era is not None:
             assert (self.eras is not None)
             return self._sources[era] if era in self._sources else None
@@ -202,6 +206,12 @@ class Sample(object):
                 flow2._from = flow
                 flow = flow2
         return flow.filterSteps(lambda s : s.appliesTo(self, era))
+
+    def _sourcesAsString(self) -> str:
+        if self.eras:
+            return ", ".join([f"\n    {e} = {s}" for (e, s) in self._sources.items()])
+        else:
+            return str(self._source)
 
 
 class MCSample(Sample):
@@ -247,6 +257,10 @@ class MCSample(Sample):
     def bookSumWeight(self, sumWeightProvider, eras):
         sumWeightProvider.bookEras(self, eras)
 
+    def __str__(self):
+        xsec_string = f", xsec = {self.xsec}" if self.xsec else ""
+        return f"MCSample({self.name}{xsec_string}, {self._sourcesAsString()})"
+
 
 def _mergeEras(samples):
     if all((s.eras is None) for s in samples):
@@ -285,7 +299,7 @@ class MCGroup(Sample):
        Useful e.g. for samples binned at gen level and that can be used all together.
        This allows the framework to build a single RDF graph, and saves some overheads."""
 
-    def __init__(self, name : str, samples : list[MCSample], moreHooks=[], extraWeight=None):
+    def __init__(self, name : str, samples : "list[MCSample]", moreHooks=[], extraWeight=None):
         super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
         self.samples = samples
         self._hooks = samples[0]._hooks[:]
@@ -336,6 +350,10 @@ class DataDrivenSample(Sample):
         else:
             return flow2
 
+    def __str__(self):
+        weight_string = f", weight = {self.weight}" if self.weight != "1" else ""
+        return f"DataDrivenSample({self.name}{weight_string}, {self._sourcesAsString()})"
+
 
 class DataSample(DataDrivenSample):
     """The data sample"""
@@ -344,13 +362,16 @@ class DataSample(DataDrivenSample):
         super().__init__(name, samples, **options)
         self.isData = True
 
+    def __str__(self):
+        return f"DataSample({self.name}, {self._sourcesAsString()})"
+
 
 class Process(object):
     """A group of one or more samples that are added up together as a single entry in plots or datacards.
        You can specify a more pretty label for it (by default it uses the computer-friendly name of it)
        It can have addional nomalization uncertainties, specified as in the Sample class."""
 
-    def __init__(self, name : str, samples : Union[Sample, list[Sample]], signal=False, label=None, normUncertainty=None, **options):
+    def __init__(self, name : str, samples : "Union[Sample, list[Sample]]", signal=False, label=None, normUncertainty=None, **options):
         self.name = name
         if isinstance(samples, Sample):
             self.samples = [samples]

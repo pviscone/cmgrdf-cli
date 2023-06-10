@@ -37,11 +37,10 @@ public:
   void doAllMulti();
 
   double weightSumByName(const std::string &sampleName) {
-    for (const Sample &s : samples_) {
-      if (s.name == sampleName)
-        return s.weightSum;
-    }
-    throw std::logic_error("Missing weight sum for sample " + sampleName);
+    auto match = name2sample_.find(sampleName);
+    if (match == name2sample_.end())
+      throw std::logic_error("Missing weight sum for sample " + sampleName);
+    return samples_[match->second].weightSum;
   }
 
   double weightSumByFile(const std::string &fileName) {
@@ -108,6 +107,7 @@ private:
 
   std::vector<Sample> samples_;
   std::unordered_map<std::string, int> file2sample_;
+  std::unordered_map<std::string, int> name2sample_;
 
   static void computeSumNow(Sample &sample) { sample.setSum(LazySum(sample.sumName, sample.files).sum.GetValue()); }
 

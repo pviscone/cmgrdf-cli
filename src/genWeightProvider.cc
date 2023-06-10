@@ -15,19 +15,23 @@ bool GenWeightProvider::addSample(const std::string &name,
   for (auto f : files) {
     int &idx = file2sample_[f];
     if (idx != 0) {
-      if (samples_[idx - 1].files == files) {
-        if (warn) {
-          std::cout << "WARNING: duplicate file " << f << " between " << name << " and " << samples_[idx - 1].name
-                    << " (same files)" << std::endl;
-        }
+      if (samples_[idx - 1].files == files && (genSumName == "_auto_" || samples_[idx - 1].sumName == genSumName)) {
+        if (samples_[idx - 1].name != name) {
+          name2sample_[name] = idx - 1;
+          if (warn)
+            std::cout << "Aliased file " << f << " for sample " << name << " to " << samples_[idx - 1].name
+                      << " (same files)" << std::endl;
+        } else if (warn)
+          std::cout << "Booked sample " << name << " multiple times" << std::endl;
       } else {
         std::cout << "ERROR: duplicate file " << f << " between " << name << " and " << samples_[idx - 1].name
-                  << " (NOT same files)" << std::endl;
+                  << ": (NOT same files or same gen sum name)" << std::endl;
       }
       samples_.pop_back();
       return false;
     } else {
       idx = samples_.size();
+      name2sample_[name] = idx - 1;
     }
   }
   return true;

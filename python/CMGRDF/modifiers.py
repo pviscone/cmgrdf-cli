@@ -10,6 +10,14 @@ class Append(object):
         return flow.append(self.steps)
 
 
+class Prepend(object):
+    def __init__(self, *steps : Sequence[FlowStep]):
+        self.steps = list(steps)
+
+    def customizeFlow(self, flow, era):
+        return flow.prepend(self.steps)
+
+
 class Insert(object):
     def __init__(self, *steps : Sequence[FlowStep], before=None, after=None):
         self.steps = list(steps)

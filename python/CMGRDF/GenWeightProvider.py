@@ -2,19 +2,21 @@ import ROOT
 
 
 class GenWeightProvider:
-    def __init__(self, cache=None):
+    def __init__(self, cache=None, mode="Old", lazy=False):
         ROOT.gInterpreter.ProcessLine('#include "genWeightProvider.h"')
         self._cpp = ROOT.GenWeightProvider()
         self._strvec = ROOT.std.vector(ROOT.std.string)
         self._samples = []
         self._cache = cache
+        self._mode = mode
+        self._lazy = lazy
 
     def bookEras(self, sample, eras):
         for era in eras:
             if sample.hasEra(era):
                 self._book(sample, era)
 
-    def _book(self, sample, era, later=False):
+    def _book(self, sample, era):
         self._samples.append((sample, era))
         src = sample.source(era)
         files = self._strvec(len(src.files))
@@ -27,12 +29,14 @@ class GenWeightProvider:
             sample._genWeightSum[era] = self._cache.getSum(src)
             #print("Got sum for %s from cache: %r" % (name,sample._genWeightSum[era]))
             self._cpp.addSampleWithSum(name, files, sample._genWeightSum[era])
-        elif later:
+        elif self._lazy:
             self._cpp.addSample(name, files, sample.genSumWeightName)
         else:
             self._cpp.addSampleAndRun(name, files, sample.genSumWeightName)
 
-    def runAll(self, mode="Old"):
+    def runAll(self, mode="Default"):
+        if mode == "Default":
+            mode = self._mode
         assert (mode in ("Now", "Multi", "Old"))
         getattr(self._cpp, 'doAll' + mode)()
         for (sample, era) in self._samples:

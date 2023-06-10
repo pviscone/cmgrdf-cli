@@ -1,7 +1,7 @@
 from math import sqrt
 import time
 import hashlib
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, List, Sequence, Tuple, Union
 from enum import Enum
 
 import ROOT
@@ -15,12 +15,12 @@ from CMGRDF.snapshot import Snapshot
 
 
 class _Branch(object):
-    def __init__(self, step : FlowStep, rdfAndWeights : Tuple[Any, list[str]], hasher=None):
+    def __init__(self, step : FlowStep, rdfAndWeights : "Tuple[Any, list[str]]", hasher=None):
         self.step = step
         self.rdf = rdfAndWeights[0]
         self.weights = rdfAndWeights[1]
         self.branches = []  # type: List["_Branch"]
-        self.leaves = dict()  # type: Dict[Target, Any]
+        self.leaves = dict()  # type: dict[Target, Any]
         self.hasher = hashlib.sha256() if hasher is None else hasher  # type: hashlib.sha256
         if step:
             step._addToHash(self.hasher)
@@ -45,9 +45,9 @@ class Processor(object):
     State = Enum("State", ["Clean", "Booked", "Run"])
 
     def __init__(self, cache=None):
-        self._trees = dict()  # type: Dict[Source,_Branch]
+        self._trees = dict()  # type: dict[Source,_Branch]
         self._summer = GenWeightProvider(cache=cache)
-        self._lumiMap = dict()  # type: Dict[MultiKey, float]
+        self._lumiMap = dict()  # type: dict[MultiKey, float]
         self._cache = cache
         self._toCache = dict()
         self.clear()
