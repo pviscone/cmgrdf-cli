@@ -11,7 +11,8 @@ import subprocess
 class DASEngine(object):
     """Main class responsible for executing and interpreting a DAS query"""
 
-    def __init__(self, lfn2pfn="root://eoscms.cern.ch//eos/cms{lfn}", redirector="root://xrootd-cms.infn.it/{lfn}", cacheDir=".dascache"):
+    def __init__(self, lfn2pfn="root://eoscms.cern.ch//eos/cms{lfn}", redirector="root://xrootd-cms.infn.it/{lfn}", cacheDir=".dascache", dasgoclient="/cvmfs/cms.cern.ch/common/dasgoclient"):
+        self.dasgoclient = dasgoclient
         self._lfn2pfn = lfn2pfn
         self._redirector = redirector
         self._cacheDir = cacheDir
@@ -25,7 +26,7 @@ class DASEngine(object):
             except BaseException:
                 pass
         if not data:
-            ret = subprocess.run(["dasgoclient", "-json", "-query", f"file dataset={dataset}"], stdout=subprocess.PIPE)
+            ret = subprocess.run([self.dasgoclient, "-json", "-query", f"file dataset={dataset}"], stdout=subprocess.PIPE)
             data = json.loads(ret.stdout)
             if checkEOS and os.path.isdir("/eos/cms"):
                 for row in data:
