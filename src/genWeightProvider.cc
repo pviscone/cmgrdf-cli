@@ -67,6 +67,22 @@ bool GenWeightProvider::addSampleAndRun(const std::string &name,
   return added;
 }
 
+void GenWeightProvider::registerXSec(const std::string &name, const std::vector<std::string> &files, float xsec) {
+  auto match = file2sample_.find(files.front());
+  if (match == file2sample_.end())
+    throw std::logic_error("Missing sample " + name + " file: " + files.front());
+  samples_[match->second - 1].xsec = xsec;
+}
+
+void GenWeightProvider::registerExtraWeight(const std::string &name,
+                                            const std::vector<std::string> &files,
+                                            float weight) {
+  auto match = file2sample_.find(files.front());
+  if (match == file2sample_.end())
+    throw std::logic_error("Missing sample " + name + " file: " + files.front());
+  samples_[match->second - 1].extraWeight = weight;
+}
+
 void GenWeightProvider::doAllMulti() {
   std::vector<ROOT::RDF::RResultHandle> handles;
   for (Sample &s : samples_) {

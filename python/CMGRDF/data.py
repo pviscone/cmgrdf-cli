@@ -307,8 +307,14 @@ class MCGroup(Sample):
             assert (s._hooks == self._hooks)
         self._hooks += moreHooks[:]
         self.xsec = samples[0].xsec
-        for s in samples[1:]:
-            assert (s.xsec == self.xsec)
+        if not all(s.xsec == self.xsec for s in samples[1:]):
+            if all(isinstance(s.xsec,float) for s in samples):
+                self.xsec = None
+                self.useRegisteredXSec = True
+            else:
+                raise RuntimeError(f"MCGroup supports different cross sections only if they are all plain numbers, while for {name} we have "+", ".join([repr(s.xsec) for s in samples]))
+        else:
+            self.useRegisteredXSec = False
         self.genWeightName = samples[0].genWeightName
         for s in samples[1:]:
             assert (s.genWeightName == self.genWeightName)
@@ -322,9 +328,18 @@ class MCGroup(Sample):
     def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
         flow2 = super().customizeFlow(flow, era=era)
         from CMGRDF.flow import DefinePerSample, AddWeight
-        return flow2.prepend(
-            DefinePerSample("genWeightSum", sumWeightProvider),
-            AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, self.xsec, luminosity * 1000, getattr(self, "weight", 1))))
+        if self.genWeightName:
+            if self.useRegisteredXSec:
+                return flow2.prepend(
+                    DefinePerSample("genWeightSum", sumWeightProvider),
+                    DefinePerSample("xsec", sumWeightProvider, "xsec"),
+                    AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "xsec", luminosity * 1000, getattr(self, "weight", 1))))
+            return flow2.prepend(
+                DefinePerSample("genWeightSum", sumWeightProvider),
+                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, self.xsec, luminosity * 1000, getattr(self, "weight", 1))))
+        else:
+            return flow2.prepend(AddWeight("weight", self.weight))
+    
 
     def bookSumWeight(self, sumWeightProvider, eras):
         for s in self.samples:

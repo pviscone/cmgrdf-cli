@@ -22,6 +22,10 @@ public:
                        const std::string &genSumName = "_auto_",
                        bool warn = false);
 
+  void registerXSec(const std::string &name, const std::vector<std::string> &files, float xsec);
+
+  void registerExtraWeight(const std::string &name, const std::vector<std::string> &files, float weight);
+
   void doAllNow() {
     for (Sample &s : samples_)
       if (!s.weightSumAvailable)
@@ -57,18 +61,54 @@ public:
     return weightSumByFile(sid.substr(0, sid.rfind("/")));
   }
 
+  double extraWeightBySampleInfo(const ROOT::RDF::RSampleInfo &id) {
+    const std::string &sid = id.AsString();
+    const std::string &fname = sid.substr(0, sid.rfind("/"));
+    int idx = file2sample_[fname];
+    if (idx)
+      return samples_[idx - 1].extraWeight;
+    throw std::logic_error("Missing extra weight for file " + fname);
+  }
+
+  double xsecBySampleInfo(const ROOT::RDF::RSampleInfo &id) {
+    const std::string &sid = id.AsString();
+    const std::string &fname = sid.substr(0, sid.rfind("/"));
+    int idx = file2sample_[fname];
+    if (idx)
+      return samples_[idx - 1].xsec;
+    throw std::logic_error("Missing cross section for file " + fname);
+  }
+
   class CopiableCaller {
   public:
-    CopiableCaller(GenWeightProvider *provider = nullptr) : provider_(provider) {}
+    enum class WhatToFetch { WeightSum, XSec, ExtraWeight };
+    CopiableCaller(GenWeightProvider *provider = nullptr, WhatToFetch what = WhatToFetch::WeightSum)
+        : provider_(provider), what_(what) {}
     double operator()(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo &id) {
-      return provider_->weightBySampleInfo(id);
+      switch (what_) {
+        case WhatToFetch::WeightSum:
+          return provider_->weightBySampleInfo(id);
+        case WhatToFetch::XSec:
+          return provider_->xsecBySampleInfo(id);
+        case WhatToFetch::ExtraWeight:
+          return provider_->extraWeightBySampleInfo(id);
+      }
     }
 
   private:
     GenWeightProvider *provider_;
+    WhatToFetch what_;
   };
-  ROOT::RDF::RNode attachAsDefinePerSample(ROOT::RDF::RNode &rdf, const std::string &colName) {
-    return rdf.DefinePerSample(colName, CopiableCaller(this));
+  ROOT::RDF::RNode attachAsDefinePerSample(ROOT::RDF::RNode &rdf,
+                                           const std::string &colName,
+                                           const std::string &whatToFetch = "weightSum") {
+    if (whatToFetch == "weightSum")
+      return rdf.DefinePerSample(colName, CopiableCaller(this));
+    else if (whatToFetch == "xsec")
+      return rdf.DefinePerSample(colName, CopiableCaller(this, CopiableCaller::WhatToFetch::XSec));
+    else if (whatToFetch == "extraWeight")
+      return rdf.DefinePerSample(colName, CopiableCaller(this, CopiableCaller::WhatToFetch::ExtraWeight));
+    throw std::logic_error("unsupported value for whatToFetch = " + whatToFetch);
   }
 
 private:
@@ -88,11 +128,18 @@ private:
     std::string sumName;
     bool weightSumAvailable;
     double weightSum;
+    float xsec, extraWeight;
 
     Sample(const std::string &aname,
            const std::vector<std::string> &somefiles,
            const std::string &genSumName = "_auto_")
-        : name(aname), files(somefiles), sumName(genSumName), weightSumAvailable(false), weightSum(-99) {}
+        : name(aname),
+          files(somefiles),
+          sumName(genSumName),
+          weightSumAvailable(false),
+          weightSum(-99),
+          xsec(-99),
+          extraWeight(-99) {}
 
     void setSum(double sum) {
       weightSum = sum;
