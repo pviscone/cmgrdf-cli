@@ -95,7 +95,7 @@ env:
 	   true;
 
 code-format:
-	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/cs8_amd64_gcc11/external/llvm/12.0.1-8ff3e9a0c002e74c1a2109fac8a0dcbb/etc/profile.d/init.sh"
+	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/cs8_amd64_gcc10/external/llvm/12.0.1-dd4c586a5bebc335346bb0e879f6f0aa/etc/profile.d/init.sh"
 	find $(INC_DIR)  $(SRC_DIR) -type f -name '*.cc' -or -name '*.h'  | xargs -n 1 clang-format -i
 	find $(INC_DIR)  $(SRC_DIR) -type f | perl -e '$$errs=0; while(<>) { m/.(cxx|cpp|hxx|hpp|hh|icc)/ and print "Bad extension: $$_" and $$errs=1;}; exit $$errs;' 
 	find $(PY_DIR) examples -name '*.py' | xargs -n 1 autopep8 -i -a -a

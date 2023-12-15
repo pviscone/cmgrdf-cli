@@ -1,7 +1,7 @@
 import ROOT
 from CMGRDF import *
 from CMGRDF.data import Sample
-from CMGRDF.collectionUtils import DefineSkimmedCollection
+from CMGRDF.collectionUtils import *
 
 LOCAL = "/scratch/gpetrucc" if os.path.exists("/scratch/gpetrucc") else "/data/shared"
 P = localOrEOS("TREES_TTHH_2018C_150622", LOCAL, "/eos/cms/store/cmst3/group/tthlep") + "/{name}.root"
@@ -56,72 +56,14 @@ dataSamples = [
 
 ## Common stuff
 ROOT.gInterpreter.Declare("""
-#include "Math/GenVector/LorentzVector.h"
-#include "Math/GenVector/PtEtaPhiM4D.h"
-
-/// Example of finding the pair of same-flavour opposite-sign leptons with mass closest to the Z0 mass
-ROOT::RVec<int> findZll(const ROOT::RVec<float> & Lep_pt, const ROOT::RVec<float> & Lep_eta, const ROOT::RVec<float> & Lep_phi, const ROOT::RVec<float> & Lep_mass, const ROOT::RVec<int> & Lep_pdgId)
-{
-    typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > PtEtaPhiMVector;
-    unsigned nLep = Lep_pt.size();
-    ROOT::RVec<int> sel(2, -1);
-    float bestMass = -1;
-    const float mZ = 91.187;
-    for (unsigned i = 0; i < nLep-1; ++i) {
-        PtEtaPhiMVector p4i(Lep_pt[i], Lep_eta[i], Lep_phi[i], Lep_mass[i]);
-        for (unsigned j = i+1; j < nLep; ++j) {
-                if (Lep_pdgId[i] == -Lep_pdgId[j]) {
-                        PtEtaPhiMVector p4j(Lep_pt[j], Lep_eta[j], Lep_phi[j], Lep_mass[j]);
-                        float mll = (p4i + p4j).M();
-                        if (bestMass < 0 || std::abs(mll - mZ) < std::abs(bestMass - mZ)) {
-                                bestMass = mll;
-                                sel[0] = i;
-                                sel[1] = j;
-                        }
-                }
-        }
-    }
-    return sel;
-}
-int findWlv(const ROOT::RVec<float> & Lep_pt, const ROOT::RVec<int> & LepZ) {
+int findWlv(const ROOT::RVec<float> & Lep_pt, const std::pair<size_t, size_t> & LepZ) {
     int ret = -1;
     for (unsigned int i = 0, n = Lep_pt.size(); i < n; ++i) {
-        if (i == LepZ[0] || i == LepZ[1]) continue;
+        if (i == LepZ.first || i == LepZ.second) continue;
         ret = i;
         break;
     }
     return ret;
-}
-
-/// Example of finding the minimum dilepton invariant mass among the top N leptons
-float minMll(const ROOT::RVec<float> & Lep_pt, const ROOT::RVec<float> & Lep_eta, const ROOT::RVec<float> & Lep_phi, const ROOT::RVec<float> & Lep_mass, int nmax=999)
-{
-    typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > PtEtaPhiMVector;
-    unsigned nLep = std::min<unsigned>(Lep_pt.size(), nmax);
-    float minMass = 9e9; // initialize to a large value
-    for (unsigned i = 0; i < nLep-1; ++i) {
-        PtEtaPhiMVector p4i(Lep_pt[i], Lep_eta[i], Lep_phi[i], Lep_mass[i]);
-        for (unsigned j = i+1; j < nLep; ++j) {
-            PtEtaPhiMVector p4j(Lep_pt[j], Lep_eta[j], Lep_phi[j], Lep_mass[j]);
-            float mll = (p4i + p4j).M();
-            minMass = std::min(mll,minMass);
-        }
-    }
-    return minMass;
-}
-
-ROOT::RVec<int> cleanByIndex(const ROOT::RVec<int> & Jet_sel, const ROOT::RVec<int> & Lep_forClean, const ROOT::RVec<int> & Lep_jetIdx)
-{
-    auto nJets = Jet_sel.size();
-    ROOT::RVec<int> mask(nJets, 1);
-    for (unsigned i = 0, n = Lep_jetIdx.size(); i < n; ++i) {
-            if (Lep_forClean[i]) {
-                    if (Lep_jetIdx[i] >= 0 && Lep_jetIdx[i] < nJets) {
-                            mask[Lep_jetIdx[i]] = 0;
-                    }
-            }
-    }
-    return mask;
 }
 """)
 
@@ -138,25 +80,26 @@ cuts_tight = Flow("tight",
                   ## And now define nLepTight and LepTight_<var> copying from LepGood applying the selection
                   DefineSkimmedCollection("LepTight", "LepGood", mask="LepGood_tightSel",
                                           members=("pt", "eta", "phi", "mass", "charge", "pdgId", "dxy", "dz", "sip3d", "miniPFRelIso_all", "jetIdx")),
+                  DefineP4("LepTight"),
                   ## Now we can define a selection with 3 leptons
                   Cut("3l", "nLepTight >= 3"),
-                  Cut("ptX1515", "LepTight_pt[0] > (abs(LepTight_pdgId[0])==11?35:25) && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
+                  Cut("ptX1515", "LepTight_pt[0] > (abs(LepTight_pdgId)[0]==11?35:25) && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
+                  #Cut("ptX1515", "LepTight_pt[0] > 35 && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
                   ## Veto events with leptons at low invariant mass (m(ll) < 12 GeV), which are not well predicted by the simulations we use
-                  Define("minMllTight", "minMll(LepTight_pt,LepTight_eta,LepTight_phi,LepTight_mass)"),
+                  DefineMinMass("minMllTight", "LepTight"),
                   Cut("minMll12", "minMllTight > 12"),
                   ## Select a Z from the leptons
-                  Define("lepZ", "findZll(LepTight_pt,LepTight_eta,LepTight_phi,LepTight_mass,LepTight_pdgId)"),
-                  Cut("hasZ", "lepZ[0] >= 0"),  # if no Z is found, findZll returns {-1,-1} and the code below would fail
-                  Define("mZll", "mass_2(LepTight_pt[lepZ[0]],LepTight_eta[lepZ[0]],LepTight_phi[lepZ[0]],LepTight_mass[lepZ[0]],LepTight_pt[lepZ[1]],LepTight_eta[lepZ[1]],LepTight_phi[lepZ[1]],LepTight_mass[lepZ[1]])"),
+                  Define("lepZ", "bestPairByMass(pairsSFOS(LepTight_pdgId),LepTight_p4)"),
+                  Cut("hasZ", "lepZ.first != lepZ.second"),  # if no Z is found, findZll returns {0,0} and the code below would fail
+                  Define("mZll", "(LepTight_p4[lepZ.first]+LepTight_p4[lepZ.second]).M()"),
                   Cut("Zpeak", "mZll > 60 && mZll < 120"),
                   # Reconstruct a W
                   Define("lepW", "findWlv(LepTight_pt,lepZ)"),
                   Define("mtWlv", "mt_2(LepTight_pt[lepW],LepTight_phi[lepW],MET_pt,MET_phi)"),
                   # Clean the jets
-                  Define("Jet_sel", "Jet_pt > 30 && abs(Jet_eta) < 2.4 && Jet_jetId > 1"),
                   Define("LepTight_forJetCleaning", "LepTight_pt > 15"),
-                  Define("Jet_noLep", "cleanByIndex(Jet_sel,LepTight_forJetCleaning,LepTight_jetIdx)"),
-                  DefineSkimmedCollection("JetGood", "Jet", ("pt", "eta", "phi", "mass", "btagDeepFlavB"), mask="Jet_noLep"),
+                  Define("Jet_noLep", "cleanByIndex(nJet,LepTight_forJetCleaning,LepTight_jetIdx)"),
+                  DefineSkimmedCollection("JetGood", "Jet", ("pt", "eta", "phi", "mass", "btagDeepFlavB"), cut="Jet_pt > 25 && abs(Jet_eta) < 2.4 && Jet_jetId > 1 && Jet_noLep"),
                   Define("nJet30", "Sum(JetGood_pt > 30)"),
                   Define("nBJetMedium30", "Sum(JetGood_pt > 30 && JetGood_btagDeepFlavB >= 0.2783)"),
                   Cut("3jets", "nJet30 >= 3"),
@@ -186,14 +129,14 @@ plots_3l_tight = [
 ]
 
 lumi = 6.90
-ROOT.EnableImplicitMT(16)
+#ROOT.EnableImplicitMT(16)
 printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
 maker = Processor(cache=SimpleCache())
 cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
 maker.bookCutFlow(procs_3l_tight, lumi, cuts_tight, cutNames=cutflowCuts)
 maker.book(procs_3l_tight, lumi, cuts_tight, plots_3l_tight, withUncertainties=True)
 result_plots = maker.runPlots()
-printer.printSet(result_plots, "plots/008s/{flow}")
+#printer.printSet(result_plots, "plots/008s/{flow}")
 
 yields = maker.runYields()
 for proc in procs_3l_tight:
@@ -209,7 +152,8 @@ skimpath = "skim3l/{name}.root"
 if os.path.exists("/tmp"):
     skimpath = "/tmp/" + skimpath
 print(f"Making skim {skim3l.name} at {skimpath}")
-maker.clear().book(procs_3l_tight, lumi, skim3l, Snapshot(skimpath, columnSel=["#new", "run", "lumi", "event", "weight", "nJet", "Jet_.*", "MET_.*"], columnVeto=["genWeightSum", "mcSampleWeight"], compression=None))
+maker.clear().book(procs_3l_tight, lumi, skim3l, Snapshot(skimpath, columnSel=["#new", "run", "lumi", "event", "weight", "nJet", "Jet_.*", "MET_.*"], columnVeto=["genWeightSum", "mcSampleWeight", "LepTight_p4"], compression=None))
+
 report = maker.runSnapshots()
 print(f"Snapshoted at {skim3l.name}")
 for key, snap in report:

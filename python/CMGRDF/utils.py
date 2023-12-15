@@ -1,11 +1,12 @@
 from collections import defaultdict
 import struct
-from typing import Any, Union
+from typing import Any, Collection, Sequence, Union
 import copy
 import hashlib
 import sys
 import os.path
 import re
+import fnmatch
 
 
 class OptionDecl(object):
@@ -85,7 +86,7 @@ class Options(object):
         ret._values.update(**kwargs)
         return ret
 
-    def cloneAndExtend(self, *optionDeclarations : list[OptionDecl]):
+    def cloneAndExtend(self, *optionDeclarations : Sequence[OptionDecl]):
         ret = Options()
         ret._values = copy.copy(self._values)
         ret._declarations = copy.copy(self._declarations)
@@ -130,7 +131,7 @@ class MultiKey(object):
         (but `other` may have more fields that we don't have)"""
         return all((other._values[k] == v) for k, v in self._values.items())
 
-    def removeKeys(self, *keysToRemove : list[str]):
+    def removeKeys(self, *keysToRemove : Sequence[str]):
         """Produces a new multi-key removing the specified fields"""
         assert (all((k in self._keys) for k in keysToRemove))
         filtered = dict((k, v) for (k, v) in self.items() if k not in keysToRemove)
@@ -201,6 +202,9 @@ class MultiReport(object):
         assert (len(alls) == 1)
         return alls[0][1]
 
+    def sort(self, *args, **kwargs):
+        self._items.sort(*args, **kwargs)
+
 
 def _recursiveAddToHash(obj, hasher):
     if obj is None:
@@ -252,7 +256,7 @@ def localOrEOS(path, localroot, eosroot, eosurl="root://eoscms.cern.ch/"):
     return os.path.join(eosroot, path)
 
 
-def selectColumns(rdf, columnSel : list[str], columnVeto : list[str]):
+def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]):
     import ROOT
     import re
     cols = list(map(str, rdf.GetColumnNames()))
@@ -291,7 +295,7 @@ def selectColumns(rdf, columnSel : list[str], columnVeto : list[str]):
 
 
 class NormUncertainty(object):
-    def __init__(self, name : str, value : Union[float, tuple[float, float]], eras=None):
+    def __init__(self, name : str, value : "Union[float, tuple[float, float]]", eras=None):
         self.name = name
         self.value = value
         if isinstance(value, float):
@@ -314,3 +318,47 @@ class NormUncertainty(object):
             return optionValue[:]
         else:
             return [NormUncertainty(k, v) for (k, v) in optionValue.items()]
+
+
+class FilteringList(list):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def byNames(self, *args, match="glob"):
+        ret = FilteringList()
+        if match == "glob":
+            for item in self:
+                if any(fnmatch.fnmatch(item.name, a) for a in args):
+                    ret.append(item)
+        elif match == "re":
+            for item in self:
+                if any(re.match(a + "$", item.name) for a in args):
+                    ret.append(item)
+        elif match == "exact":
+            for item in self:
+                if item.name in args:
+                    ret.append(item)
+        else:
+            raise RuntimeError(f"Unsupported match {match}, only 'exact', 're', and 'glob' are supported")
+        return ret
+
+    def byName(self, arg):
+        matchingitems = [i for i in self if i.name == arg]
+        if len(matchingitems) == 1:
+            raise RuntimeError(f"Error, looking for name {arg} found {len(matchingitems)} matches: " + ", ".join([m.name for m in matchingitems]))
+        return matchingitems[0]
+
+    def by(self, **kwargs):
+        ret = FilteringList()
+        for item in self:
+            if all((getattr(item, p[0]) == p[1]) for p in kwargs.items()):
+                ret.append(item)
+        return ret
+
+    def __iadd__(self, other):
+        return super().__iadd__(other)
+
+    def __add__(self, other):
+        ret = FilteringList(self)
+        ret += other
+        return ret

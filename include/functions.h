@@ -5,7 +5,9 @@
 #include "Math/GenVector/LorentzVector.h"
 #include "Math/GenVector/PtEtaPhiM4D.h"
 #include "Math/GenVector/PxPyPzM4D.h"
+#include "Math/Vector4D.h"
 #include "Math/GenVector/Boost.h"
+#include <ROOT/RVec.hxx>
 
 inline float safeRatio(float num, float denom) {
   if (denom == 0)
@@ -27,9 +29,25 @@ inline float deltaR2(float eta1, float phi1, float eta2, float phi2) {
   float dphi = deltaPhi(phi1, phi2);
   return deta * deta + dphi * dphi;
 }
+inline float deltaR2(const ROOT::Math::PtEtaPhiMVector& p1, const ROOT::Math::PtEtaPhiMVector& p2) {
+  return deltaR2(p1.eta(), p1.phi(), p2.eta(), p2.phi());
+}
+ROOT::RVec<float> deltaR2(float eta1, float phi1, const ROOT::RVec<float>& eta2, const ROOT::RVec<float>& phi2);
+inline ROOT::RVec<float> deltaR2(const ROOT::RVec<float>& eta1, const ROOT::RVec<float>& phi1, float eta2, float phi2) {
+  return deltaR2(eta2, phi2, eta1, phi1);
+}
 
 inline float deltaR(float eta1, float phi1, float eta2, float phi2) {
   return std::sqrt(deltaR2(eta1, phi1, eta2, phi2));
+}
+inline float deltaR(const ROOT::Math::PtEtaPhiMVector& p1, const ROOT::Math::PtEtaPhiMVector& p2) {
+  return std::sqrt(deltaR2(p1.eta(), p1.phi(), p2.eta(), p2.phi()));
+}
+inline ROOT::RVec<float> deltaR(float eta1, float phi1, const ROOT::RVec<float>& eta2, const ROOT::RVec<float>& phi2) {
+  return sqrt(deltaR2(eta1, phi1, eta2, phi2));
+}
+inline ROOT::RVec<float> deltaR(const ROOT::RVec<float>& eta1, const ROOT::RVec<float>& phi1, float eta2, float phi2) {
+  return sqrt(deltaR2(eta2, phi2, eta1, phi1));
 }
 
 float pt_2(float pt1, float phi1, float pt2, float phi2);
@@ -77,6 +95,47 @@ float mt_lllv(float ptl1, float phil1, float ptl2, float phil2, float ptl3, floa
 float u1_2(float met_pt, float met_phi, float ref_pt, float ref_phi);
 
 float u2_2(float met_pt, float met_phi, float ref_pt, float ref_phi);
+
+ROOT::RVec<ROOT::Math::PtEtaPhiMVector> makeP4(const ROOT::RVecF& pt,
+                                               const ROOT::RVecF& eta,
+                                               const ROOT::RVecF& phi,
+                                               const ROOT::RVecF& mass);
+ROOT::RVec<ROOT::Math::PtEtaPhiMVector> makeP4(const ROOT::RVecF& pt,
+                                               const ROOT::RVecF& eta,
+                                               const ROOT::RVecF& phi,
+                                               float mass);
+
+ROOT::RVec<std::pair<size_t, size_t>> allPairs(std::size_t n);
+ROOT::RVec<std::pair<size_t, size_t>> pairsOS(const ROOT::RVecI& charge);
+ROOT::RVec<std::pair<size_t, size_t>> pairsSS(const ROOT::RVecI& charge);
+ROOT::RVec<std::pair<size_t, size_t>> pairsSFOS(const ROOT::RVecI& pdgIds);
+ROOT::RVec<std::pair<size_t, size_t>> pairsSFSS(const ROOT::RVecI& pdgIds);
+ROOT::RVec<std::pair<size_t, size_t>> pairsDFOS(const ROOT::RVecI& pdgIds);
+
+ROOT::RVec<ROOT::Math::PtEtaPhiMVector> pairP4(const ROOT::RVec<std::pair<size_t, size_t>>& pairs,
+                                               const ROOT::RVec<ROOT::Math::PtEtaPhiMVector>& p4s);
+
+std::pair<size_t, size_t> bestPairByMass(const ROOT::RVec<std::pair<size_t, size_t>>& pairs,
+                                         const ROOT::RVec<ROOT::Math::PtEtaPhiMVector>& p4s,
+                                         const float target = 91.1876);
+
+float minPairMass(const ROOT::RVec<std::pair<size_t, size_t>>& pairs,
+                  const ROOT::RVec<ROOT::Math::PtEtaPhiMVector>& p4s);
+
+ROOT::RVec<int> cleanByIndex(size_t nJets, const ROOT::RVec<int>& Lep_sel, const ROOT::RVec<int>& Lep_jetIdx);
+
+ROOT::RVec<int> cleanByDR(const ROOT::RVec<float>& Jet_eta,
+                          const ROOT::RVec<float>& Jet_phi,
+                          const ROOT::RVec<float>& Lep_eta,
+                          const ROOT::RVec<float>& Lep_phi,
+                          float minDR = 0.4);
+
+ROOT::RVec<int> cleanByDR(const ROOT::RVec<float>& Jet_eta,
+                          const ROOT::RVec<float>& Jet_phi,
+                          const ROOT::RVec<float>& Lep_eta,
+                          const ROOT::RVec<float>& Lep_phi,
+                          const ROOT::RVec<int>& Lep_sel,
+                          float minDR = 0.4);
 
 // reconstructs a top mass from lepton, met, b-jet, applying the W mass constraint and taking the smallest neutrino pZ
 float mtop_lvb(

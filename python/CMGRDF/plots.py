@@ -434,7 +434,7 @@ class PlotSetPrinter(object):
                 o.Draw("SAME HIST")
             total.Draw("AXIS SAME")
         else:
-            if self._options.errors:
+            if opts.showErrors:
                 ROOT.gStyle.SetErrorX(0.5)
                 stack.Draw("SAME E NOSTACK")
             else:
@@ -590,7 +590,7 @@ class PlotSetPrinter(object):
             else:
                 mcStyle = ("F", "F")
         else:
-            mcStyle = "L"
+            mcStyle = ("L", "L")
         corner = plot.getOpt("legend", "TR")
         if corner in ("none", "off"):
             return
@@ -781,3 +781,17 @@ class PlotSetPrinter(object):
         ret.SetMarkerStyle(0)
         ret.Draw("PE2 SAME")
         return ret
+
+
+def normalizePlots(plots, normSumToData=False):
+    for k,plotresult in plots:
+        normValue = 1.0
+        if normSumToData:
+            hdata = plotresult.histData()
+            if hdata:
+                normValue = hdata.Integral()
+        for proc,h in plotresult.histos:
+            if normSumToData and proc.isData: 
+                continue
+            if h.Integral():
+                h.Scale(normValue/h.Integral())

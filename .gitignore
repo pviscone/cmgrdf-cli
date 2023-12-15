@@ -3,3 +3,4 @@
 *.so
 .vscode
 *.code-workspace
+.dascache

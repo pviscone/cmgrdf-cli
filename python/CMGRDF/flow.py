@@ -155,22 +155,24 @@ class DefinePerSample(FlowStep):
        since Python callbacks don't work (as of ROOT 6.26.04)
     """
 
-    def __init__(self, name, provider, **options):
+    def __init__(self, name, provider, *args, **options):
         super().__init__(name, **options)
         self.provider = provider
+        self.args = tuple(args)
         for k, v in options.items():
             setattr(self, k, v)
 
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.provider == other.provider
+            return FlowStep._equals(self, other) and self.provider == other.provider and self.args == other.args
         return id(self) == id(other)
 
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
+        _recursiveAddToHash(self.args, hasher)
 
     def _attach(self, rdf):
-        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name)
+        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name, *self.args)
 
 
 class DefineDefault(SimpleExprFlowStep):
