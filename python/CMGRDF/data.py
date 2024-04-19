@@ -19,7 +19,9 @@ class Source(object):
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
         self.name = name if name else Source._autoName(files)
-        self.files = files
+        self.files = []
+        for f in files: # better ideas are welcome...
+            tf=ROOT.TFile.Open(f); self.files.append( tf.GetName()); tf.Close()
         self.era = era
         self.friends = friends
         self._bigHash = None
@@ -360,7 +362,7 @@ class DataDrivenSample(Sample):
         flow2 = super().customizeFlow(flow, era=era)
         if self.weight not in ("1", 1):
             from CMGRDF.flow import AddWeight
-            return flow2.prepend(
+            return flow2.append(
                 AddWeight("weight", str(getattr(self, "weight", "1"))))
         else:
             return flow2

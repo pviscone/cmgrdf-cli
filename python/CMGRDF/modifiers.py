@@ -17,6 +17,14 @@ class Prepend(object):
     def customizeFlow(self, flow, era):
         return flow.prepend(self.steps)
 
+class Replace(object):
+    def __init__(self, *steps : Sequence[FlowStep], name):
+        self.steps = list(steps)
+        self.name  = name
+
+    def customizeFlow(self, flow, era):
+        return flow.replace(self.name, self.steps)
+
 
 class Insert(object):
     def __init__(self, *steps : Sequence[FlowStep], before=None, after=None):
