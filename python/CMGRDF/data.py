@@ -19,9 +19,7 @@ class Source(object):
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
         self.name = name if name else Source._autoName(files)
-        self.files = []
-        for f in files: # better ideas are welcome...
-            tf=ROOT.TFile.Open(f); self.files.append( tf.GetName()); tf.Close()
+        self.files = files
         self.era = era
         self.friends = friends
         self._bigHash = None
