@@ -8,13 +8,13 @@ We can install the dependencies either with `cvmfs` or `conda`
 
 On a CentOS Stream 8 machine with CVMFS, e.g. lxplus8.cern.ch, you can get all dependencies with
 
-```
+```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
 ````
 
 To install the package, from outside `CMSSSW` and with `python3` you can run
 
-```
+```bash
 git clone --recursive https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git # or ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
 cd cmgrdf-prototype 
 make -j 3
@@ -24,7 +24,7 @@ make -j 3
 
 #### Combine (recommended)
 
-```
+```bash
 pushd externals/HiggsAnalysis/CombinedLimit 
 source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
 export PATH=${PATH}:${PWD}/build/bin
