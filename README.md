@@ -1,10 +1,75 @@
 # CMGRDF
 
-## Setup recipe
 
-### Conda installation
 The package requires a recent version of ROOT, python3, and related dependencies.
-We can use `conda` to install the necessary dependencies to install the CMGRDF, `combine` and `correctionlib`
+We can install the dependencies either with `cvmfs` or `conda`
+
+## Setup recipe - `cvmfs`
+
+On a CentOS Stream 8 machine with CVMFS, e.g. lxplus8.cern.ch, you can get all dependencies with
+
+```
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
+````
+
+To install the package, from outside `CMSSSW` and with `python3` you can run
+
+```
+git clone --recursive https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git # or ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
+cd cmgrdf-prototype 
+make -j 3
+```
+
+### Other dependencies
+
+#### Combine (recommended)
+
+```
+pushd externals/HiggsAnalysis/CombinedLimit 
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt/setup.sh
+export PATH=${PATH}:${PWD}/build/bin
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD}/build/lib
+export PYTHONPATH=${PYTHONPATH}:${PWD}/build/lib/python:${PWD}/build/lib
+export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt
+make -j 8; make
+popd
+```
+
+
+#### Correctionlib (recommended) (already included in LCG 102, 102b, dev3 and dev4 stacks)
+
+If you're using a recent LCG stack, e.g 102 or dev3 or dev4, correctionlib is already installed. You can check for other versions in https://lcginfo.cern.ch/pkg/correctionlib/.
+
+For a manual installation,
+```bash
+git clone --recursive https://github.com/cms-nanoAOD/correctionlib.git externals/correctionlib
+pushd externals/correctionlib 
+make -j 4
+# on cs8 with LC102, this fails misteriously with a missing -lz, you can fix it with
+# /cvmfs/sft.cern.ch/lcg/releases/gcc/11.2.0-8a51a/x86_64-centos8/bin/g++ -pthread /lib64/libz.so.1 -fPIC -shared  build/correction.o build/formula_ast.o -o lib/libcorrectionlib.so
+# and rerun make
+make install
+popd
+```
+
+#### ONNX Runtime (optional)
+
+```bash
+pushd externals
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz | tar xzv
+popd
+```
+
+### Running
+To set up your environment (path, python path, ...), from the main directory:
+```bash
+eval $(make env)
+```
+
+
+## Setup recipe - conda
+
+NB: there's a bug in the 2.5.0 version of `correctionlib`, which is the latest available in `conda`. After setting up the code, you should push [this fix](https://github.com/cms-nanoAOD/correctionlib/commit/fa17477cc87752aba621ae9e97fcd843ba2ba5c9), specifically the changes in `src/correctionlib/binding.py`
 
 ```bash
 git clone --recursive https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git # or ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
@@ -14,7 +79,7 @@ conda activate cmgrdf
 make -j 3
 ```
 
-### dependencies
+### Other dependencies
 
 #### Combine (recommended)
 ```bash
