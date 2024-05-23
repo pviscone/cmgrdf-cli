@@ -45,7 +45,7 @@ class DefineSkimmedCollection(FlowStep):
             rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
         cols = set(rdf.GetColumnNames())
         for m in self.optMembers:
-            if m in cols:
+            if f"{self.srcColl}_{m}" in cols:
                 rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
         return rdf
 
