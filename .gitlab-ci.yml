@@ -18,6 +18,7 @@ stages:
   - deploy
 
 compile:
+  tags: [ k8s-cvmfs ]
   stage: build
   before_script:
     - source $LCG_REL_PATH/setup.sh
@@ -40,6 +41,7 @@ compile:
       #- externals/onnxruntime-linux-x64-1.15.1
 
 code-checks:
+  tags: [ k8s-cvmfs ]
   stage: build
   before_script:
     - yum install -y clang-tools-extra
@@ -52,6 +54,7 @@ code-checks:
   allow_failure: true
 
 run-tests:
+  tags: [ k8s-cvmfs ]
   stage: test
   before_script:
     - yum install -y libSM
