@@ -1,5 +1,5 @@
 variables:
-  LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt
+  LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
 
@@ -29,7 +29,7 @@ compile:
     - make -j 8; make
     - popd
     #- pushd externals
-    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz | tar xzv
+    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
     #- popd
   artifacts:
     paths:
@@ -37,7 +37,7 @@ compile:
       - python/**/*.pyc
       - externals/HiggsAnalysis/CombinedLimit/build/bin
       - externals/HiggsAnalysis/CombinedLimit/build/lib
-      #- externals/onnxruntime-linux-x64-1.11.1
+      #- externals/onnxruntime-linux-x64-1.15.1
 
 code-checks:
   stage: build
