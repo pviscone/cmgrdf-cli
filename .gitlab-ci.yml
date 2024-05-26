@@ -2,6 +2,7 @@ variables:
   LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
+  LIBS_EL8: libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs libjpeg-turbo-devel
 
 image: gitlab-registry.cern.ch/ci-tools/ci-worker:cs8
 
@@ -21,7 +22,7 @@ compile:
   tags: [ k8s-cvmfs ]
   stage: build
   before_script:
-    - yum install -y libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs 
+    - yum install -y $LIBS_EL8
     - source $LCG_REL_PATH/setup.sh || tru
     - eval $(make env)
   script:
@@ -58,7 +59,7 @@ run-tests:
   tags: [ k8s-cvmfs ]
   stage: test
   before_script:
-    - yum install -y libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs
+    - yum install -y $LIBS_EL8
     - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
@@ -67,5 +68,5 @@ run-tests:
     - make
   artifacts:
     paths:
-      - plots
+      - examples/plots
     when: always
