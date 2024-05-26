@@ -21,7 +21,8 @@ compile:
   tags: [ k8s-cvmfs ]
   stage: build
   before_script:
-    - source $LCG_REL_PATH/setup.sh
+    - yum install -y libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs 
+    - source $LCG_REL_PATH/setup.sh || tru
     - eval $(make env)
   script:
     - make -j 4
@@ -45,7 +46,7 @@ code-checks:
   stage: build
   before_script:
     - yum install -y clang-tools-extra
-    - source $LCG_REL_PATH/setup.sh
+    - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
   script:
     - make code-format
@@ -57,8 +58,8 @@ run-tests:
   tags: [ k8s-cvmfs ]
   stage: test
   before_script:
-    - yum install -y libSM
-    - source $LCG_REL_PATH/setup.sh
+    - yum install -y libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs
+    - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
     - cd examples
