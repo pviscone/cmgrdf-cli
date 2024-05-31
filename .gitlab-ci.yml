@@ -55,7 +55,7 @@ code-checks:
     - make py-checks | tee py-checks.log
   allow_failure: true
 
-run-tests:
+.run-tests:
   tags: [ k8s-cvmfs ]
   stage: test
   before_script:
@@ -70,3 +70,43 @@ run-tests:
     paths:
       - examples/plots
     when: always
+
+run-tests-base:
+  extends: .run-tests
+  script:
+    - python3 run_simple_mc_nanoAOD.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simple_data_ttH.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simpleCache_sos.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simpleCache_sos.py # second time
+    - echo
+    - echo ---------------------------------
+    - python3 run_friends_sos.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_uncertainties_ttH.py
+
+run-tests-cards:
+  extends: .run-tests
+  script:
+    - python3 run_datacards_ttV_ttHH_2018c.py
+  allow_failure: true
+
+run-tests-SFs:
+  extends: .run-tests
+  script:
+    - python3 run_SFs_ttHH_2018c.py
+
+run-tests-snapshot:
+  extends: .run-tests
+  script:
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
