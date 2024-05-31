@@ -276,36 +276,44 @@ class AddWeightUncertainty(FlowStep):
 class ComputeTotalWeight(SimpleExprFlowStep):
     """Computes the total weight, by issuing the necessary Define, Redefine or Alias"""
 
-    def __init__(self, weights=[], name="weight"):
-        super().__init__(name, "*".join(weights))
+    def __init__(self, weights=None, name="weight"):
+        super().__init__(name, "__auto__" if weights is None else "*".join(weights))
         self.weights = weights
 
-    def _attach(self, rdf):
+    def attach(self, rdf, weights):
+        operands = self.weights if self.weights is not None else weights
+        rdf2 = self._attach(rdf, operands)
+        if rdf2 != rdf:
+            rdf2._from = rdf
+        return (rdf2, weights)
+
+    def _attach(self, rdf, weights):
         existing = self.name in rdf.GetColumnNames()
-        if len(self.weights) == 0:
+        expr = "*".join(weights)
+        if len(weights) == 0:
             if existing:
                 #print(f"Warning, new dummy define of {self.name} while a column exists in the RDF\n")
                 return rdf.Redefine(self.name, "1.f")
             else:
                 return rdf.Define(self.name, "1.f")
-        elif len(self.weights) == 1:
+        elif len(weights) == 1:
             if existing:
-                if self.weights[0] == self.name:
-                    #print(f"Not doing anything for ({self.name}, {self.expr})")
+                if weights[0] == self.name:
+                    #print(f"Not doing anything for ({self.name}, {expr})")
                     return rdf  # nothing to do
                 else:
-                    #print(f"Using Redefine[1]({self.name}, {self.expr})")
-                    return rdf.Redefine(self.name, self.expr)
+                    #print(f"Using Redefine[1]({self.name}, {expr})")
+                    return rdf.Redefine(self.name, expr)
             else:
-                #print(f"Using Alias({self.name}, {self.expr})")
-                return rdf.Alias(self.name, self.expr)
+                #print(f"Using Alias({self.name}, {expr})")
+                return rdf.Alias(self.name, expr)
         else:
             if existing:
-                #print(f"Using Redefine({self.name}, {self.expr})")
-                return rdf.Redefine(self.name, self.expr)
+                #print(f"Using Redefine({self.name}, {expr})")
+                return rdf.Redefine(self.name, expr)
             else:
-                #print(f"Using Define({self.name}, {self.expr})")
-                return rdf.Define(self.name, self.expr)
+                #print(f"Using Define({self.name}, {expr})")
+                return rdf.Define(self.name, expr)
 
 
 class Marker(FlowStep):
