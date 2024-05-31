@@ -51,29 +51,20 @@ class _Branch(object):
     def longId(self):
         return "%s-%s" % (safeName(self.step), self.hasher.hexdigest())
 
-    def _create(self):
-        "Builds the actual RDF graph"
-        assert self._rdfAndWeights is None
-        if self.parentBranch is None:
-            self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName), [])
-            self._hasUncertainties = False
-        else:
-            self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
-
-    def rdfAndWeights(self) -> "Tuple[Any, list[str]":
+    def rdfAndWeights(self) -> "Tuple[Any, list[str]]":
         if self._rdfAndWeights is None:
-            self._create()
+            if self.parentBranch is None:
+                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName), [])
+                self._hasUncertainties = False
+            else:
+                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())            
         return self._rdfAndWeights
 
     def rdf(self):
-        if self._rdfAndWeights is None:
-            self._create()
-        return self._rdfAndWeights[0]
+        return self.rdfAndWeights()[0]
 
     def weights(self) -> "list[str]":
-        if self._rdfAndWeights is None:
-            self._create()
-        return self._rdfAndWeights[1]
+        return self.rdfAndWeights()[1]
 
     def hasUncertainties(self) -> bool:
         if self._hasUncertainties is None:
@@ -93,7 +84,6 @@ class Processor(object):
         self.clear()
 
     def clear(self):
-        self._sourcesToRun = set()
         self._futures = []
         self._fromCache = []
         self._toCache.clear()
@@ -174,7 +164,6 @@ class Processor(object):
                                 (res, resvar) = self._cache.getPlot(k3)
                                 self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                             else:
-                                self._sourcesToRun.add(src)
                                 if t not in branch.leaves:
                                     branch.leaves[t] = t.attach(branch.rdf(), sample, era)
                                 fut = branch.leaves[t]
@@ -211,7 +200,6 @@ class Processor(object):
             flows = [flows]
         futuresToVary = []
         verbose = False
-        sourcesToRun = set()
         for flow in flows:
             for era in eras:
                 for proc in processes:
@@ -239,7 +227,6 @@ class Processor(object):
                                         (res, resvar) = self._cache.getPlot(k3)
                                         self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     else:
-                                        self._sourcesToRun.add(src)
                                         if t not in wbranch.leaves:
                                             wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era)
                                         fut = wbranch.leaves[t]
