@@ -45,9 +45,6 @@ For a manual installation,
 git clone --recursive https://github.com/cms-nanoAOD/correctionlib.git externals/correctionlib
 pushd externals/correctionlib 
 make -j 4
-# on cs8 with LC102, this fails misteriously with a missing -lz, you can fix it with
-# /cvmfs/sft.cern.ch/lcg/releases/gcc/11.2.0-8a51a/x86_64-centos8/bin/g++ -pthread /lib64/libz.so.1 -fPIC -shared  build/correction.o build/formula_ast.o -o lib/libcorrectionlib.so
-# and rerun make
 make install
 popd
 ```

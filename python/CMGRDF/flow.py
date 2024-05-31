@@ -71,7 +71,7 @@ class FlowStep(object):
                 obj1.eras == obj2.eras)
 
     def _addToHash(self, hasher):
-        _recursiveAddToHash((self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
+        _recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
 
 
 class SimpleExprFlowStep(FlowStep):

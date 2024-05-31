@@ -93,6 +93,7 @@ public:
         case WhatToFetch::ExtraWeight:
           return provider_->extraWeightBySampleInfo(id);
       }
+      throw std::logic_error("Unreachable");
     }
 
   private:

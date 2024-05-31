@@ -26,12 +26,12 @@ class MuonIDSFDefine(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         ROOT.gInterpreter.Declare('''
-        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "sf") {
+        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
                 double pt_i = std::min(std::max(ptMin, pt[i]), ptMax);
-                sf[i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, choice});
+                sf[i] = <CORRID>->evaluate({eta_i, pt_i, choice});
             }
             return sf;
         }
@@ -43,8 +43,8 @@ class MuonIDSFDefine(Define):
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
                 double pt_i = std::min(std::max(ptMin, pt[i]), ptMax);
-                sf[0][i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, down});
-                sf[0][i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, up});
+                sf[0][i] = <CORRID>->evaluate({eta_i, pt_i, down});
+                sf[0][i] = <CORRID>->evaluate({eta_i, pt_i, up});
             }
             return sf;
         }
@@ -83,12 +83,12 @@ class MuonIDIsoSFDefine(Define):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._idCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         corrIso = CorrectionlibFactory.loadCorrector(self._fname, self._isoCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.isoName, check=True)[0]
         ROOT.gInterpreter.Declare('''
-        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "sf") {
+        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
                 double pt_i = std::min(std::max(ptMin, pt[i]), ptMax);
-                sf[i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, choice}) * <CORRISO>->evaluate({"<POGERA>", eta_i, pt_i, choice});
+                sf[i] = <CORRID>->evaluate({eta_i, pt_i, choice}) * <CORRISO>->evaluate({eta_i, pt_i, choice});
             }
             return sf;
         }
@@ -100,8 +100,8 @@ class MuonIDIsoSFDefine(Define):
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
                 double pt_i = std::min(std::max(ptMin, pt[i]), ptMax);
-                sf[0][i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, down}) * <CORRISO>->evaluate({"<POGERA>", eta_i, pt_i, down});
-                sf[1][i] = <CORRID>->evaluate({"<POGERA>", eta_i, pt_i, up}) * <CORRISO>->evaluate({"<POGERA>", eta_i, pt_i, up});
+                sf[0][i] = <CORRID>->evaluate({eta_i, pt_i, down}) * <CORRISO>->evaluate({eta_i, pt_i, down});
+                sf[1][i] = <CORRID>->evaluate({eta_i, pt_i, up}) * <CORRISO>->evaluate({eta_i, pt_i, up});
             }
             return sf;
         }

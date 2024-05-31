@@ -15,9 +15,9 @@ class Snapshot(Target):
 
     def __init__(self,
                  filename : str,
-                 columnSel : Union[str, list[str], None] = None,
-                 columnVeto : Union[str, list[str], None] = None,
-                 compression : tuple[str, int] = ("ZLIB", 1),
+                 columnSel : 'Union[str, list[str], None]' = None,
+                 columnVeto : 'Union[str, list[str], None]' = None,
+                 compression : 'tuple[str, int]' = ("ZLIB", 1),
                  treeName="Events"):
         super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
         self.filename = filename
