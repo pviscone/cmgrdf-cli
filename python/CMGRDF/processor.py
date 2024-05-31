@@ -57,7 +57,7 @@ class _Branch(object):
                 self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName), [])
                 self._hasUncertainties = False
             else:
-                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())            
+                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
         return self._rdfAndWeights
 
     def rdf(self):
