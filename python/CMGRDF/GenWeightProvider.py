@@ -33,9 +33,9 @@ class GenWeightProvider:
             self._cpp.addSample(name, files, sample.genSumWeightName)
         else:
             self._cpp.addSampleAndRun(name, files, sample.genSumWeightName)
-        if hasattr(sample,"xsec") and isinstance(sample.xsec, float):
+        if hasattr(sample, "xsec") and isinstance(sample.xsec, float):
             self._cpp.registerXSec(name, files, sample.xsec)
-        if hasattr(sample,"weight") and isinstance(sample.weight, float):
+        if hasattr(sample, "weight") and isinstance(sample.weight, float):
             self._cpp.registerExtraWeight(name, files, sample.weight)
 
     def runAll(self, mode="Default"):

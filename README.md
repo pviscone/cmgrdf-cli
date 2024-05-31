@@ -9,7 +9,7 @@ We can install the dependencies either with `cvmfs` or `conda`
 On a EL8 machine with CVMFS, e.g. lxplus8.cern.ch, you can get all dependencies with
 
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-centos8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt/setup.sh
 ````
 
 To install the package, from outside `CMSSSW` and with `python3` you can run

@@ -784,14 +784,14 @@ class PlotSetPrinter(object):
 
 
 def normalizePlots(plots, normSumToData=False):
-    for k,plotresult in plots:
+    for k, plotresult in plots:
         normValue = 1.0
         if normSumToData:
             hdata = plotresult.histData()
             if hdata:
                 normValue = hdata.Integral()
-        for proc,h in plotresult.histos:
-            if normSumToData and proc.isData: 
+        for proc, h in plotresult.histos:
+            if normSumToData and proc.isData:
                 continue
             if h.Integral():
-                h.Scale(normValue/h.Integral())
+                h.Scale(normValue / h.Integral())
