@@ -26,6 +26,14 @@ bool GenWeightProvider::addSample(const std::string &name,
       } else {
         std::cout << "ERROR: duplicate file " << f << " between " << name << " and " << samples_[idx - 1].name
                   << ": (NOT same files or same gen sum name)" << std::endl;
+        std::cout << "Exising sample '" << samples_[idx - 1].name << "' with sum name '" << samples_[idx - 1].sumName
+                  << "', " << samples_[idx - 1].files.size() << " files:\n";
+        for (auto fi : samples_[idx - 1].files)
+          std::cout << " - " << fi << "\n";
+        std::cout << "New sample '" << name << "' with sum name '" << genSumName << "', " << files.size()
+                  << " files:\n";
+        for (auto fi : files)
+          std::cout << " - " << fi << "\n";
       }
       samples_.pop_back();
       return false;
@@ -39,9 +47,10 @@ bool GenWeightProvider::addSample(const std::string &name,
 
 bool GenWeightProvider::addSampleWithSum(const std::string &name,
                                          const std::vector<std::string> &files,
+                                         const std::string &genSumName,
                                          double sum,
                                          bool warn) {
-  bool added = addSample(name, files, "", warn);
+  bool added = addSample(name, files, genSumName, warn);
   if (added) {
     samples_.back().setSum(sum);
   } else {

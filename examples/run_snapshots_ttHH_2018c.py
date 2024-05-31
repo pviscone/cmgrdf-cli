@@ -80,9 +80,9 @@ cuts_tight = Flow("tight",
                   ## And now define nLepTight and LepTight_<var> copying from LepGood applying the selection
                   DefineSkimmedCollection("LepTight", "LepGood", mask="LepGood_tightSel",
                                           members=("pt", "eta", "phi", "mass", "charge", "pdgId", "dxy", "dz", "sip3d", "miniPFRelIso_all", "jetIdx")),
-                  DefineP4("LepTight"),
                   ## Now we can define a selection with 3 leptons
                   Cut("3l", "nLepTight >= 3"),
+                  DefineP4("LepTight"),
                   Cut("ptX1515", "LepTight_pt[0] > (abs(LepTight_pdgId)[0]==11?35:25) && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
                   #Cut("ptX1515", "LepTight_pt[0] > 35 && LepTight_pt[1] > 15 && LepTight_pt[2] > 15"),
                   ## Veto events with leptons at low invariant mass (m(ll) < 12 GeV), which are not well predicted by the simulations we use
@@ -129,7 +129,7 @@ plots_3l_tight = [
 ]
 
 lumi = 6.90
-#ROOT.EnableImplicitMT(16)
+ROOT.EnableImplicitMT(16)
 printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
 maker = Processor(cache=SimpleCache())
 cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
