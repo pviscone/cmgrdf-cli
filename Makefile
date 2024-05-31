@@ -97,7 +97,7 @@ env:
 code-format:
 	find $(PY_DIR) examples -name '*.py' | xargs -n 1 autopep8 -i -a -a
 	find $(INC_DIR)  $(SRC_DIR) -type f | perl -e '$$errs=0; while(<>) { m/.(cxx|cpp|hxx|hpp|hh|icc)/ and print "Bad extension: $$_" and $$errs=1;}; exit $$errs;' 
-	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/cs8_amd64_gcc10/external/llvm/12.0.1-dd4c586a5bebc335346bb0e879f6f0aa/etc/profile.d/init.sh"
+	which clang-tidy || echo "You can get one sourcing /cvmfs/cms.cern.ch/el8_amd64_gcc11/external/llvm/16.0.3-a93340a6fb4f86e6d36ef90f93ed9373/etc/profile.d/init.sh"
 	find $(INC_DIR)  $(SRC_DIR) -type f -name '*.cc' -or -name '*.h'  | xargs -n 1 clang-format -i
 
 py-checks:
