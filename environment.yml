@@ -1,0 +1,14 @@
+name: cmgrdf
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - pandas
+  - root==6.26.8
+  - gsl
+  - tbb
+  - vdt
+  - boost-cpp
+  - pcre
+  - eigen
+  - correctionlib

@@ -1,7 +1,8 @@
 variables:
-  LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_102b/x86_64-centos8-gcc11-opt
+  LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
+  LIBS_EL8: libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs libjpeg-turbo-devel
 
 image: gitlab-registry.cern.ch/ci-tools/ci-worker:cs8
 
@@ -18,9 +19,11 @@ stages:
   - deploy
 
 compile:
+  tags: [ k8s-cvmfs ]
   stage: build
   before_script:
-    - source $LCG_REL_PATH/setup.sh
+    - yum install -y $LIBS_EL8
+    - source $LCG_REL_PATH/setup.sh || tru
     - eval $(make env)
   script:
     - make -j 4
@@ -29,7 +32,7 @@ compile:
     - make -j 8; make
     - popd
     #- pushd externals
-    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz | tar xzv
+    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
     #- popd
   artifacts:
     paths:
@@ -37,13 +40,14 @@ compile:
       - python/**/*.pyc
       - externals/HiggsAnalysis/CombinedLimit/build/bin
       - externals/HiggsAnalysis/CombinedLimit/build/lib
-      #- externals/onnxruntime-linux-x64-1.11.1
+      #- externals/onnxruntime-linux-x64-1.15.1
 
 code-checks:
+  tags: [ k8s-cvmfs ]
   stage: build
   before_script:
     - yum install -y clang-tools-extra
-    - source $LCG_REL_PATH/setup.sh
+    - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
   script:
     - make code-format
@@ -51,11 +55,12 @@ code-checks:
     - make py-checks | tee py-checks.log
   allow_failure: true
 
-run-tests:
+.run-tests:
+  tags: [ k8s-cvmfs ]
   stage: test
   before_script:
-    - yum install -y libSM
-    - source $LCG_REL_PATH/setup.sh
+    - yum install -y $LIBS_EL8
+    - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
     - cd examples
@@ -63,5 +68,45 @@ run-tests:
     - make
   artifacts:
     paths:
-      - plots
+      - examples/plots
     when: always
+
+run-tests-base:
+  extends: .run-tests
+  script:
+    - python3 run_simple_mc_nanoAOD.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simple_data_ttH.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simpleCache_sos.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_simpleCache_sos.py # second time
+    - echo
+    - echo ---------------------------------
+    - python3 run_friends_sos.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_uncertainties_ttH.py
+
+run-tests-cards:
+  extends: .run-tests
+  script:
+    - python3 run_datacards_ttV_ttHH_2018c.py
+  allow_failure: true
+
+run-tests-SFs:
+  extends: .run-tests
+  script:
+    - python3 run_SFs_ttHH_2018c.py
+
+run-tests-snapshot:
+  extends: .run-tests
+  script:
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
