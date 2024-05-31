@@ -15,15 +15,26 @@ from CMGRDF.snapshot import Snapshot
 
 
 class _Branch(object):
-    def __init__(self, step : FlowStep, rdfAndWeights : "Tuple[Any, list[str]]", hasher=None):
-        self.step = step
-        self.rdf = rdfAndWeights[0]
-        self.weights = rdfAndWeights[1]
+    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]"):
+        if isinstance(parentOrSource, _Branch):
+            assert isinstance(stepOrTreeName, FlowStep)
+            self.source = parentOrSource.source
+            self.sourceTreeName = parentOrSource.sourceTreeName
+            self.parentBranch = parentOrSource
+            self.hasher = parentOrSource.hasher.copy()
+            self.step = stepOrTreeName
+            stepOrTreeName._addToHash(self.hasher)
+        else:
+            assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str)
+            self.source = parentOrSource
+            self.sourceTreeName = stepOrTreeName
+            self.parentBranch = None
+            self.hasher = hashlib.sha256()
+            self.step = None
         self.branches = []  # type: List["_Branch"]
         self.leaves = dict()  # type: dict[Target, Any]
-        self.hasher = hashlib.sha256() if hasher is None else hasher  # type: hashlib.sha256
-        if step:
-            step._addToHash(self.hasher)
+        self._rdfAndWeights = None  # type: Tuple[Any, list[str]]
+        self._hasUncertainties = None
 
     def maybeBranch(self, step : FlowStep, verbose=False):
         for b in self.branches:
@@ -31,7 +42,7 @@ class _Branch(object):
                 if verbose:
                     print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
                 return b
-        b = _Branch(step, step.attach(self.rdf, self.weights), self.hasher.copy())
+        b = _Branch(self, step)
         if verbose:
             print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
         self.branches.append(b)
@@ -39,6 +50,35 @@ class _Branch(object):
 
     def longId(self):
         return "%s-%s" % (safeName(self.step), self.hasher.hexdigest())
+
+    def _create(self):
+        "Builds the actual RDF graph"
+        assert self._rdfAndWeights is None
+        if self.parentBranch is None:
+            self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName), [])
+            self._hasUncertainties = False
+        else:
+            self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
+
+    def rdfAndWeights(self) -> "Tuple[Any, list[str]":
+        if self._rdfAndWeights is None:
+            self._create()
+        return self._rdfAndWeights
+
+    def rdf(self):
+        if self._rdfAndWeights is None:
+            self._create()
+        return self._rdfAndWeights[0]
+
+    def weights(self) -> "list[str]":
+        if self._rdfAndWeights is None:
+            self._create()
+        return self._rdfAndWeights[1]
+
+    def hasUncertainties(self) -> bool:
+        if self._hasUncertainties is None:
+            self._hasUncertainties = bool(self.rdf().GetVariations().AsString())
+        return self._hasUncertainties
 
 
 class Processor(object):
@@ -53,6 +93,7 @@ class Processor(object):
         self.clear()
 
     def clear(self):
+        self._sourcesToRun = set()
         self._futures = []
         self._fromCache = []
         self._toCache.clear()
@@ -65,7 +106,7 @@ class Processor(object):
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s" % source.longId())
-            self._trees[source] = _Branch(None, (source.createRDF(treeName), []))
+            self._trees[source] = _Branch(source, treeName)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())
@@ -73,11 +114,11 @@ class Processor(object):
         if flow:
             for step in flow.steps:
                 tree = tree.maybeBranch(step, verbose=verbose)
-            tree = tree.maybeBranch(ComputeTotalWeight(tree.weights), verbose=verbose)
+            tree = tree.maybeBranch(ComputeTotalWeight(), verbose=verbose)
         return tree
 
     def _bookCutFlowReports(self):
-        return [(src, b.rdf.Report()) for (src, b) in self._trees.items()]
+        return [(src, b.rdf().Report()) for (src, b) in self._trees.items()]
 
     def bookedLumi(self, multiKey):
         if multiKey not in self._lumiMap:
@@ -119,7 +160,6 @@ class Processor(object):
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         branch = self._growBranch(src, sflow)
-                        hasUncertainties = bool(branch.rdf.GetVariations().AsString())
                         for t in targets:
                             if t.mcOnly and not sample.isMC:
                                 continue
@@ -134,14 +174,15 @@ class Processor(object):
                                 (res, resvar) = self._cache.getPlot(k3)
                                 self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                             else:
+                                self._sourcesToRun.add(src)
                                 if t not in branch.leaves:
-                                    branch.leaves[t] = t.attach(branch.rdf, sample, era)
+                                    branch.leaves[t] = t.attach(branch.rdf(), sample, era)
                                 fut = branch.leaves[t]
-                                if withUncertainties and hasUncertainties:
+                                if withUncertainties and branch.hasUncertainties():
                                     # postpone to all at the end, to avoid multiple JITs
                                     futuresToVary.append((plotKey, proc, sample, t, fut))
                                 elif isinstance(t, Yield):
-                                    self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(branch.rdf)))
+                                    self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(branch.rdf())))
                                 else:
                                     self._futures.append((plotKey, proc, sample, t, fut, None))
                                 if self._cache and k3[-1] is not None:
@@ -170,6 +211,7 @@ class Processor(object):
             flows = [flows]
         futuresToVary = []
         verbose = False
+        sourcesToRun = set()
         for flow in flows:
             for era in eras:
                 for proc in processes:
@@ -189,8 +231,7 @@ class Processor(object):
                             branch = branch.maybeBranch(step, verbose=verbose)
                             if type(step) not in (Alias, Define, ReDefine, DefineDefault, Vary):
                                 if (cutNames is None) or (step.name in cutNames):
-                                    wbranch = branch.maybeBranch(ComputeTotalWeight(branch.weights), verbose=verbose)
-                                    hasUncertainties = bool(wbranch.rdf.GetVariations().AsString())
+                                    wbranch = branch.maybeBranch(ComputeTotalWeight(), verbose=verbose)
                                     t = Yield(step.name, "weight")
                                     plotKey = sampleKey.addKeys(name=t.name)
                                     k3 = (src.longId(), wbranch.longId(), t.longId()) if self._cache else None
@@ -198,14 +239,15 @@ class Processor(object):
                                         (res, resvar) = self._cache.getPlot(k3)
                                         self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     else:
+                                        self._sourcesToRun.add(src)
                                         if t not in wbranch.leaves:
-                                            wbranch.leaves[t] = t.attach(wbranch.rdf, sample, era)
+                                            wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era)
                                         fut = wbranch.leaves[t]
-                                        if withUncertainties and hasUncertainties:
+                                        if withUncertainties and branch.hasUncertainties():
                                             # postpone to all at the end, to avoid multiple JITs
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
                                         else:
-                                            self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(wbranch.rdf)))
+                                            self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(wbranch.rdf())))
                                         if self._cache and k3[-1] is not None:
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
