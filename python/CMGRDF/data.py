@@ -308,11 +308,11 @@ class MCGroup(Sample):
         self._hooks += moreHooks[:]
         self.xsec = samples[0].xsec
         if not all(s.xsec == self.xsec for s in samples[1:]):
-            if all(isinstance(s.xsec,float) for s in samples):
+            if all(isinstance(s.xsec, float) for s in samples):
                 self.xsec = None
                 self.useRegisteredXSec = True
             else:
-                raise RuntimeError(f"MCGroup supports different cross sections only if they are all plain numbers, while for {name} we have "+", ".join([repr(s.xsec) for s in samples]))
+                raise RuntimeError(f"MCGroup supports different cross sections only if they are all plain numbers, while for {name} we have " + ", ".join([repr(s.xsec) for s in samples]))
         else:
             self.useRegisteredXSec = False
         self.genWeightName = samples[0].genWeightName
@@ -339,7 +339,6 @@ class MCGroup(Sample):
                 AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, self.xsec, luminosity * 1000, getattr(self, "weight", 1))))
         else:
             return flow2.prepend(AddWeight("weight", self.weight))
-    
 
     def bookSumWeight(self, sumWeightProvider, eras):
         for s in self.samples:
