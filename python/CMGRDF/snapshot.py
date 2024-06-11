@@ -28,7 +28,7 @@ class Snapshot(Target):
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
 
     def fromCache(self, sample, era, k3, verbose=False):
-        outname = self.filename.format(era=era, name=sample.name)
+        outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
         sourceid, branchid, selfid = k3
         if os.path.exists(outname):
             metafile = outname.replace(".root", "") + ".meta.json"
@@ -67,7 +67,7 @@ class Snapshot(Target):
         comprAlgo = getattr(ROOT, "k" + self.compression[0].upper())
         opts = ROOT.RDF.RSnapshotOptions("RECREATE", comprAlgo, self.compression[1], 0, 99, True)
         columns = selectColumns(rdf, self.columnSel, self.columnVeto)
-        outname = self.filename.format(era=era, name=sample.name)
+        outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
         os.makedirs(os.path.dirname(outname), exist_ok=True)
         future = rdf.Snapshot(self.treeName, outname, columns, opts)
         future._entries = rdf.Count()
