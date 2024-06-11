@@ -60,6 +60,12 @@ curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxr
 popd
 ```
 
+#### CMSJMECalculators (optional)
+
+```bash
+pip install -e git+https://gitlab.cern.ch/cms-analysis/CMSJMECalculators.git
+```
+
 ### Running
 To set up your environment (path, python path, ...), from the main directory:
 ```bash
@@ -99,6 +105,13 @@ pushd externals
 curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz | tar xzv
 popd
 ```
+
+#### CMSJMECalculators (optional)
+
+```bash
+pip install -e git+https://gitlab.cern.ch/cms-analysis/CMSJMECalculators.git
+```
+
 
 ### Running
 To set up your environment (path, python path, ...), from the main directory:
