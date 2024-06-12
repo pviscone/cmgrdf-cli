@@ -24,18 +24,18 @@ class GenWeightProvider:
             files[i] = f
         name = f"{sample.name}:{era}" if era else sample.name
         if sample._genWeightSum[era] is not None:
-            self._cpp.addSampleWithSum(name, files, sample._genWeightSum[era])
+            self._cpp.addSampleWithSum(name, files, sample.genSumWeightName, sample._genWeightSum[era])
         elif self._cache and self._cache.hasSum(src):
             sample._genWeightSum[era] = self._cache.getSum(src)
             #print("Got sum for %s from cache: %r" % (name,sample._genWeightSum[era]))
-            self._cpp.addSampleWithSum(name, files, sample._genWeightSum[era])
+            self._cpp.addSampleWithSum(name, files, sample.genSumWeightName, sample._genWeightSum[era])
         elif self._lazy:
             self._cpp.addSample(name, files, sample.genSumWeightName)
         else:
             self._cpp.addSampleAndRun(name, files, sample.genSumWeightName)
-        if hasattr(sample,"xsec") and isinstance(sample.xsec, float):
+        if hasattr(sample, "xsec") and isinstance(sample.xsec, float):
             self._cpp.registerXSec(name, files, sample.xsec)
-        if hasattr(sample,"weight") and isinstance(sample.weight, float):
+        if hasattr(sample, "weight") and isinstance(sample.weight, float):
             self._cpp.registerExtraWeight(name, files, sample.weight)
 
     def runAll(self, mode="Default"):
