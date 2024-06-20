@@ -41,6 +41,25 @@ class Plot(Target):
                 nbins, low, high = self._bins
                 self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title", self.name), int(nbins), low, high)
             self._template = self._model.GetHistogram()
+        elif typ == "Histo2D":
+            self._expr = args[0] 
+            self._bins = args[1] 
+            self.attach = self.bookHisto2D
+            self.finish = self.finishHisto2D 
+            self.style = self.styleHisto2D
+            self._forEquals = (self._expr, self._bins,
+                               [self.getOpt(x) for x in ("includeOverflows", "includeOverflow", "includeUnderflow")])
+            if isinstance(self._bins, list):
+                binsx = self._bins[0]
+                binsy = self._bins[1]
+                self._model = ROOT.RDF.TH2DModel(self.name, self.getOpt("title", self.name), len(binsx) - 1, array('f', binsx), len(binsy) - 1, array('f', binsy))
+            else:
+                nbinsx, lowx, highx, nbinsy, lowy, highy = self._bins
+                self._model = ROOT.RDF.TH2DModel(self.name, self.getOpt("title", self.name), int(nbinsx), lowx, highx, int(nbinsy), lowy, highy)
+            self._template = self._model.GetHistogram()
+        else:
+            raise NotImplementedError(f"Plot not implemented for {typ}")
+            
         self._bigHash = None
 
     def _prepareExpr(self, rdf, expr, name):
@@ -63,6 +82,13 @@ class Plot(Target):
         ret._from = rdf
         return ret
 
+    def bookHisto2D(self, rdf, sample : Sample, era) -> Any:
+        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
+        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
+        ret = rdf.Histo2D(self._model, expr_x, expr_y, "weight")
+        ret._from = rdf
+        return ret
+
     def finishHisto1D(self, plot, sample : Sample, era) -> Any:
         """Make changes to the plot that affect the contents"""
         ## Contents
@@ -79,14 +105,13 @@ class Plot(Target):
             plot.SetBinError(n + 1, 0)
         return plot
 
-    def styleHisto1D(self, plot, process : Process):
-        """Make changes to the plot that affect only the style"""
-        ## Axis
+    def finishHisto2D(self, plot, sample : Sample, era) -> Any:
+        return plot
+
+    def styleHisto(self, plot, process : Process):
+        """Common for 2D and 1D"""
+
         plot.SetTitle(self.getOpt('title', self.name))
-        plot.GetXaxis().SetTitle(self.getOpt('xTitle', self._expr))
-        if self.getOpt('xBinLabels', None) is not None:
-            for (i, l) in enumerate(self.getOpt('xBinLabels')):
-                plot.GetXaxis().SetBinLabel(i + 1, l)
         ## Graphics
         if process.getOpt('fillColor', None) is not None:
             plot.SetFillColor(process.getOpt('fillColor', 0))
@@ -94,6 +119,7 @@ class Plot(Target):
         else:
             plot.SetFillStyle(0)
             plot.SetLineWidth(process.getOpt('lineWidth', 1))
+
         plot.SetLineColor(process.getOpt('lineColor', 1))
         plot.SetLineStyle(process.getOpt('lineStyle', 1))
         plot.SetMarkerColor(process.getOpt('markerColor', 1))
@@ -104,6 +130,21 @@ class Plot(Target):
         plot.GetXaxis().SetLabelFont(42)
         plot.GetYaxis().SetLabelFont(42)
         return plot
+
+    def styleHisto1D(self, plot, process : Process):
+        plot=self.styleHisto( plot, process )
+        
+        """Make changes to the plot that affect only the style"""
+        ## Axis
+        plot.GetXaxis().SetTitle(self.getOpt('xTitle', self._expr))
+        if self.getOpt('xBinLabels', None) is not None:
+            for (i, l) in enumerate(self.getOpt('xBinLabels')):
+                plot.GetXaxis().SetBinLabel(i + 1, l)
+        return plot
+
+    def styleHisto2D( self, plot, process : Process):
+        plot=self.styleHisto( plot, process )
+        return plot 
 
     def restyleAsOutline(self, plot):
         plot.SetLineWidth(3)
@@ -323,6 +364,7 @@ class PlotSetPrinter(object):
         print("Printing %s in %s (formats: %s)" % (outputName, path, outputFormats))
         data = []
         outlines = []
+
         for (proc, hist) in reversed(plot.histos):
             fullName = (os.path.basename(path), outputName, proc.name)
             if proc.isData:
@@ -441,8 +483,10 @@ class PlotSetPrinter(object):
                 stack.Draw("SAME HIST NOSTACK")
         if plot.getOpt('moreY', 1.0) > 1.0:
             total.SetMaximum(plot.getOpt('moreY', 1.0) * total.GetMaximum())
-        totalError = self.doShadedUncertainty(total) if opts.showErrors else None
-        #is2D = total.InheritsFrom("TH2")
+
+        is2D = total.InheritsFrom("TH2")
+        totalError = self.doShadedUncertainty(total) if opts.showErrors and not is2D else None
+        
         for dproc, dhist in data:
             blind = plot.getOpt('blinded', "None")
             xblind = [9e99, -9e99]
@@ -510,6 +554,7 @@ class PlotSetPrinter(object):
                 if "TProfile" in total.ClassName():
                     continue
                 dump = open("%s/%s.%s" % (path, outputName, ext), "w")
+                dump_perBin = open("%s/%s_perBin.%s" % (path, outputName, ext), "w")
                 toprint = [(_unTLatex(p.label), hist) for (p, hist) in plot.histos if not p.isData]
                 row1 = len(toprint)
                 for tot in "signal", "background":
@@ -517,24 +562,30 @@ class PlotSetPrinter(object):
                         toprint.append((tot.title(), plot.totals[tot]))
                 toprint.append(("Total", total))
                 maxlen = max([len(l) for (l, h) in toprint] + [10])
-                fmt = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen + 1)
+                fmt        = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen + 1)
+                fmt_perbin = "%%-%ds " % (maxlen + 1) + " ".join([ "%%9.2f" for _ in range(total.GetNbinsX())])
                 for i, (label, hist) in enumerate(toprint):
                     if hist.Integral() <= 0:
                         continue
                     norm = hist.Integral()
                     stat = hist.integralStatError()
                     syst = hist.integralSystError(symmetrize=True)
+                    var_perbin = [ hist.GetBinContent(i+1) for i in range(hist.GetNbinsX())]
                     if i == row1:
                         dump.write(("-" * (maxlen + 45)) + "\n")
+                        dump_perBin.write(("-" * (maxlen + 45)) + "\n")
                     dump.write(fmt % (label, norm, stat))
+                    dump_perBin.write("%%-%ds " % (maxlen + 1) % label + " ".join( ["%9.2f"%x for x in var_perbin]) + "\n")
                     if syst:
                         dump.write(" +/- %9.2f (syst) = +/- %9.2f (all)" % (syst, hypot(stat, syst)))
                     dump.write("\n")
                 if data:
                     dump.write(("-" * (maxlen + 45)) + "\n")
+                    dump_perBin.write(("-" * (maxlen + 45)) + "\n")
                     for dproc, dhist in data:
                         label = "DATA" if len(data) == 1 else dproc.label
-                        dump.write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % (label, dhist.Integral()))
+                        dump       .write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % (label, dhist.Integral()))
+                        dump_perBin.write(("%%-%ds "%(maxlen + 1)) % (label) + " ".join( ["%7.0f"%dhist.GetBinContent(i+1) for i in range(dhist.GetNbinsX())]) + "\n")
                 for logname, loglines in getattr(plot, "allLogs", []):
                     dump.write("\n\n --- %s --- \n" % logname)
                     for line in loglines:
@@ -542,10 +593,19 @@ class PlotSetPrinter(object):
                 dump.write("\n")
                 dump.close()
             elif ext in ("png", "pdf", "eps"):
-                savErrorLevel = ROOT.gErrorIgnoreLevel
-                ROOT.gErrorIgnoreLevel = ROOT.kWarning
-                c1.Print("%s/%s.%s" % (path, outputName, ext))
-                ROOT.gErrorIgnoreLevel = savErrorLevel
+                if total.InheritsFrom("TH2"):
+                    for p, hist in plot.histos:
+                        c1.SetRightMargin(0.20)
+                        hist.SetContour(100)
+                        hist.Draw("COLZ TEXT45")
+                        c1.Print("%s/%s_data_%s.%s" % (path, outputName, p.label, ext))
+
+                else:
+                    savErrorLevel = ROOT.gErrorIgnoreLevel
+                    ROOT.gErrorIgnoreLevel = ROOT.kWarning
+                    c1.Print("%s/%s.%s" % (path, outputName, ext))
+                    ROOT.gErrorIgnoreLevel = savErrorLevel
+                
             elif ext == "root":
                 pass  # already being done
             elif ext == "jupyter":
