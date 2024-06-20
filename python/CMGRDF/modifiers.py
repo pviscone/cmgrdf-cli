@@ -26,6 +26,13 @@ class Replace(object):
     def customizeFlow(self, flow, era):
         return flow.replace(self.name, self.steps)
 
+class Remove(object):
+    def __init__(self, name):
+        self.name = name
+
+    def customizeFlow(self, flow, era):
+        return flow.remove(self.name)
+
 
 class Insert(object):
     def __init__(self, *steps : Sequence[FlowStep], before=None, after=None):
