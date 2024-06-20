@@ -60,7 +60,7 @@ popd
 #### CMSJMECalculators (optional)
 
 ```bash
-pip install -e git+https://gitlab.cern.ch/cms-analysis/CMSJMECalculators.git
+pip install externals/CMSJMECalculators
 ```
 
 ### Running
@@ -106,7 +106,7 @@ popd
 #### CMSJMECalculators (optional)
 
 ```bash
-pip install -e git+https://gitlab.cern.ch/cms-analysis/CMSJMECalculators.git
+pip install externals/CMSJMECalculators
 ```
 
 
