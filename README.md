@@ -6,13 +6,23 @@ We can install the dependencies either with `cvmfs` or `conda`
 
 ## Setup recipe - `cvmfs`
 
-On a EL8 machine with CVMFS, e.g. lxplus8.cern.ch, you can get all dependencies with
-
+On an **EL9** machine with CVMFS and most stuff installed, like *lxplus9.cern.ch*, you can get all dependencies with
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
+```
+If you are on an **EL8** machine or with some base package missing, the best option is to first enter an apptainer alma9 container
+```bash
+apptainer shell -B /eos -B /afs -B /cvmfs /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/sft/docker/alma9:latest
+```
+and then inside source the LCG environment as above.
+
+If you have to remain in an EL8 environment, the only other option with a recent-enough ROOT is the dev4 nightly build, but that implies
+that every day you have to `make clean` and recompile CMGRDF and Combine.
+````bash
+source /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-el8-gcc11-opt/setup.sh
 ````
 
-To install the package, from outside `CMSSSW` and with `python3` you can run
+To install the package, from outside `CMSSW` and with `python3` you can run
 
 ```bash
 git clone --recursive https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git # or ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
@@ -26,19 +36,19 @@ make -j 3
 
 ```bash
 pushd externals/HiggsAnalysis/CombinedLimit 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt/setup.sh
 export PATH=${PATH}:${PWD}/build/bin
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD}/build/lib
 export PYTHONPATH=${PYTHONPATH}:${PWD}/build/lib/python:${PWD}/build/lib
-export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt
+export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
 make -j 8; make
 popd
 ```
 
 
-#### Correctionlib (recommended) (already included in LCG 102, 102b, dev3 and dev4 stacks)
+#### Correctionlib (recommended) (already included in LCG stacks)
 
-If you're using a recent LCG stack, e.g 102 or later, or dev3 or dev4, correctionlib is already installed. You can check for other versions in https://lcginfo.cern.ch/pkg/correctionlib/.
+If you're using a recent LCG stack, correctionlib is already installed. You can check for other versions in https://lcginfo.cern.ch/pkg/correctionlib/.
 
 For a manual installation,
 ```bash
@@ -53,7 +63,7 @@ popd
 
 ```bash
 pushd externals
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz | tar xzv
 popd
 ```
 
@@ -93,7 +103,7 @@ popd
 
 ```bash
 pushd externals
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz | tar xzv
 popd
 ```
 

@@ -1,29 +1,39 @@
 variables:
-  LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_104a_cuda/x86_64-centos8-gcc11-opt
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
-  LIBS_EL8: libSM mesa-libGL-devel mesa-libGLU-devel libXpm-devel openssl-devel ncurses-compat-libs libjpeg-turbo-devel
 
-image: gitlab-registry.cern.ch/ci-tools/ci-worker:cs8
+.el8-dev4:
+  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cs8
+  variables:
+    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-el8-gcc11-opt
+    LIBS_EXTRA: libSM mesa-libGL-devel mesa-libGLU-devel libX11-devel libXpm-devel openssl-devel ncurses-compat-libs libjpeg-turbo-devel
+
+.el9-106:
+  image: gitlab-registry.cern.ch/sft/docker/alma9
+  variables:
+    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
+    LIBS_EXTRA: ""
 
 workflow:
   rules:
-    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
     - if: $CI_PIPELINE_SOURCE == "web"
-    - if: $CI_COMMIT_BRANCH == "for_release"
 
 stages:
   - build
   - test
   - deploy
 
-compile:
+.compile:
   tags: [ k8s-cvmfs ]
   stage: build
   before_script:
-    - yum install -y $LIBS_EL8
-    - source $LCG_REL_PATH/setup.sh || tru
+    - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
+    - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
   script:
     - make -j 4
@@ -32,7 +42,7 @@ compile:
     - make -j 8; make
     - popd
     #- pushd externals
-    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
+    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
     #- popd
   artifacts:
     paths:
@@ -40,39 +50,42 @@ compile:
       - python/**/*.pyc
       - externals/HiggsAnalysis/CombinedLimit/build/bin
       - externals/HiggsAnalysis/CombinedLimit/build/lib
-      #- externals/onnxruntime-linux-x64-1.15.1
+      #- externals/onnxruntime-linux-x64-1.16.0
+
+compile-el8-dev4:
+  extends: [.compile, .el8-dev4]
+
+compile-el9-106:
+  extends: [.compile, .el9-106]
 
 code-checks:
   tags: [ k8s-cvmfs ]
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   stage: build
   before_script:
-    - yum install -y clang-tools-extra
-    - source $LCG_REL_PATH/setup.sh || true
-    - eval $(make env)
+    - dnf install -qy clang-tools-extra git-core make perl python3-pip which
+    - python3 -mpip install autopep8 flake8
   script:
     - make code-format
+    - git diff -u > code-format.patch
     - git diff --exit-code --numstat --
     - make py-checks | tee py-checks.log
   allow_failure: true
+  artifacts:
+    expose_as: 'code-format patch'
+    paths:
+      - code-format.patch
+    when: always
 
 .run-tests:
   tags: [ k8s-cvmfs ]
   stage: test
   before_script:
-    - yum install -y $LIBS_EL8
+    - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
     - source $LCG_REL_PATH/setup.sh || true
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
     - cd examples
-  script:
-    - make
-  artifacts:
-    paths:
-      - examples/plots
-    when: always
-
-run-tests-base:
-  extends: .run-tests
   script:
     - python3 run_simple_mc_nanoAOD.py
     - echo
@@ -90,20 +103,51 @@ run-tests-base:
     - echo
     - echo ---------------------------------
     - python3 run_uncertainties_ttH.py
+  artifacts:
+    paths:
+      - examples/plots
+    when: always
+  timeout: 2h
 
-run-tests-cards:
-  extends: .run-tests
+run-tests-base-el8-dev4:
+  extends: [.run-tests, .el8-dev4]
+  needs: [compile-el8-dev4]
+
+run-tests-base-el9-106:
+  extends: [.run-tests, .el9-106]
+  needs: [compile-el9-106]
+
+run-tests-cards-el8-dev4:
+  extends: run-tests-base-el8-dev4
   script:
     - python3 run_datacards_ttV_ttHH_2018c.py
-  allow_failure: true
 
-run-tests-SFs:
-  extends: .run-tests
+run-tests-cards-el9-106:
+  extends: run-tests-base-el9-106
+  script:
+    - python3 run_datacards_ttV_ttHH_2018c.py
+
+run-tests-SFs-el8-dev4:
+  extends: run-tests-base-el8-dev4
   script:
     - python3 run_SFs_ttHH_2018c.py
 
-run-tests-snapshot:
-  extends: .run-tests
+run-tests-snapshot-el8-dev4:
+  extends: run-tests-base-el8-dev4
+  script:
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
+    - echo
+    - echo ---------------------------------
+    - python3 run_snapshots_ttHH_2018c.py
+
+run-tests-SFs-el9-106:
+  extends: run-tests-base-el9-106
+  script:
+    - python3 run_SFs_ttHH_2018c.py
+
+run-tests-snapshot-el9-106:
+  extends: run-tests-base-el9-106
   script:
     - echo ---------------------------------
     - python3 run_snapshots_ttHH_2018c.py
