@@ -4,3 +4,6 @@
 [submodule "externals/HiggsAnalysis/CombinedLimit"]
 	path = externals/HiggsAnalysis/CombinedLimit
 	url = https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git
+[submodule "externals/CMSJMECalculators"]
+	path = externals/CMSJMECalculators
+	url = https://gitlab.cern.ch/cms-analysis/general/CMSJMECalculators.git
