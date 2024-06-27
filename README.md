@@ -8,7 +8,7 @@ We can install the dependencies either with `cvmfs` or `conda`
 
 On an **EL9** machine with CVMFS and most stuff installed, like *lxplus9.cern.ch*, you can get all dependencies with
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt/setup.sh
 ```
 If you are on an **EL8** machine or with some base package missing, the best option is to first enter an apptainer alma9 container
 ```bash
