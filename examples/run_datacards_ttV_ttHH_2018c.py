@@ -200,7 +200,7 @@ result_plots = maker.runPlots()
 printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
 printer.printSet(result_plots, "plots/008/{flow}")
 
-cardMaker = DatacardWriter()
+cardMaker = DatacardWriter(regularize=True, autoMCStats=False)
 cardMaker.makeCards(result_plots, MultiKey(name="minMll"), "plots/008/datacards/flow_{flow}")
 
 ## Now we combine the datacards and run a fit
