@@ -42,10 +42,10 @@ class Plot(Target):
                 self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title", self.name), int(nbins), low, high)
             self._template = self._model.GetHistogram()
         elif typ == "Histo2D":
-            self._expr = args[0] 
-            self._bins = args[1] 
+            self._expr = args[0]
+            self._bins = args[1]
             self.attach = self.bookHisto2D
-            self.finish = self.finishHisto2D 
+            self.finish = self.finishHisto2D
             self.style = self.styleHisto2D
             self._forEquals = (self._expr, self._bins,
                                [self.getOpt(x) for x in ("includeOverflows", "includeOverflow", "includeUnderflow")])
@@ -59,7 +59,7 @@ class Plot(Target):
             self._template = self._model.GetHistogram()
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
-            
+
         self._bigHash = None
 
     def _prepareExpr(self, rdf, expr, name):
@@ -132,8 +132,8 @@ class Plot(Target):
         return plot
 
     def styleHisto1D(self, plot, process : Process):
-        plot=self.styleHisto( plot, process )
-        
+        plot = self.styleHisto(plot, process)
+
         """Make changes to the plot that affect only the style"""
         ## Axis
         plot.GetXaxis().SetTitle(self.getOpt('xTitle', self._expr))
@@ -142,9 +142,9 @@ class Plot(Target):
                 plot.GetXaxis().SetBinLabel(i + 1, l)
         return plot
 
-    def styleHisto2D( self, plot, process : Process):
-        plot=self.styleHisto( plot, process )
-        return plot 
+    def styleHisto2D(self, plot, process : Process):
+        plot = self.styleHisto(plot, process)
+        return plot
 
     def restyleAsOutline(self, plot):
         plot.SetLineWidth(3)
@@ -486,7 +486,7 @@ class PlotSetPrinter(object):
 
         is2D = total.InheritsFrom("TH2")
         totalError = self.doShadedUncertainty(total) if opts.showErrors and not is2D else None
-        
+
         for dproc, dhist in data:
             blind = plot.getOpt('blinded', "None")
             xblind = [9e99, -9e99]
@@ -562,20 +562,20 @@ class PlotSetPrinter(object):
                         toprint.append((tot.title(), plot.totals[tot]))
                 toprint.append(("Total", total))
                 maxlen = max([len(l) for (l, h) in toprint] + [10])
-                fmt        = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen + 1)
-                fmt_perbin = "%%-%ds " % (maxlen + 1) + " ".join([ "%%9.2f" for _ in range(total.GetNbinsX())])
+                fmt = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen + 1)
+                fmt_perbin = "%%-%ds " % (maxlen + 1) + " ".join(["%%9.2f" for _ in range(total.GetNbinsX())])
                 for i, (label, hist) in enumerate(toprint):
                     if hist.Integral() <= 0:
                         continue
                     norm = hist.Integral()
                     stat = hist.integralStatError()
                     syst = hist.integralSystError(symmetrize=True)
-                    var_perbin = [ hist.GetBinContent(i+1) for i in range(hist.GetNbinsX())]
+                    var_perbin = [hist.GetBinContent(i + 1) for i in range(hist.GetNbinsX())]
                     if i == row1:
                         dump.write(("-" * (maxlen + 45)) + "\n")
                         dump_perBin.write(("-" * (maxlen + 45)) + "\n")
                     dump.write(fmt % (label, norm, stat))
-                    dump_perBin.write("%%-%ds " % (maxlen + 1) % label + " ".join( ["%9.2f"%x for x in var_perbin]) + "\n")
+                    dump_perBin.write("%%-%ds " % (maxlen + 1) % label + " ".join(["%9.2f" % x for x in var_perbin]) + "\n")
                     if syst:
                         dump.write(" +/- %9.2f (syst) = +/- %9.2f (all)" % (syst, hypot(stat, syst)))
                     dump.write("\n")
@@ -585,7 +585,7 @@ class PlotSetPrinter(object):
                     for dproc, dhist in data:
                         label = "DATA" if len(data) == 1 else dproc.label
                         dump       .write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % (label, dhist.Integral()))
-                        dump_perBin.write(("%%-%ds "%(maxlen + 1)) % (label) + " ".join( ["%7.0f"%dhist.GetBinContent(i+1) for i in range(dhist.GetNbinsX())]) + "\n")
+                        dump_perBin.write(("%%-%ds " % (maxlen + 1)) % (label) + " ".join(["%7.0f" % dhist.GetBinContent(i + 1) for i in range(dhist.GetNbinsX())]) + "\n")
                 for logname, loglines in getattr(plot, "allLogs", []):
                     dump.write("\n\n --- %s --- \n" % logname)
                     for line in loglines:
@@ -605,7 +605,7 @@ class PlotSetPrinter(object):
                     ROOT.gErrorIgnoreLevel = ROOT.kWarning
                     c1.Print("%s/%s.%s" % (path, outputName, ext))
                     ROOT.gErrorIgnoreLevel = savErrorLevel
-                
+
             elif ext == "root":
                 pass  # already being done
             elif ext == "jupyter":

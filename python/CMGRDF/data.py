@@ -161,7 +161,7 @@ class Sample(object):
         self.name = name
         self._hooks = hooks[:]
         self.eras = eras
-        self.suffix = suffix 
+        self.suffix = suffix
         for k, v in kwargs.items():
             setattr(self, k, v)
         if self.eras:

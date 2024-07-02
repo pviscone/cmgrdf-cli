@@ -401,8 +401,8 @@ class Flow(object):
         self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx + 1:]
         return self
 
-    def remove(self, name ):
-        self.steps = [ s for s in self.steps if s.name != name]
+    def remove(self, name):
+        self.steps = [s for s in self.steps if s.name != name]
         return self
 
     def filterSteps(self, stepFilter):
