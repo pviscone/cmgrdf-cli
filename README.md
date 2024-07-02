@@ -67,6 +67,12 @@ curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxr
 popd
 ```
 
+#### CMSJMECalculators (optional)
+
+```bash
+pip install externals/CMSJMECalculators
+```
+
 ### Running
 To set up your environment (path, python path, ...), from the main directory:
 ```bash
@@ -77,6 +83,8 @@ eval $(make env)
 ## Setup recipe - conda
 
 NB: there's a bug in the 2.5.0 version of `correctionlib`, which is the latest available in `conda`. After setting up the code, you should push [this fix](https://github.com/cms-nanoAOD/correctionlib/commit/fa17477cc87752aba621ae9e97fcd843ba2ba5c9), specifically the changes in `src/correctionlib/binding.py`
+
+NB: `CMSJMECalculators` is currently not working with `conda`. The developers are following up on this.
 
 ```bash
 git clone --recursive https://:@gitlab.cern.ch:8443/cms-new-cmgtools/cmgrdf-prototype.git # or ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
@@ -106,6 +114,13 @@ pushd externals
 curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz | tar xzv
 popd
 ```
+
+#### CMSJMECalculators (optional)
+
+```bash
+pip install externals/CMSJMECalculators
+```
+
 
 ### Running
 To set up your environment (path, python path, ...), from the main directory:

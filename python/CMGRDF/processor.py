@@ -246,7 +246,7 @@ class Processor(object):
             print("Booked %d sums and %d targets in %.3fs" % ((n1[0] - n0[0]), (n1[1] - n0[1]), t1 - t0))
         return self
 
-    def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False):
+    def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False, debug=False):
         """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
         self._state = Processor.State.Run
         if self._rawResults is None:
@@ -259,6 +259,10 @@ class Processor(object):
                 print("Filled %d sums in %.3fs" % (n0[0], t0b - t0))
             # run the graphs
             if self._futures:
+                if debug:
+                    for fut in self._futures:
+                        name = str(fut[0]).replace(",", "_").replace(")", "").replace("(", "").replace("=", "_")
+                        ROOT.RDF.SaveGraph(fut[-2], f'{name}.dot')
                 ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
                 t1 = time.perf_counter()
                 if logPerformance:

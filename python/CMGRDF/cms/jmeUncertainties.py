@@ -1,0 +1,176 @@
+import os
+import ROOT
+
+from CMGRDF.flow import Define, Vary
+from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
+from CMGRDF.cms.eras import run2eras
+from CMSJMECalculators import loadJMESystematicsCalculators
+loadJMESystematicsCalculators()
+from CMSJMECalculators import config as calcConfigs
+
+jecTags = {
+    '2016'   : 'Summer19UL16_V7_MC',
+    '2016APV': 'Summer19UL16_V7_MC',
+    '2017'   : 'Summer19UL17_V5_MC',
+    '2018'   : 'Summer19UL18_V5_MC',
+    '2022'   : 'Summer22_22Sep2023_V2_MC',
+    '2022EE' : 'Summer22EE_22Sep2023_V2_MC',
+}
+
+jecTagsDATA = {
+    "2022C"   : "Summer22_22Sep2023_RunCD_V2_DATA",
+    "2022D"   : "Summer22_22Sep2023_RunCD_V2_DATA",
+    "2022EEE" : "Summer22EE_22Sep2023_RunE_V2_DATA",
+    "2022EEF" : "Summer22EE_22Sep2023_RunF_V2_DATA",
+    "2022EEG" : "Summer22EE_22Sep2023_RunG_V2_DATA",
+    '2016APVB': 'Summer19UL16APV_RunBCD_V7_DATA',
+    '2016APVC': 'Summer19UL16APV_RunBCD_V7_DATA',
+    '2016APVD': 'Summer19UL16APV_RunBCD_V7_DATA',
+    '2016APVE': 'Summer19UL16APV_RunEF_V7_DATA',
+    '2016APVF': 'Summer19UL16APV_RunEF_V7_DATA',
+    '2016F'   : 'Summer19UL16_RunFGH_V7_DATA',
+    '2016G'   : 'Summer19UL16_RunFGH_V7_DATA',
+    '2016H'   : 'Summer19UL16_RunFGH_V7_DATA',
+    '2017B'   : 'Summer19UL17_RunB_V5_DATA',
+    '2017C'   : 'Summer19UL17_RunC_V5_DATA',
+    '2017D'   : 'Summer19UL17_RunD_V5_DATA',
+    '2017E'   : 'Summer19UL17_RunE_V5_DATA',
+    '2017F'   : 'Summer19UL17_RunF_V5_DATA',
+    '2018A'   : 'Summer19UL18_RunA_V5_DATA',
+    '2018B'   : 'Summer19UL18_RunB_V5_DATA',
+    '2018C'   : 'Summer19UL18_RunC_V5_DATA',
+    '2018D'   : 'Summer19UL18_RunD_V5_DATA',
+
+}
+
+
+jerTags = {
+    '2016APV'  : 'Summer20UL16APV_JRV3_MC',
+    '2016'     : 'Summer20UL16_JRV3_MC',
+    '2017'     : 'Summer19UL17_JRV2_MC',
+    '2018'     : 'Summer19UL18_JRV2_MC',
+    '2022'     : 'Summer22_22Sep2023_JRV1_MC',
+    '2022EE'   : 'Summer22EE_22Sep2023_JRV1_MC'
+}
+
+jsonMap = {
+    "2022EE" : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22EE/jet_jerc.json.gz",
+    "2022"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22/jet_jerc.json.gz",
+    "2018"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2018_UL/jet_jerc.json.gz",
+    "2017"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2017_UL/jet_jerc.json.gz",
+    "2016"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016postVFP_UL/jet_jerc.json.gz",
+    "2016APV": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016preVFP_UL/jet_jerc.json.gz"
+
+}
+
+
+class JMEFactory(object):
+    _ids = dict()
+
+    @classmethod
+    def loadJME(cls, doMET, era, subera, jetAlgo, isData, splitJER, uncSources, suffix):
+        configCls = calcConfigs.METVariations if doMET else calcConfigs.JetVariations
+        config = configCls(jsonMap[era], jetAlgo)
+        config.jecTag = jecTagsDATA[era + subera] if isData else jecTags[era]
+        config.jecLevel = "L1L2L3Res"
+        config.splitJER = splitJER
+
+        if not isData:
+            config.jesUncertainties = uncSources
+            config.jerTag = jerTags[era]
+            config.jsonFileSmearingTool = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/jer_smear.json.gz"
+            if doMET:
+                config.isT1SmearedMET = True
+
+        declareexpr = f"{config.calcClass} cmgJMECalc{suffix} = {config.cppConstruct};"
+        if f'cmgJMECalc{suffix}' in cls._ids:
+            if cls._ids[f'cmgJMECalc{suffix}'] != declareexpr:
+                raise RuntimeError(f"You have tried to declare two different objects with same cmgJMECalc{suffix}. You have to change the code logic")
+        else:
+            ROOT.gInterpreter.Declare(declareexpr)
+            cls._ids[f'cmgJMECalc{suffix}'] = declareexpr
+
+
+class JMEUncertaintiesDefine(Define):
+    def __init__(self, era, subera='', splitJER=False, uncSources=["Total"], isData=False, doMET=True,
+                 jetAlgo="AK4PFPuppi", metcollection="PuppiMET", doSyst=False, suffix="", **options):
+        if doMET:
+            super().__init__(f"{metcollection}_T1",
+                             f'''cmgJMECalc{suffix}_MET.produce(Jet_pt, Jet_eta, Jet_phi, Jet_mass,
+                             Jet_rawFactor, Jet_area,Jet_muonSubtrFactor,
+                             Jet_neEmEF,Jet_chEmEF, Jet_jetId,
+                             Rho_fixedGridRhoFastjetAll,
+                             Jet_genJetIdx,
+                             Jet_partonFlavour,
+                             42,
+                             GenJet_pt, GenJet_eta, GenJet_phi,GenJet_mass,
+                             Raw{metcollection}_phi, Raw{metcollection}_pt,
+                             CorrT1METJet_rawPt, CorrT1METJet_eta, CorrT1METJet_phi, CorrT1METJet_area,
+                             CorrT1METJet_muonSubtrFactor, CorrT1METJet_neEmEF, CorrT1METJet_chEmEF,
+                             {metcollection}_ptUnclusteredUp*TMath::Cos({metcollection}_phiUnclusteredUp)-{metcollection}_pt*TMath::Cos({metcollection}_phi),
+                             {metcollection}_ptUnclusteredUp*TMath::Sin({metcollection}_phiUnclusteredUp)-{metcollection}_pt*TMath::Sin({metcollection}_phi)
+                             )''',
+                             onData=isData, onDataDriven=isData, eras=[era], **options)
+        else:
+            super().__init__("ak4JetVars",
+                             f'''cmgJMECalc{suffix}.produce(Jet_pt, Jet_eta, Jet_phi, Jet_mass,
+                             Jet_rawFactor, Jet_area,
+                             Jet_jetId, Rho_fixedGridRhoFastjetAll,
+                             Jet_genJetIdx,
+                             Jet_partonFlavour,
+                             42,
+                             GenJet_pt, GenJet_eta, GenJet_phi,GenJet_mass)''',
+                             onData=isData, onDataDriven=isData, eras=[era], **options)
+        self.era = era
+        self.subera = subera
+        self._init = False
+        self.splitJER = splitJER
+        self.uncSources = uncSources
+        self.isData = isData
+        self.doMET = doMET
+        self.jetAlgo = jetAlgo
+        self.suffix = suffix + ("_MET" if self.doMET else "")
+        self.doSyst = doSyst
+        self.metcollection = metcollection
+
+    def init(self):
+
+        JMEFactory.loadJME(self.doMET, self.era, self.subera, self.jetAlgo, self.isData, self.splitJER, self.uncSources, self.suffix)
+        self._init = True
+
+    def _attach(self, rdf) :
+        if not self._init:
+            self.init()
+
+        try:
+            rdf = rdf.Define(self.name, self.expr)
+            if self.doMET:
+                rdf = rdf.Redefine(f"{self.metcollection}_pt", f"{self.metcollection}_T1.pt(0)")
+                rdf = rdf.Redefine(f"{self.metcollection}_phi", f"{self.metcollection}_T1.phi(0)")
+
+                if self.doSyst:
+                    for obs in ["pt", "phi"]:
+                        njer = 1 if not self.splitJER else 6
+                        for ijer in range(njer):
+                            rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * ijer + 1, 2 * ijer + 2),
+                                           variationTags=["up", "down"], variationName="JER%s" % ijer)
+                        for isource, source in enumerate(self.uncSources):
+                            rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
+                                           variationTags=["up", "down"], variationName="JES%s" % source)
+                        rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (1 + 2 * njer + 2 * len(self.uncSources), 2 + 2 * njer + 2 * len(self.uncSources)),
+                                       variationTags=["up", "down"], variationName="Uncl")
+            else:
+                rdf = rdf.Redefine("Jet_pt", "ak4JetVars.pt(0)")
+                if self.doSyst:
+                    njer = 1 if not self.splitJER else 6
+                    for ijer in range(njer):
+                        rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * ijer + 1, 2 * ijer + 2),
+                                       variationTags=["up", "down"], variationName="JER%s" % ijer)
+                    for isource, source in enumerate(self.uncSources):
+                        rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
+                                       variationTags=["up", "down"], variationName="JES%s" % source)
+            return rdf
+
+        except BaseException:
+            print(f"ERROR attaching Define({self.name}, {self.expr}")
+            raise
