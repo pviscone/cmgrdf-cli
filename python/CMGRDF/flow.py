@@ -28,12 +28,13 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, suberas=None):
         self.name = name
         self.onMC = onMC
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
+        self.suberas = suberas
 
     def appliesTo(self, sample : Sample, era) -> bool:
         assert isinstance(sample, Sample)
@@ -47,6 +48,8 @@ class FlowStep(object):
             if not self.onDataDriven:
                 return False
         if self.eras and (era not in self.eras):
+            return False
+        if sample.subera and self.suberas and (sample.subera not in self.suberas):
             return False
         return True
 
