@@ -92,8 +92,24 @@ class JMEFactory(object):
 
 
 class JMEUncertaintiesDefine(Define):
-    def __init__(self, era, subera='', splitJER=False, uncSources=["Total"], isData=False, doMET=True,
+    def __init__(self, splitJER=False, uncSources=["Total"], doMET=True,
                  jetAlgo="AK4PFPuppi", metcollection="PuppiMET", doSyst=False, suffix="", **options):
+
+        if len(options['eras']) != 1:
+            raise RuntimeError("You cannot only call JMEUncertaintiesDefine for one era")
+        self.era=options['eras'][0]
+        
+        if 'suberas' not in options:
+            self.subera= ""
+        elif len(options['suberas']) != 1:
+            raise RuntimeError("You cannot call JMEUncertaintiesDefine for more than one subera")
+        else:
+            self.subera=options['suberas'][0]    
+
+            
+        if options['onMC'] and options[ 'onData']:
+            raise RuntimeError("JMEUncertaintiesDefine cannot be called both in MC and data mode")
+        
         if doMET:
             super().__init__(f"{metcollection}_T1",
                              f'''cmgJMECalc{suffix}_MET.produce(Jet_pt, Jet_eta, Jet_phi, Jet_mass,
@@ -107,10 +123,9 @@ class JMEUncertaintiesDefine(Define):
                              Raw{metcollection}_phi, Raw{metcollection}_pt,
                              CorrT1METJet_rawPt, CorrT1METJet_eta, CorrT1METJet_phi, CorrT1METJet_area,
                              CorrT1METJet_muonSubtrFactor, CorrT1METJet_neEmEF, CorrT1METJet_chEmEF,
-                             {metcollection}_ptUnclusteredUp*TMath::Cos({metcollection}_phiUnclusteredUp)-{metcollection}_pt*TMath::Cos({metcollection}_phi),
-                             {metcollection}_ptUnclusteredUp*TMath::Sin({metcollection}_phiUnclusteredUp)-{metcollection}_pt*TMath::Sin({metcollection}_phi)
-                             )''',
-                             onData=isData, onDataDriven=isData, eras=[era], **options)
+                             {metcollection}_MetUnclustEnUpDeltaX,
+                             {metcollection}_MetUnclustEnUpDeltaY)''',
+                             **options)
         else:
             super().__init__("ak4JetVars",
                              f'''cmgJMECalc{suffix}.produce(Jet_pt, Jet_eta, Jet_phi, Jet_mass,
@@ -120,13 +135,11 @@ class JMEUncertaintiesDefine(Define):
                              Jet_partonFlavour,
                              42,
                              GenJet_pt, GenJet_eta, GenJet_phi,GenJet_mass)''',
-                             onData=isData, onDataDriven=isData, eras=[era], **options)
-        self.era = era
-        self.subera = subera
+                             **options)
+
         self._init = False
         self.splitJER = splitJER
         self.uncSources = uncSources
-        self.isData = isData
         self.doMET = doMET
         self.jetAlgo = jetAlgo
         self.suffix = suffix + ("_MET" if self.doMET else "")
@@ -135,7 +148,7 @@ class JMEUncertaintiesDefine(Define):
 
     def init(self):
 
-        JMEFactory.loadJME(self.doMET, self.era, self.subera, self.jetAlgo, self.isData, self.splitJER, self.uncSources, self.suffix)
+        JMEFactory.loadJME(self.doMET, self.era, self.subera, self.jetAlgo, self.onData, self.splitJER, self.uncSources, self.suffix)
         self._init = True
 
     def _attach(self, rdf) :
