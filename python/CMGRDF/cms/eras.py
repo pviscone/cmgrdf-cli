@@ -1,16 +1,29 @@
 from CMGRDF.utils import NormUncertainty
 
 ## Eras for Run2 (UL)
-run2eras = ["2016pre", "2016post", "2017", "2018"]
+run2eras = ["2016", "2016APV", "2017", "2018"]
+run3eras = ["2022", "2022EE"]
 
-run2lumi = {
-    "2016": 36.31,
-    "2016pre": 19.50,
-    "2016post": 16.81,
+lumis = {
+    "2016APV": 19.50,
+    "2016": 16.81,
     "2017": 41.48,
     "2018": 59.83,
-    "all": 137.62
+    "2022": (4.943 + 2.922),
+    "2022EE":  (5.672 + 17.610 + 3.055),
 }
+
+
+suberas_perera={
+    "2022"    : "C,D".split(","),
+    "2022EE"  : "E,F,G".split(","),
+    "2018"    : "A,B,C,D".split(","),
+    "2016"    : "F,G,H".split(","),
+    "2017"    : "B,C,D,E,F".split(","),
+    "2016APV" : "B,C,D,E,F".split(","),
+}
+
+
 
 # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun2 (Rev2)
 lumiUncertainties = [
@@ -27,8 +40,4 @@ lumiUncerty2016 = NormUncertainty("CMS_lumi", 1.012)
 lumiUncerty2017 = NormUncertainty("CMS_lumi", 1.023)
 lumiUncerty2018 = NormUncertainty("CMS_lumi", 1.025)
 
-run3eras = ["2022", "2022EE"]
-run3lumis = {"2022": (4.943 + 2.922),
-             "2022EE": (5.672 + 17.610 + 3.055)}
-run3lumisCGonly = {"2022": 4.943,
-                   "2022EE": 3.055}
+
