@@ -87,7 +87,6 @@ class JMEFactory(object):
             if cls._ids[f'cmgJMECalc{suffix}'] != declareexpr:
                 raise RuntimeError(f"You have tried to declare two different objects with same cmgJMECalc{suffix}. You have to change the code logic")
         else:
-            print( declareexpr)
             ROOT.gInterpreter.Declare(declareexpr)
             cls._ids[f'cmgJMECalc{suffix}'] = declareexpr
 
