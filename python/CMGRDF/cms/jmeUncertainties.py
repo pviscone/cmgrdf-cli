@@ -10,7 +10,7 @@ from CMSJMECalculators import config as calcConfigs
 
 jecTags = {
     '2016'   : 'Summer19UL16_V7_MC',
-    '2016APV': 'Summer19UL16_V7_MC',
+    '2016APV': 'Summer19UL16APV_V7_MC',
     '2017'   : 'Summer19UL17_V5_MC',
     '2018'   : 'Summer19UL18_V5_MC',
     '2022'   : 'Summer22_22Sep2023_V2_MC',
@@ -87,6 +87,7 @@ class JMEFactory(object):
             if cls._ids[f'cmgJMECalc{suffix}'] != declareexpr:
                 raise RuntimeError(f"You have tried to declare two different objects with same cmgJMECalc{suffix}. You have to change the code logic")
         else:
+            print( declareexpr)
             ROOT.gInterpreter.Declare(declareexpr)
             cls._ids[f'cmgJMECalc{suffix}'] = declareexpr
 
