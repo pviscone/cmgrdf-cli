@@ -32,7 +32,7 @@ class DefineSkimmedCollection(FlowStep):
     def __init__(self,
                  name : str,
                  srcColl : str,
-                 members : "list[str]",
+                 members : "list[str]" = None,
                  optMembers : "list[str]" = [],
                  cut : str = None,
                  mask : str = None,
@@ -56,6 +56,8 @@ class DefineSkimmedCollection(FlowStep):
                 self.cut, self.mask, self.indices)
 
     def _attach(self, rdf):
+        if self.members is None:
+            self.members = [branch.c_str().split(self.srcColl,1)[1] for branch in rdf.GetColumnNames() if branch.c_str().startswith(f"{self.srcColl}_")]
         if self.cut:
             rdf = rdf.Define(self.mask, self.cut)
         if self.mask:
