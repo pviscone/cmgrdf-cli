@@ -6,8 +6,12 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gSystem.Load("libCMGRDF.so")
 ROOT.gInterpreter.ProcessLine(".O3")
 ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${CMGRDF}/include"))
+
 ROOT.gInterpreter.ProcessLine('#include "functions.h"')
 ROOT.gInterpreter.ProcessLine('#include "jsonFilter.h"')
+if "ONNXRUNTIME" in os.environ:
+    ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${ONNXRUNTIME}/include"))
+    ROOT.gInterpreter.ProcessLine('#include "OnnxDNNEvaluator.h"')
 
 from CMGRDF.utils import MultiKey, MultiReport, localOrEOS, NormUncertainty
 from CMGRDF.data import Source, MCSample, MCGroup, DataDrivenSample, DataSample, Process, Data
