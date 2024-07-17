@@ -89,8 +89,8 @@ env:
 	   echo 'export LD_LIBRARY_PATH=$${CORRECTIONLIB}/lib:$${LD_LIBRARY_PATH};' && \
 	   echo 'export PYTHONPATH=$${CORRECTIONLIB}:$${PYTHONPATH};' || \
 	   true;	   
-	@test -d $(MAIN_DIR)/externals/onnxruntime-linux-x64-1.11.1 && \
-	   echo 'export ONNXRUNTIME=$${CMGRDF}/externals/onnxruntime-linux-x64-1.11.1;' && \
+	@test -d $(MAIN_DIR)/externals/onnxruntime-linux-x64-1.18.1 && \
+	   echo 'export ONNXRUNTIME=$${CMGRDF}/externals/onnxruntime-linux-x64-1.18.1;' && \
 	   echo 'export LD_LIBRARY_PATH=$${ONNXRUNTIME}/lib:$${LD_LIBRARY_PATH};'  || \
 	   true;
 
