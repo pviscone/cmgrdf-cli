@@ -11,7 +11,7 @@ class DefineFromCollection(FlowStep):
         self.members=members
         self.srcColl=srcColl
         self.index=index
-        if len([x for x in (index) if x is not None]) != 1:
+        if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
 
