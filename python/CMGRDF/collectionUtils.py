@@ -17,14 +17,18 @@ class DefineFromCollection(FlowStep):
 
     def _attach(self, rdf):
         if self.members is None:
-            self.members = [branch.c_str().split(self.srcColl,1)[1] for branch in rdf.GetColumnNames() if branch.c_str().startswith(f"{self.srcColl}_")]
+            self.members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
+                            if branch.c_str().startswith(f"{self.srcColl}_") or branch.c_str().startswith(f"Friends.{self.srcColl}_")]
+            self.members=list(dict.fromkeys(self.members)) #Remove duplicates
+
 
         for m in self.members:
             try:
-                return rdf.Define(f"{self.name}_{m}", f"{self.srcColl}_{m}[{self.index}]")
+                rdf=rdf.Define(f"{self.name}_{m}", f"{self.srcColl}_{m}[{self.index}]")
             except BaseException:
                 print(f"ERROR attaching Define({self.name}, {self.srcColl}_{m}[{self.index}]")
                 raise
+        return rdf
 
 class DefineSkimmedCollection(FlowStep):
     """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
@@ -57,7 +61,9 @@ class DefineSkimmedCollection(FlowStep):
 
     def _attach(self, rdf):
         if self.members is None:
-            self.members = [branch.c_str().split(self.srcColl,1)[1] for branch in rdf.GetColumnNames() if branch.c_str().startswith(f"{self.srcColl}_")]
+            self.members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
+                            if branch.c_str().startswith(f"{self.srcColl}_") or branch.c_str().startswith(f"Friends.{self.srcColl}_")]
+            self.members=list(dict.fromkeys(self.members)) #Remove duplicates
         if self.cut:
             rdf = rdf.Define(self.mask, self.cut)
         if self.mask:
