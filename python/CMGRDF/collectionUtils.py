@@ -4,13 +4,15 @@ from CMGRDF.utils import _recursiveAddToHash
 
 class DefineFromCollection(FlowStep):
     """Define new scalar branchs looping over the members of a collection.
-    Index can be an explicit index or a string with the name of the index branch (ex. 0 or LepGood_photonIdx[0])"""
+    Index can be an explicit index or a string with the name of the index branch (ex. 0 or LepGood_photonIdx[0])
+    (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
+    """
 
     def __init__(self, name, srcColl, members : "list[str]" = None, index = None, **options):
         super().__init__(name, **options)
         self.members=members
         self.srcColl=srcColl
-        self.index=index
+        self.index=str(index)
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
