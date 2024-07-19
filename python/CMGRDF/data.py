@@ -184,6 +184,7 @@ class Sample(object):
         self.isDataDriven = False
         self.isData = False
         self.normUncertainties = NormUncertainty.parse(normUncertainty, "norm_" + name)
+        self.process=None
 
     def source(self, era=None) -> Source:
         if era is not None:
@@ -399,6 +400,11 @@ class Process(object):
         self.isData = False
         self.isSignal = signal
         self.normUncertainties = NormUncertainty.parse(normUncertainty, "norm_" + name)
+        for s in self.samples:
+            if s.process is None:
+                s.process = self.name
+            else:
+                raise RuntimeError(f"Sample {s.name} is already associated to the process {s.process}")
 
     def getOpt(self, name, default=None):
         return getattr(self, name, default)
