@@ -73,6 +73,20 @@ class FlowStep(object):
     def _addToHash(self, hasher):
         _recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
 
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name})\033[0m\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.process:
+            out += f"\tprocess: {self.process}\n"
+        return out
+
+    @property
+    def show(self):
+        print(self)
+
+
 
 class SimpleExprFlowStep(FlowStep):
     """ A Flow step which is fully defined by a single expression.
@@ -93,6 +107,15 @@ class SimpleExprFlowStep(FlowStep):
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
         _recursiveAddToHash(self.expr, hasher)
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.expr})\033[0m\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.process:
+            out += f"\tprocess: {self.process}\n"
+        return out
 
 
 class Cut(SimpleExprFlowStep):
@@ -423,6 +446,18 @@ class Flow(object):
         if not found:
             raise RuntimeError("Not found step %s in flow %s" % (name, self.name))
         return self
+
+
+    def __str__(self):
+        out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
+        for idx,s in enumerate(self.steps):
+            out +=f"\t{idx+1}. {s.__str__()}\n"
+        return out
+
+    @property
+    def show(self):
+        print(self)
+
 
 
 class Target(object):
