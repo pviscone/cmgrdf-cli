@@ -1,4 +1,5 @@
 import copy
+import re
 import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
@@ -28,18 +29,24 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, process=None):
+        if process and not onMC:
+            raise RuntimeError("Cannot specify process pattern for a non-MC step")
+
         self.name = name
         self.onMC = onMC
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
+        self.process = process #regex pattern
 
     def appliesTo(self, sample : Sample, era) -> bool:
         assert isinstance(sample, Sample)
         if sample.isMC:
             if not self.onMC:
                 return False
+            elif self.process:
+                return bool(re.match(self.process,sample.process))
         elif sample.isData:
             if not self.onData:
                 return False
