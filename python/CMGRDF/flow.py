@@ -457,6 +457,9 @@ class Flow(object):
     def __add__(self, other_flow):
         return Flow(f"{self.name}+{other_flow.name}",[*self.steps,*other_flow.steps])
 
+    def __getitem__(self,key):
+        return self.steps[key]
+
     def __str__(self):
         out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
         for idx,s in enumerate(self.steps):
