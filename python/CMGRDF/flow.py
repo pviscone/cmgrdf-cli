@@ -29,8 +29,8 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, process=None):
-        if process and not onMC:
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, sample=None):
+        if sample and not onMC:
             raise RuntimeError("Cannot specify process pattern for a non-MC step")
 
         self.name = name
@@ -38,15 +38,15 @@ class FlowStep(object):
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
-        self.process = process #regex pattern
+        self.sample = sample #regex pattern
 
     def appliesTo(self, sample : Sample, era) -> bool:
         assert isinstance(sample, Sample)
         if sample.isMC:
             if not self.onMC:
                 return False
-            elif self.process:
-                return bool(re.match(self.process,sample.process))
+            elif self.sample:
+                return bool(re.match(self.sample,sample.name))
         elif sample.isData:
             if not self.onData:
                 return False
