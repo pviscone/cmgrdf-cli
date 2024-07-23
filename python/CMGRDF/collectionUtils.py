@@ -70,7 +70,7 @@ class DefineSkimmedCollection(FlowStep):
             self.members=list(dict.fromkeys(self.members)) #Remove duplicates
         if self.cut:
             rdf = getattr(rdf,self.rdf_func)(self.mask, self.cut)
-        elif self.mask:
+        if self.mask:
             rdf = getattr(rdf,self.rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
