@@ -31,7 +31,7 @@ class FlowStep(object):
 
     def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, sample=None):
         if sample and not onMC:
-            raise RuntimeError("Cannot specify process pattern for a non-MC step")
+            raise RuntimeError("Cannot specify sample pattern for a non-MC step")
 
         self.name = name
         self.onMC = onMC
