@@ -85,8 +85,8 @@ class FlowStep(object):
         out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
         if self.eras:
             out += f"\teras: {self.eras}\n"
-        if self.process:
-            out += f"\tprocess: {self.process}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
         return out
 
     @property
@@ -120,8 +120,8 @@ class SimpleExprFlowStep(FlowStep):
         out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
         if self.eras:
             out += f"\teras: {self.eras}\n"
-        if self.process:
-            out += f"\tprocess: {self.process}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
         return out
 
 
