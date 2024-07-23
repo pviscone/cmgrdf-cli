@@ -19,12 +19,13 @@ class DefineFromCollection(FlowStep):
 
     def _attach(self, rdf):
         if self.members is None:
-            self.members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
+            members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
                             if branch.c_str().startswith((f"{self.srcColl}_",f"Friends.{self.srcColl}_"))]
-            self.members=list(dict.fromkeys(self.members)) #Remove duplicates
+            members = list(dict.fromkeys(members)) #Remove duplicates
+        else:
+            members = self.members
 
-
-        for m in self.members:
+        for m in members:
             try:
                 rdf=rdf.Define(f"{self.name}_{m}", f"{self.srcColl}_{m}[{self.index}]")
             except BaseException:
@@ -65,9 +66,11 @@ class DefineSkimmedCollection(FlowStep):
 
     def _attach(self, rdf):
         if self.members is None:
-            self.members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
+            members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
                             if branch.c_str().startswith((f"{self.srcColl}_",f"Friends.{self.srcColl}_"))]
-            self.members=list(dict.fromkeys(self.members)) #Remove duplicates
+            members=list(dict.fromkeys(members)) #Remove duplicates
+        else:
+            members = self.members
         if self.cut:
             rdf = getattr(rdf,self.rdf_func)(self.mask, self.cut)
         if self.mask:
@@ -76,7 +79,7 @@ class DefineSkimmedCollection(FlowStep):
         elif self.indices:
             rdf = getattr(rdf,self.rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
-        for m in self.members:
+        for m in members:
             rdf = getattr(rdf,self.rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
         cols = set(rdf.GetColumnNames())
         for m in self.optMembers:
