@@ -33,6 +33,17 @@ class DefineFromCollection(FlowStep):
                 raise
         return rdf
 
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl},{self.index})\033[0m\n"
+        if self.members:
+            out += f"\tmembers: {self.members}\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
+
 class DefineSkimmedCollection(FlowStep):
     """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
 
@@ -95,6 +106,23 @@ class DefineSkimmedCollection(FlowStep):
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
         _recursiveAddToHash(self._params(), hasher)
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl})\033[0m\n"
+        if self.cut:
+            out += f"\tcut: {self.cut}\n"
+        if self.mask:
+            out += f"\tmask: {self.mask}\n"
+        elif self.indices:
+            out += f"\tindices: {self.indices}\n"
+        if self.members:
+            out += f"\tmembers: {self.members}\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
 
 
 class DefineP4(Define):
