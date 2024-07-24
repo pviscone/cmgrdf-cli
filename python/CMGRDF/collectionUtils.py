@@ -82,20 +82,25 @@ class DefineSkimmedCollection(FlowStep):
             members=list(dict.fromkeys(members)) #Remove duplicates
         else:
             members = self.members
+
+        cols = set(rdf.GetColumnNames())
+        rdf_func =  "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
+
         if self.cut:
-            rdf = getattr(rdf,self.rdf_func)(self.mask, self.cut)
+            rdf = getattr(rdf,rdf_func)(self.mask, self.cut)
         if self.mask:
-            rdf = getattr(rdf,self.rdf_func)(f"n{self.name}", f"Sum({self.mask})")
+            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
-            rdf = getattr(rdf,self.rdf_func)(f"n{self.name}", f"{self.indices}.size()")
+            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
         for m in members:
-            rdf = getattr(rdf,self.rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
-        cols = set(rdf.GetColumnNames())
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
+            rdf = getattr(rdf,rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
+
         for m in self.optMembers:
             if f"{self.srcColl}_{m}" in cols:
-                rdf = getattr(rdf,self.rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
+                rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
         return rdf
 
     def __eq__(self, other) -> bool:
