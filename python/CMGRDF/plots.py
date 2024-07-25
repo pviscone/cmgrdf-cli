@@ -30,7 +30,12 @@ class Plot(Target):
         self.type = typ
         if typ == "Histo1D":
             self._expr = args[0]
-            self._bins = args[1]
+            if isinstance(args[1], list):
+                self._bins= [float(e) for e in args[1]]
+            elif isinstance(args[1], tuple):
+                self._bins = tuple([float(e) if idx != 0 else int(e) for idx,e in enumerate(args[1])])
+            else:
+                raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto1D
             self.finish = self.finishHisto1D
             self.style = self.styleHisto1D
@@ -44,7 +49,12 @@ class Plot(Target):
             self._template = self._model.GetHistogram()
         elif typ == "Histo2D":
             self._expr = args[0]
-            self._bins = args[1]
+            if isinstance(args[1], list):
+                self._bins= [[float(e) for e in ax] for ax in args[1]]
+            elif isinstance(args[1], tuple):
+                self._bins = tuple([float(e) if idx not in [0,3] else int(e) for idx,e in enumerate(args[1])])
+            else:
+                raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto2D
             self.finish = self.finishHisto2D
             self.style = self.styleHisto2D
