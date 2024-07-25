@@ -9,37 +9,37 @@ loadJMESystematicsCalculators()
 from CMSJMECalculators import config as calcConfigs
 
 jecTags = {
-    '2016'   : 'Summer19UL16_V7_MC',
+    '2016': 'Summer19UL16_V7_MC',
     '2016APV': 'Summer19UL16APV_V7_MC',
-    '2017'   : 'Summer19UL17_V5_MC',
-    '2018'   : 'Summer19UL18_V5_MC',
-    '2022'   : 'Summer22_22Sep2023_V2_MC',
-    '2022EE' : 'Summer22EE_22Sep2023_V2_MC',
+    '2017': 'Summer19UL17_V5_MC',
+    '2018': 'Summer19UL18_V5_MC',
+    '2022': 'Summer22_22Sep2023_V2_MC',
+    '2022EE': 'Summer22EE_22Sep2023_V2_MC',
 }
 
 jecTagsDATA = {
-    "2022C"   : "Summer22_22Sep2023_RunCD_V2_DATA",
-    "2022D"   : "Summer22_22Sep2023_RunCD_V2_DATA",
-    "2022EEE" : "Summer22EE_22Sep2023_RunE_V2_DATA",
-    "2022EEF" : "Summer22EE_22Sep2023_RunF_V2_DATA",
-    "2022EEG" : "Summer22EE_22Sep2023_RunG_V2_DATA",
+    "2022C": "Summer22_22Sep2023_RunCD_V2_DATA",
+    "2022D": "Summer22_22Sep2023_RunCD_V2_DATA",
+    "2022EEE": "Summer22EE_22Sep2023_RunE_V2_DATA",
+    "2022EEF": "Summer22EE_22Sep2023_RunF_V2_DATA",
+    "2022EEG": "Summer22EE_22Sep2023_RunG_V2_DATA",
     '2016APVB': 'Summer19UL16APV_RunBCD_V7_DATA',
     '2016APVC': 'Summer19UL16APV_RunBCD_V7_DATA',
     '2016APVD': 'Summer19UL16APV_RunBCD_V7_DATA',
     '2016APVE': 'Summer19UL16APV_RunEF_V7_DATA',
     '2016APVF': 'Summer19UL16APV_RunEF_V7_DATA',
-    '2016F'   : 'Summer19UL16_RunFGH_V7_DATA',
-    '2016G'   : 'Summer19UL16_RunFGH_V7_DATA',
-    '2016H'   : 'Summer19UL16_RunFGH_V7_DATA',
-    '2017B'   : 'Summer19UL17_RunB_V5_DATA',
-    '2017C'   : 'Summer19UL17_RunC_V5_DATA',
-    '2017D'   : 'Summer19UL17_RunD_V5_DATA',
-    '2017E'   : 'Summer19UL17_RunE_V5_DATA',
-    '2017F'   : 'Summer19UL17_RunF_V5_DATA',
-    '2018A'   : 'Summer19UL18_RunA_V5_DATA',
-    '2018B'   : 'Summer19UL18_RunB_V5_DATA',
-    '2018C'   : 'Summer19UL18_RunC_V5_DATA',
-    '2018D'   : 'Summer19UL18_RunD_V5_DATA',
+    '2016F': 'Summer19UL16_RunFGH_V7_DATA',
+    '2016G': 'Summer19UL16_RunFGH_V7_DATA',
+    '2016H': 'Summer19UL16_RunFGH_V7_DATA',
+    '2017B': 'Summer19UL17_RunB_V5_DATA',
+    '2017C': 'Summer19UL17_RunC_V5_DATA',
+    '2017D': 'Summer19UL17_RunD_V5_DATA',
+    '2017E': 'Summer19UL17_RunE_V5_DATA',
+    '2017F': 'Summer19UL17_RunF_V5_DATA',
+    '2018A': 'Summer19UL18_RunA_V5_DATA',
+    '2018B': 'Summer19UL18_RunB_V5_DATA',
+    '2018C': 'Summer19UL18_RunC_V5_DATA',
+    '2018D': 'Summer19UL18_RunD_V5_DATA',
 
 }
 
@@ -97,19 +97,18 @@ class JMEUncertaintiesDefine(Define):
 
         if len(options['eras']) != 1:
             raise RuntimeError("You cannot only call JMEUncertaintiesDefine for one era")
-        self.era=options['eras'][0]
-        
+        self.era = options['eras'][0]
+
         if 'suberas' not in options:
-            self.subera= ""
+            self.subera = ""
         elif len(options['suberas']) != 1:
             raise RuntimeError("You cannot call JMEUncertaintiesDefine for more than one subera")
         else:
-            self.subera=options['suberas'][0]    
+            self.subera = options['suberas'][0]
 
-            
-        if options['onMC'] and options[ 'onData']:
+        if options['onMC'] and options['onData']:
             raise RuntimeError("JMEUncertaintiesDefine cannot be called both in MC and data mode")
-        
+
         if doMET:
             super().__init__(f"{metcollection}_T1",
                              f'''cmgJMECalc{suffix}_MET.produce(Jet_pt, Jet_eta, Jet_phi, Jet_mass,
