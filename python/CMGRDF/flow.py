@@ -150,6 +150,21 @@ class ReDefine(SimpleExprFlowStep):
             raise
 
 
+class DefineOnlyIfMissing(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
+
+    def _attach(self, rdf):
+        try:
+            if self.name not in rdf.GetColumnNames():
+                return rdf.Define(self.name, self.expr)
+            else:  # do nothing
+                return rdf
+        except BaseException:
+            print(f"ERROR attaching DefineOnlyIfMissing({self.name}, {self.expr}")
+            raise
+
+
 class DefinePerSample(FlowStep):
     """Attaches a DefinePerSample node.
 
