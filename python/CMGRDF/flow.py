@@ -105,8 +105,6 @@ class SimpleExprFlowStep(FlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, **options)
         self.expr = expr
-        for k, v in options.items():
-            setattr(self, k, v)
 
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
