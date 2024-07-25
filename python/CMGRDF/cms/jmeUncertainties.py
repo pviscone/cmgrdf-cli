@@ -1,9 +1,6 @@
-import os
 import ROOT
 
-from CMGRDF.flow import Define, Vary
-from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
-from CMGRDF.cms.eras import run2eras
+from CMGRDF.flow import Define
 from CMSJMECalculators import loadJMESystematicsCalculators
 loadJMESystematicsCalculators()
 from CMSJMECalculators import config as calcConfigs
