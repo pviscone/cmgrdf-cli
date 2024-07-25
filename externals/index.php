@@ -207,8 +207,15 @@
 
           <form class="d-flex">
             <div class="input-group">
+              Image size:
+              &nbsp;
+              <div class="slidecontainer">
+                <input type="range" min="0.5" max="2" value="1" step="0.05" class="slider" id="myRange">
+              </div>
+              &nbsp;
               <input class="form-control" type="search" name="search" placeholder="Pattern(s)" aria-label="Search" value="<?php if (isset($_GET["search"])) echo htmlspecialchars($_GET["search"]); ?>">
               <button class="btn btn-outline-success" type="submit">Search</button>
+              &nbsp;
               <input type="checkbox"  name="regexp" <?php if ($_GET['regexp']) print "checked=\"checked\""?> >RegExp</input>
             </div>
           </form>
@@ -369,6 +376,68 @@
         });
       });
     </script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const slider = document.getElementById("myRange");
+  const cards = document.querySelectorAll("#plot-listing .card");
+  const cardHeaders = document.querySelectorAll("#plot-listing .card-header");
+  const cardFooters = document.querySelectorAll("#plot-listing .card-footer");
+
+  function adjustSizes() {
+    const multiplier = slider.value;
+    // Adjust card max-width
+    cards.forEach(card => {
+      const originalMaxWidth = card.dataset.originalMaxWidth;
+      const newMaxWidth = originalMaxWidth * multiplier;
+      card.style.maxWidth = `${newMaxWidth}px`;
+    });
+
+    // Adjust card-header font size
+    cardHeaders.forEach(header => {
+      const originalFontSize = header.dataset.originalFontSize;
+      const newFontSize = originalFontSize * multiplier;
+      header.style.fontSize = `${newFontSize}rem`;
+    });
+
+    // Adjust card-footer font size
+    cardFooters.forEach(footer => {
+      const originalFontSize = footer.dataset.originalFontSize;
+      const newFontSize = originalFontSize * multiplier;
+      footer.style.fontSize = `${newFontSize}rem`;
+    });
+  }
+
+  // Store the original max-width values for cards
+  cards.forEach(card => {
+    const style = window.getComputedStyle(card);
+    const maxWidth = parseFloat(style.maxWidth);
+    card.dataset.originalMaxWidth = maxWidth;
+  });
+
+  // Store the original font-size values for card-headers and card-footers
+  cardHeaders.forEach(header => {
+    const style = window.getComputedStyle(header);
+    const fontSize = parseFloat(style.fontSize);
+    header.dataset.originalFontSize = fontSize / 16; // convert to rem
+  });
+
+  cardFooters.forEach(footer => {
+    const style = window.getComputedStyle(footer);
+    const fontSize = parseFloat(style.fontSize);
+    footer.dataset.originalFontSize = fontSize / 16; // convert to rem
+  });
+
+  // Adjust sizes initially
+  adjustSizes();
+
+  // Add event listener to the slider
+  slider.addEventListener("input", adjustSizes);
+});
+</script>
+
+    
 
   </body>
 </html>
