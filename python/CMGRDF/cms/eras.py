@@ -10,19 +10,18 @@ lumis = {
     "2017": 41.48,
     "2018": 59.83,
     "2022": (4.943 + 2.922),
-    "2022EE":  (5.672 + 17.610 + 3.055),
+    "2022EE": (5.672 + 17.610 + 3.055),
 }
 
 
-suberas_perera={
-    "2022"    : "C,D".split(","),
-    "2022EE"  : "E,F,G".split(","),
-    "2018"    : "A,B,C,D".split(","),
-    "2016"    : "F,G,H".split(","),
-    "2017"    : "B,C,D,E,F".split(","),
-    "2016APV" : "B,C,D,E,F".split(","),
+suberas_perera = {
+    "2022": "C,D".split(","),
+    "2022EE": "E,F,G".split(","),
+    "2018": "A,B,C,D".split(","),
+    "2016": "F,G,H".split(","),
+    "2017": "B,C,D,E,F".split(","),
+    "2016APV": "B,C,D,E,F".split(","),
 }
-
 
 
 # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun2 (Rev2)
@@ -39,5 +38,3 @@ lumiUncertainties = [
 lumiUncerty2016 = NormUncertainty("CMS_lumi", 1.012)
 lumiUncerty2017 = NormUncertainty("CMS_lumi", 1.023)
 lumiUncerty2018 = NormUncertainty("CMS_lumi", 1.025)
-
-
