@@ -6,7 +6,6 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gSystem.Load("libCMGRDF.so")
 ROOT.gInterpreter.ProcessLine(".O3")
 ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${CMGRDF}/include"))
-
 ROOT.gInterpreter.ProcessLine('#include "functions.h"')
 ROOT.gInterpreter.ProcessLine('#include "jsonFilter.h"')
 if "ONNXRUNTIME" in os.environ:
