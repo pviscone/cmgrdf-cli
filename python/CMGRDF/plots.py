@@ -722,6 +722,8 @@ class PlotSetPrinter(object):
         c1._legend = leg
 
     def doRatioHists(self, pane, plot, nums, den, opts, locvars):
+        if plot.type not in ["Histo1D"]:
+            return
         doWide = locvars["doWide"]
         textSize = opts.smallTextSize
         pane.cd()
