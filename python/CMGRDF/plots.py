@@ -373,8 +373,12 @@ class PlotSetPrinter(object):
             # warn if negative values
             if opts.warnAboutNegativeBins:
                 warnAboutNegativeBins(hist, fullName)
-            if hist.Integral() <= 0:
-                continue
+            #if hist.Integral() <= 0:
+            #    continue
+            if outputTDir:
+                print("Writing to file", hist.GetName())
+                hist.writeToFile(outputTDir)
+
             if proc.isSignal and opts.noStackSignals:
                 plot.restyleAsOutline(hist)
                 outlines.append(hist)
@@ -386,8 +390,6 @@ class PlotSetPrinter(object):
                 plot.restyleAsOutline(hist)
                 stack.Add(hist.raw())
                 total.SetMaximum(max(total.GetMaximum(), 1.3 * hist.GetMaximum()))
-            if outputTDir:
-                hist.writeToFile(outputTDir)
             if opts.showErrors and not opts.stack:
                 hist.SetMarkerColor(hist.GetFillColor())
                 hist.SetMarkerStyle(21)
@@ -472,7 +474,6 @@ class PlotSetPrinter(object):
         if opts.stack:
             stack.Draw("SAME HIST")
             for o in outlines:
-                print("Drawing %s" % (o.GetName()))
                 o.Draw("SAME HIST")
             total.Draw("AXIS SAME")
         else:
