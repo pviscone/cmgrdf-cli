@@ -221,4 +221,10 @@ for fit in ("tight", "combined"):
     for key, plot in result_plots:
         plot.setPostFit(postFitSetup, applyIt=True)
         postfit.append(key, plot)
-    printer.printSet(postfit, f"plots/008/postfit_{fit}/{{flow}}")
+    printer.printSet(postfit, f"plots/008/postfit_{fit}_b/{{flow}}")
+    fitResultSB = fFitDiag.Get("fit_s")
+    postFitSetup = PostFitSetup(fitResult=fitResultSB)
+    for key, plot in result_plots:
+        plot.setPostFit(postFitSetup, applyIt=True)
+        postfit.append(key, plot)
+    printer.printSet(postfit, f"plots/008/postfit_{fit}_sb/{{flow}}")
