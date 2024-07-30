@@ -258,12 +258,21 @@ class PlotResult(object):
             self.initRooFit()
         return self._roofit
 
-    def setPostFit(self, posfit : PostFitSetup, applyIt : bool):
+    def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : str = "r"):
         if not self._roofit:
             self.initRooFit()
+        if signalPOI is not None and signalPOI != "":
+            poiVar = self._roofit.workspace.var(signalPOI)
+            if not poiVar:
+                poiVar = self._roofit.workspace.factory("%s[1]" % signalPOI)
+                poiVar.setConstant(False)
+                poiVar.removeRange()
+            self._roofitPOI = poiVar
         for (p, h) in self.histos:
             if not p.isData:
                 h.setPostFitInfo(posfit, applyIt)
+                if p.isSignal:
+                    h.addRooFitScaleFactor(self._roofitPOI)
         # remake totals
         self.fillTotals()
 

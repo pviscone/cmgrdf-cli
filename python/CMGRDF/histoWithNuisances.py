@@ -1274,7 +1274,11 @@ class SumWithNuisances(HistoWithNuisances):
         raise RuntimeError("Not supported")
 
     def writeToFile(self, tfile, writeVariations=True):
-        raise RuntimeError("Not implemented")
+        if writeVariations:
+            if not hasattr(SumWithNuisances, '_warnedAboutWriteToFile'):
+                print("WARNING: variations for %s can't be saved to file yet" % self.central.GetName())
+                SumWithNuisances._warnedAboutWriteToFile = True
+        tfile.WriteTObject(self.nominal, self.nominal.GetName())
 
     ## HistoWithNuisance API that we implement differently: variation names
     def hasVariations(self):
@@ -1379,8 +1383,10 @@ class SumWithNuisances(HistoWithNuisances):
             return 0 if symmetrize else (0, 0)
         if toadd == []:
             return 0 if symmetrize else (0, 0)
-        if toadd is not None or symmetrize is not None:
+        if toadd is not None:
             raise RuntimeError("Not implemented")
+        if not symmetrize:
+            print("WARNING: integralSystError for %s will be symmetrized as the asymmetric version is not yet implemented" % self.central.GetName())
         if "pdf" not in self._rooFit:
             self._makePdfAndNorm()
         if not self._postFit:
