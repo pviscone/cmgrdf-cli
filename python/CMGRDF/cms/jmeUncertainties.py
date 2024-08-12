@@ -1,9 +1,10 @@
 import ROOT
 
-from CMGRDF.flow import Define
+from CMGRDF.flow import Define, Cut
 from CMSJMECalculators import loadJMESystematicsCalculators
 loadJMESystematicsCalculators()
 from CMSJMECalculators import config as calcConfigs
+from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 
 jecTags = {
     '2016': 'Summer19UL16_V7_MC',
@@ -37,7 +38,6 @@ jecTagsDATA = {
     '2018B': 'Summer19UL18_RunB_V5_DATA',
     '2018C': 'Summer19UL18_RunC_V5_DATA',
     '2018D': 'Summer19UL18_RunD_V5_DATA',
-
 }
 
 
@@ -51,13 +51,19 @@ jerTags = {
 }
 
 jsonMap = {
-    "2022EE" : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22EE/jet_jerc.json.gz",
-    "2022"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22/jet_jerc.json.gz",
-    "2018"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2018_UL/jet_jerc.json.gz",
-    "2017"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2017_UL/jet_jerc.json.gz",
-    "2016"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016postVFP_UL/jet_jerc.json.gz",
-    "2016APV": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016preVFP_UL/jet_jerc.json.gz"
+    "2022EE" : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22EE/",
+    "2022"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2022_Summer22/",
+    "2018"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2018_UL/",
+    "2017"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2017_UL/",
+    "2016"   : "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016postVFP_UL/",
+    "2016APV": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/2016preVFP_UL/"
 
+}
+
+
+jetVetoTags= { 
+    "2022"   : "Summer22_23Sep2023_RunCD_V1",
+    "2022EE" : "Summer22EE_23Sep2023_RunEFG_V1",
 }
 
 
@@ -67,7 +73,7 @@ class JMEFactory(object):
     @classmethod
     def loadJME(cls, doMET, era, subera, jetAlgo, isData, splitJER, uncSources, suffix):
         configCls = calcConfigs.METVariations if doMET else calcConfigs.JetVariations
-        config = configCls(jsonMap[era], jetAlgo)
+        config = configCls(jsonMap[era]+"/jet_jerc.json.gz", jetAlgo)
         config.jecTag = jecTagsDATA[era + subera] if isData else jecTags[era]
         config.jecLevel = "L1L2L3Res"
         config.splitJER = splitJER
@@ -183,3 +189,42 @@ class JMEUncertaintiesDefine(Define):
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")
             raise
+
+class JetVetoMapCut( Cut ):
+    def __init__(self, cutName, era,  **options):
+        super().__init__( cutName, f"passesJetVetoMap_{era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
+        self.era=era
+        self._fname = jsonMap[era] + '/jetvetomaps.json.gz'
+        self._corrName = jetVetoTags[era]
+        self._init=False
+
+    def init(self):
+        vetoMapId = CorrectionlibFactory.loadCorrector( self._fname, self._corrName, check=True)[0]
+        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta, 
+                                                                  const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
+                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF, 
+                                                                  const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
+        bool ret=true;
+        for (int ijet=0; ijet<Jet_pt.size(); ++ijet){
+             if (<correctionname>->evaluate({"jetvetomap", TMath::Max( -5.0f, TMath::Min(5.0f, Jet_eta.at(ijet))), TMath::Max( -3.14f, TMath::Min(3.14f, Jet_phi.at(ijet)))}) == 0) continue;
+             if (Jet_pt.at(ijet) < 15.) continue;
+             if (Jet_jetId.at(ijet) < 2) continue;
+             if (Jet_neEmEF.at(ijet)+Jet_neHEF.at(ijet) > 0.9) continue;
+             bool overlaps=false;
+             for (int imuo=0; imuo<Muon_eta.size(); ++imuo){ // see if it overlaps with a PF muon
+                 if ( deltaR2(Muon_eta.at(imuo), Muon_phi.at(imuo), Jet_eta.at(ijet), Jet_phi.at(ijet)) > 0.04) continue;
+                 if ( !Muon_isPFcand.at(imuo) ) continue;
+                 overlaps=true;
+                 break;
+             }
+             if (!overlaps) ret=false;
+             if (!ret) break;
+        }
+        return ret;
+}'''.replace("<era>", self.era).replace("<correctionname>", vetoMapId))
+        self._init=True
+    def _attach(self, rdf):
+        if not self._init:
+            self.init()
+        return super()._attach( rdf )
+                                  
