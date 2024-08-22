@@ -76,8 +76,17 @@ class Plot(Target):
     def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
-        #print("Will create a new expression for plot "+self.name)
-        rdf2 = rdf.Define(name, expr)
+        #If in the expression there is an array access, we need to filter the events
+        #to avoid out of bound errors (mostly 0s)
+        #(e.g.) Electron_pt[0] -> Filter(Electron.size() > 0) before defining
+        branch_idx_pair = re.findall(r'(\w+)\[(\d+)\]', expr)
+        if bool(branch_idx_pair):
+            branch,idx=branch_idx_pair[0]
+            rdf2 = rdf.Filter(f"{branch}.size() > {idx}")
+            rdf2 = rdf2.Define(name, expr)
+        else:
+            #print("Will create a new expression for plot "+self.name)
+            rdf2 = rdf.Define(name, expr)
         rdf2._from = rdf
         return (rdf2, name)
 
