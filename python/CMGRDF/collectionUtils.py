@@ -27,11 +27,13 @@ class DefineFromCollection(FlowStep):
         else:
             members = self.members
 
+        cols = set(rdf.GetColumnNames())
         for m in members:
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
             try:
-                rdf=getattr(rdf,self.rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
+                rdf=getattr(rdf, rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
             except BaseException:
-                print(f"ERROR attaching Define({self.name}, {self.srcColl}_{m}[{self.index}]")
+                print(f"ERROR attaching {rdf_func}({self.name}, {self.srcColl}_{m}[{self.index}]")
                 raise
         return rdf
 
