@@ -104,7 +104,11 @@ class SimpleExprFlowStep(FlowStep):
 
     def __init__(self, name, expr, **options):
         super().__init__(name, **options)
-        self.expr = expr
+        #If the expression contains and a direct access to a branch, convert it to the at method
+        #to raise an error in case of out of range access
+        direct_access_pattern = r"(\w+)\[(\d+)\]"
+        at_method_pattern = r"\1.at(\2)"
+        self.expr = re.sub(direct_access_pattern, at_method_pattern, str(expr))
 
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
