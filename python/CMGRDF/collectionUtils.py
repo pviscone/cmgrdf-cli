@@ -13,13 +13,13 @@ class DefineFromCollection(FlowStep):
         super().__init__(name, **options)
         self.members=members
         self.srcColl=srcColl
-        self.index=str(index)
         self.rdf_func = "Redefine" if redefine else "Define"
 
-        idx_rvec_access=re.findall(r"(\w+)\[(\d+)\]",self.index)
-        if bool(idx_rvec_access):
-            #Avoid direct access to the index branch, use at that performs bounds checking
-            self.index = f"{idx_rvec_access[0][0]}.at({idx_rvec_access[0][1]})"
+        #If in index there is a direct access to a branch, convert it to the at method
+        #to raise an error in case of out of range access
+        direct_access_pattern = r"(\w+)\[(\d+)\]"
+        at_method_pattern = r"\1.at(\2)"
+        self.index = re.sub(direct_access_pattern, at_method_pattern, str(index))
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
