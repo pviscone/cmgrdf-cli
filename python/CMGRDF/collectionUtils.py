@@ -1,4 +1,3 @@
-import re
 from typing import Optional, Union
 from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
@@ -12,14 +11,10 @@ class DefineFromCollection(FlowStep):
     def __init__(self, name, srcColl, members : "list[str]" = None, index = None, redefine=False, **options):
         super().__init__(name, **options)
         self.members=members
+        self.index = index
         self.srcColl=srcColl
         self.rdf_func = "Redefine" if redefine else "Define"
 
-        #If in index there is a direct access to a branch, convert it to the at method
-        #to raise an error in case of out of range access
-        direct_access_pattern = r"(\w+)\[(\d+)\]"
-        at_method_pattern = r"\1.at(\2)"
-        self.index = re.sub(direct_access_pattern, at_method_pattern, str(index))
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
