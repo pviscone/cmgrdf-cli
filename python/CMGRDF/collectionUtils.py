@@ -1,3 +1,4 @@
+import re
 from typing import Optional, Union
 from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
@@ -14,6 +15,11 @@ class DefineFromCollection(FlowStep):
         self.srcColl=srcColl
         self.index=str(index)
         self.rdf_func = "Redefine" if redefine else "Define"
+
+        idx_rvec_access=re.findall(r"(\w+)\[(\d+)\]",self.index)
+        if bool(idx_rvec_access):
+            #Avoid direct access to the index branch, use at that performs bounds checking
+            self.index = f"{idx_rvec_access[0][0]}.at({idx_rvec_access[0][1]})"
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
