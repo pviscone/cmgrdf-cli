@@ -8,11 +8,12 @@ class DefineFromCollection(FlowStep):
     (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
     """
 
-    def __init__(self, name, srcColl, members : "list[str]" = None, index = None, **options):
+    def __init__(self, name, srcColl, members : "list[str]" = None, index = None, redefine=False, **options):
         super().__init__(name, **options)
         self.members=members
         self.srcColl=srcColl
         self.index=str(index)
+        self.rdf_func = "Redefine" if redefine else "Define"
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
@@ -27,7 +28,7 @@ class DefineFromCollection(FlowStep):
 
         for m in members:
             try:
-                rdf=rdf.Define(f"{self.name}_{m}", f"{self.srcColl}_{m}[{self.index}]")
+                rdf=getattr(rdf,self.rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
             except BaseException:
                 print(f"ERROR attaching Define({self.name}, {self.srcColl}_{m}[{self.index}]")
                 raise
