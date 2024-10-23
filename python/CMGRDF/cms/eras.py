@@ -26,14 +26,15 @@ suberas_perera = {
 
 # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun2 (Rev2)
 lumiUncertainties = [
-    NormUncertainty("CMS_lumi_run2_Correlated", 1.006, eras=["2016", "2016pre", "2016post"]),
+    NormUncertainty("CMS_lumi_run2_Correlated", 1.006, eras=["2016", "2016APV"]),
     NormUncertainty("CMS_lumi_run2_Correlated", 1.009, eras=["2017"]),
     NormUncertainty("CMS_lumi_run2_Correlated", 1.020, eras=["2018"]),
     NormUncertainty("CMS_lumi_run2_Correlated1718", 1.006, eras=["2017"]),
     NormUncertainty("CMS_lumi_run2_Correlated1718", 1.002, eras=["2018"]),
-    NormUncertainty("CMS_lumi_2016", 1.010, eras=["2016", "2016pre", "2016post"]),
+    NormUncertainty("CMS_lumi_2016", 1.010, eras=["2016APV", "2016"]),
     NormUncertainty("CMS_lumi_2017", 1.020, eras=["2017"]),
     NormUncertainty("CMS_lumi_2018", 1.015, eras=["2018"]),
+    NormUncertainty("CMS_lumi_2022", 1.014, eras=["2022", "2022EE"]), # will probably need to be updated
 ]
 lumiUncerty2016 = NormUncertainty("CMS_lumi", 1.012)
 lumiUncerty2017 = NormUncertainty("CMS_lumi", 1.023)
