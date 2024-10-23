@@ -12,10 +12,6 @@ class GenWeightProvider {
 public:
   GenWeightProvider() {}
 
-  bool addSample(const std::string &name,
-                 const std::vector<std::string> &files,
-                 const std::string &genSumName = "_auto_",
-                 bool warn = false);
   bool addSampleWithSum(const std::string &name,
                         const std::vector<std::string> &files,
                         const std::string &genSumName,
@@ -119,13 +115,6 @@ public:
 private:
   std::mutex mutex_;
 
-  struct LazySum {
-    ROOT::RDataFrame rdf;
-    ROOT::RDF::RResultPtr<double> sum;
-    LazySum(const std::string &genSumName, const std::vector<std::string> &files)
-        : rdf("Runs", files), sum(rdf.Sum(genSumName == "_auto_" ? autoSum(rdf) : genSumName)) {}
-    static std::string autoSum(ROOT::RDataFrame &rdf);
-  };
 
   struct Sample {
     std::string name;
@@ -151,17 +140,12 @@ private:
       weightSumAvailable = true;
     }
 
-    std::unique_ptr<LazySum> lazySum;
-    bool bookLazySum();
-    const ROOT::RDF::RResultPtr<double> &lazyHandle();
-    void doneLazy();
   };
 
   std::vector<Sample> samples_;
   std::unordered_map<std::string, int> file2sample_;
   std::unordered_map<std::string, int> name2sample_;
 
-  static void computeSumNow(Sample &sample) { sample.setSum(LazySum(sample.sumName, sample.files).sum.GetValue()); }
 
   static void computeOldStyle(Sample &sample);
 };

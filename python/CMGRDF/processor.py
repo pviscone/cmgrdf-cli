@@ -5,7 +5,6 @@ from typing import Any, List, Sequence, Tuple, Union
 from enum import Enum
 
 import ROOT
-from CMGRDF.GenWeightProvider import GenWeightProvider
 from CMGRDF.histoWithNuisances import HistoWithNuisances, YieldWithNuisances, mergePlots
 from CMGRDF.utils import MultiKey, MultiReport, safeName
 from CMGRDF.data import Source, Process
@@ -77,7 +76,6 @@ class Processor(object):
 
     def __init__(self, cache=None):
         self._trees = dict()  # type: dict[Source,_Branch]
-        self._summer = GenWeightProvider(cache=cache)
         self._lumiMap = dict()  # type: dict[MultiKey, float]
         self._cache = cache
         self._toCache = dict()
@@ -103,7 +101,7 @@ class Processor(object):
         tree = self._trees[source]
         if flow:
             for step in flow.steps:
-                tree = tree.maybeBranch(step, verbose=verbose)
+                tree = tree.maybeBranch(step, verbose=False)
             tree = tree.maybeBranch(ComputeTotalWeight(), verbose=verbose)
         return tree
 
@@ -122,31 +120,34 @@ class Processor(object):
         self._state = Processor.State.Booked
         self._rawResults = None  # invalidate existing results
         t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._futures))
+        n0 = len(self._futures)
+
         if eras is None:
             eras = [None]
             lumi = {None: lumi}
         for p in processes:
             for s in p.samples:
                 if s.isMC and s.genWeightName is not None:
-                    s.bookSumWeight(self._summer, eras)
+                    s.bookSumWeight(eras)
         if isinstance(flows, Flow):
             flows = [flows]
         if isinstance(targets, Target):
             targets = [targets]
         futuresToVary = []
+
         for flow in flows:
             for era in eras:
                 self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = lumi[era]
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
                     for sample in proc.samples:
+                    
                         src = sample.source(era)
                         if not src:
                             continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
+                            sflow = sample.customizeFlow(flow.clone(), lumi[era],  era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         branch = self._growBranch(src, sflow)
@@ -167,7 +168,7 @@ class Processor(object):
                                 if t not in branch.leaves:
                                     branch.leaves[t] = t.attach(branch.rdf(), sample, era)
                                 fut = branch.leaves[t]
-                                if withUncertainties and branch.hasUncertainties():
+                                if withUncertainties and branch.hasUncertainties() and sample.isVariationFrom is None:
                                     # postpone to all at the end, to avoid multiple JITs
                                     futuresToVary.append((plotKey, proc, sample, t, fut))
                                 elif isinstance(t, Yield):
@@ -179,23 +180,24 @@ class Processor(object):
         for (plotKey, proc, sample, t, fut) in futuresToVary:
             futvars = t.bookVariations(fut)
             self._futures.append((plotKey, proc, sample, t, fut, futvars))
+        n1 = len(self._futures)
         t1 = time.perf_counter()
-        n1 = (self._summer.nSamples(), len(self._futures))
+
         if logPerformance:
-            print("Booked %d sums and %d targets in %.3fs" % ((n1[0] - n0[0]), (n1[1] - n0[1]), t1 - t0))
+            print("Booked %d targets in %.3fs" % (n1 - n0, t1 - t0))
         return self
 
     def bookCutFlow(self, processes : List[Process], lumi, flows : Union[Flow, List[Flow]], cutNames=None, eras=None, taskName="", withUncertainties=False, logPerformance=True):
         self._rawResults = None  # invalidate existing results
         t0 = time.perf_counter()
-        n0 = (self._summer.nSamples(), len(self._futures))
+        n0 = len(self._futures)
         if eras is None:
             eras = [None]
             lumi = {None: lumi}
         for p in processes:
             for s in p.samples:
                 if s.isMC:
-                    s.bookSumWeight(self._summer, eras)
+                    s.bookSumWeight( eras)
         if isinstance(flows, Flow):
             flows = [flows]
         futuresToVary = []
@@ -230,7 +232,7 @@ class Processor(object):
                                         if t not in wbranch.leaves:
                                             wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era)
                                         fut = wbranch.leaves[t]
-                                        if withUncertainties and branch.hasUncertainties():
+                                        if withUncertainties and branch.hasUncertainties() and sample.isVariationFrom is None:
                                             # postpone to all at the end, to avoid multiple JITs
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
                                         else:
@@ -241,9 +243,9 @@ class Processor(object):
             fvars = ROOT.RDF.Experimental.VariationsFor(fut)
             self._futures.append((plotKey, proc, sample, t, fut, fvars))
         t1 = time.perf_counter()
-        n1 = (self._summer.nSamples(), len(self._futures))
+        n1 = len(self._futures)
         if logPerformance:
-            print("Booked %d sums and %d targets in %.3fs" % ((n1[0] - n0[0]), (n1[1] - n0[1]), t1 - t0))
+            print("Booked %d targets in %.3fs" % (n1 - n0, t1 - t0))
         return self
 
     def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False, debug=False):
@@ -252,11 +254,7 @@ class Processor(object):
         if self._rawResults is None:
             self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
             t0 = time.perf_counter()
-            n0 = (self._summer.nSamples(), len(self._futures))
-            self._summer.runAll()
-            t0b = time.perf_counter()
-            if logPerformance:
-                print("Filled %d sums in %.3fs" % (n0[0], t0b - t0))
+            n0 = len(self._futures)
             # run the graphs
             if self._futures:
                 if debug:
@@ -266,7 +264,7 @@ class Processor(object):
                 ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
                 t1 = time.perf_counter()
                 if logPerformance:
-                    print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0], n0[1], t1 - t0, t1 - t0b))
+                    print("Filled %d targets in %.3fs" % (n0, t1 - t0))
             # finalize the plots
             ret = MultiReport()
             for (plotKey, proc, sample, target, future, fvars) in self._futures:
@@ -278,8 +276,25 @@ class Processor(object):
                     else:
                         self._cache.writePlot(self._toCache[plotKey], result, resvars)
                 ret.append(plotKey, (proc, sample, target, result, resvars))
+
+            externalVariations=[]
             for (plotKey, proc, sample, target, result, resvars) in self._fromCache:
-                ret.append(plotKey, (proc, sample, target, result, resvars))
+                if sample.isVariationFrom is None:
+                    ret.append(plotKey, (proc, sample, target, result, resvars))
+                else:
+                    externalVariations.append( (plotKey, (proc, sample, target, result)))
+            for plotKeyExtra, (procExtra, sampleExtra, targetExtra, resultExtra) in externalVariations:
+                foundNominal=0
+                for plotKeyNominal, (procNominal, sampleNominal, targetNominal, resultNominal, resvarsNominal) in ret:
+                    if sampleExtra.isVariationFrom[0] != sampleNominal: continue
+                    if targetNominal != targetExtra: continue
+                    resvarsNominal[isVariationFrom[1]]=resultExtra
+                    foundNominal=foundNominal+1
+                if foundNominal == 0:
+                    raise RuntimeError( f"Couldn't find nominal result for variation {plotKeyExtra}")
+                if foundNominal > 0:
+                    raise RuntimeError( f"Variation {plotKeyExtra} is assigned to more than one nominal result")
+                    
             self._rawResults = ret
         return self._rawResults
 

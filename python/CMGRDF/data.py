@@ -24,60 +24,69 @@ class Source(object):
         self.friends = friends
         self._bigHash = None
         self._bigHashNoFriends = None
+        self._metas=[]
 
     def createRDF(self, treeName="Events"):
+        metaInfo=ROOT.RDF.Experimental.RMetaData();
+        for meta in self._metas:
+            metaInfo.Add(meta[0], meta[1])
+        
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
                 if treeName == "Events":
                     assert (self.friends is None)  # not supported
-                ret = ROOT.RDataFrame(treeName, self.files[0] + "/*.root")
+                sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0]+'/*.root',metaInfo)
+                spec=ROOT.RDF.Experimental.RDatasetSpec()
+                spec.AddSample(sample)
+                ret = ROOT.RDataFrame(spec)
+
             else:
+                sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0], metaInfo)
+                spec=ROOT.RDF.Experimental.RDatasetSpec()
+                spec.AddSample(sample)
                 if treeName == "Events" and self.friends is not None:
-                    tfile = ROOT.TFile.Open(self.files[0])
-                    tree = tfile.Get(treeName)
                     for f in self.friends:
                         if isinstance(f, tuple):
-                            tree.AddFriend(f[0], f[1])
+                            spec.WithGlobalFriends(f[0],f[1])
                         elif isinstance(f, str):
-                            tree.AddFriend("Friends", f)
+                            spec.WithGlobalFriends("Friends", f)
                         else:
                             raise RuntimeError("Unsupported friend %r for %s" % (f, self))
-                    ret = ROOT.RDataFrame(tree)
-                    ret._tree = tree
-                    ret._tfile = tfile
-                else:
-                    ret = ROOT.RDataFrame(treeName, self.files[0])
+                ret = ROOT.RDataFrame(spec)
         else:
-            chain = ROOT.TChain(treeName)
-            for f in self.files:
-                chain.Add(f)
+            
+            sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files, metaInfo)
+            spec=ROOT.RDF.Experimental.RDatasetSpec()
+            spec.AddSample(sample)
+
             friendChains = []
             if treeName == "Events":
                 if self.friends is not None:
-                    #print("Creating friends for %s %s" % (treeName, self.longId()))
                     for i, files in enumerate(self.friends):
-                        #print(" -> creating chain for friend %d: %s" % (i+1,files[:2]))
                         ftname = "Friends"
                         if isinstance(files, tuple):
                             ftname = files[0]
                             files = files[1]
-                        fchain = ROOT.TChain(ftname)  # "iFriends%d" % (i+1))
-                        for f in files:
-                            fchain.Add(f)  # f"{f}?#{ftname}")
-                        chain.AddFriend(fchain)
-                        friendChains.append(fchain)
-            ret = ROOT.RDataFrame(chain)
-            ret._chain = chain
-            ret._friendChains = friendChains
-            #print("RDF for %s %s: chain %s, friends %s" % (treeName, self.longId(), chain, friendChains))
-        #print("RDF for %s %s: FO branches %s" % (treeName, self.longId(), [s for s in ret.GetColumnNames() if "FO" in str(s)]))
+                        spec.WithGlobalFriends(ftname, files)
+
+            ret = ROOT.RDataFrame(spec)
+        for meta in self._metas:
+            if type(meta[1]) == str: # when its a string, we are defining an existing branch
+                ret=ret.Define( meta[0], meta[1])
+            else:
+                ret=ret.DefinePerSample( meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")') # could implement other types
+
+
         return ret
 
     def __eq__(self, o : object) -> bool:
         if o.__class__ == Source:
-            return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends
+            return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends and self._metas == o._metas
         else:
             return id(self) == id(o)
+
+    def addMeta( self, field, value ):
+        self._metas.append( (field, value) )
 
     def bigHash(self, friends=True):
         if not self._bigHash:
@@ -144,7 +153,7 @@ class Sample(object):
        It can have hooks that modify the processing flow, and normalization uncertainties.
     """
 
-    def __init__(self, name : str, source, hooks=[], eras=None, subera=None, friends=None, normUncertainty=None, suffix="", **kwargs):
+    def __init__(self, name : str, source, hooks=[], eras=None, subera=None, friends=None, normUncertainty=None, suffix="", isVariationFrom=None, **kwargs):
         """source can be any 4 of the following:
              - a source object, if this sample doesn't have a list of eras
              - a dict (era -> Source) if this sample has a list of eras.
@@ -163,6 +172,8 @@ class Sample(object):
         self.eras = eras
         self.subera = subera
         self.suffix = suffix
+        self.isVariationFrom = isVariationFrom
+
         for k, v in kwargs.items():
             setattr(self, k, v)
         if self.eras:
@@ -242,14 +253,20 @@ class MCSample(Sample):
         self.genSumWeightName = genSumWeightName
         self.xsec = xsec
         self.isMC = True
+        if self.eras is None:
+            self.source().addMeta( "_xsec", self.xsec)
+        else:
+            for era in self.eras:
+                self.source(era).addMeta( "_xsec", self.xsec)
+            
+        
 
-    def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
+    def customizeFlow(self, flow, luminosity, era=None):
         flow2 = super().customizeFlow(flow, era=era)
-        from CMGRDF.flow import DefinePerSample, AddWeight
+        from CMGRDF.flow import AddWeight
         if self.genWeightName:
             return flow2.prepend(
-                DefinePerSample("genWeightSum", sumWeightProvider),
-                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, self.xsec, luminosity * 1000, getattr(self, "weight", 1))))
+                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
         else:
             return flow2.prepend(AddWeight("weight", self.weight))
 
@@ -257,8 +274,29 @@ class MCSample(Sample):
         assert ((self.eras is None) == (era is None))
         return self._genWeightSum[era]
 
-    def bookSumWeight(self, sumWeightProvider, eras):
-        sumWeightProvider.bookEras(self, eras)
+    def bookSumWeight(self, eras):
+        for era in eras:
+            src=self.source(era)
+            if src is None:
+                continue 
+            chain=ROOT.TChain("Runs")
+            for f in src.files:
+                chain.Add(f)
+            genSumWeightName=self.genSumWeightName
+            if genSumWeightName == "_auto_":
+                if chain.GetBranch("genEventSumw"):
+                    genSumWeightName="genEventSumw"
+                elif chain.GetBranch("genEventSumw_"):
+                    genSumWeightName="genEventSumw_"
+                else:
+                    raise RuntimeError("ERROR: can't find gen sum name in sample "+self.name)
+            chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
+            hist=ROOT.gROOT.FindObject( "htemp")
+            src.addMeta( "genWeightSum", hist.GetBinContent(1))
+            
+
+
+            
 
     def __str__(self):
         xsec_string = f", xsec = {self.xsec}" if self.xsec else ""
@@ -272,80 +310,64 @@ def _mergeEras(samples):
         return list(sorted(set([e for s in samples for e in s.eras])))  # use set to make unique
 
 
-def _mergeSources(name, samples):
-    eras = _mergeEras(samples)
-    if eras is None:
-        eras = [None]
-    sources = dict()
-    for e in eras:
-        files, friends = [], None
-        for s in samples:
-            src = s.source(e)
-            if src is None:
-                continue
-            files += src.files
-            if src.friends:
-                assert (len(src.files) == 1)  # this is not implemented for N(files)>1
-                assert (all(s2.source(e).friends for s2 in samples))
-                if friends is None:
-                    friends = [[f] for f in src.friends]
-                else:
-                    for i, f in enumerate(src.friends):
-                        friends[i].append(f)
-        sources[e] = Source(name, files, era=e, friends=friends)
-    return sources if eras != [None] else sources[None]
+# def _mergeSources(name, samples):
+#     eras = _mergeEras(samples)
+#     if eras is None:
+#         eras = [None]
+#     sources = dict()
+#     for e in eras:
+#         files, friends = [], None
+#         for s in samples:
+#             src = s.source(e)
+#             if src is None:
+#                 continue
+#             files += src.files
+#             if src.friends:
+#                 assert (len(src.files) == 1)  # this is not implemented for N(files)>1
+#                 assert (all(s2.source(e).friends for s2 in samples))
+#                 if friends is None:
+#                     friends = [[f] for f in src.friends]
+#                 else:
+#                     for i, f in enumerate(src.friends):
+#                         friends[i].append(f)
+#         sources[e] = Source(name, files, era=e, friends=friends)
+#     return sources if eras != [None] else sources[None]
 
 
-class MCGroup(Sample):
-    """A group of MC samples that are processed together unformly except for the normalization
-       from the genWeights, that is to be computed separately for each sample.
-       Useful e.g. for samples binned at gen level and that can be used all together.
-       This allows the framework to build a single RDF graph, and saves some overheads."""
+# class MCGroup(Sample):
+#     """A group of MC samples that are processed together unformly except for the normalization
+#        from the genWeights, that is to be computed separately for each sample.
+#        Useful e.g. for samples binned at gen level and that can be used all together.
+#        This allows the framework to build a single RDF graph, and saves some overheads."""
 
-    def __init__(self, name : str, samples : "list[MCSample]", moreHooks=[], extraWeight=None):
-        super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
-        self.samples = samples
-        self._hooks = samples[0]._hooks[:]
-        for s in samples[1:]:
-            assert (s._hooks == self._hooks)
-        self._hooks += moreHooks[:]
-        self.xsec = samples[0].xsec
-        if not all(s.xsec == self.xsec for s in samples[1:]):
-            if all(isinstance(s.xsec, float) for s in samples):
-                self.xsec = None
-                self.useRegisteredXSec = True
-            else:
-                raise RuntimeError(f"MCGroup supports different cross sections only if they are all plain numbers, while for {name} we have " + ", ".join([repr(s.xsec) for s in samples]))
-        else:
-            self.useRegisteredXSec = False
-        self.genWeightName = samples[0].genWeightName
-        for s in samples[1:]:
-            assert (s.genWeightName == self.genWeightName)
-        self.weight = getattr(samples[0], 'weight', 1)
-        for s in samples[1:]:
-            assert (getattr(s, 'weight', 1) == self.weight)
-        if extraWeight:
-            self.weight = "(%s)*(%s)" % (self.weight, extraWeight)
-        self.isMC = True
+#     def __init__(self, name : str, samples : "list[MCSample]", moreHooks=[], extraWeight=None):
+#         super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
+#         self.samples = samples
+#         self._hooks = samples[0]._hooks[:]
+#         for s in samples[1:]:
+#             assert (s._hooks == self._hooks)
+#         self._hooks += moreHooks[:]
+#         self.genWeightName = samples[0].genWeightName
+#         for s in samples[1:]:
+#             assert (s.genWeightName == self.genWeightName)
+#         self.weight = getattr(samples[0], 'weight', 1)
+#         for s in samples[1:]:
+#             assert (getattr(s, 'weight', 1) == self.weight)
+#         if extraWeight:
+#             self.weight = "(%s)*(%s)" % (self.weight, extraWeight)
+#         self.isMC = True
 
-    def customizeFlow(self, flow, luminosity, sumWeightProvider, era=None):
-        flow2 = super().customizeFlow(flow, era=era)
-        from CMGRDF.flow import DefinePerSample, AddWeight
-        if self.genWeightName:
-            if self.useRegisteredXSec:
-                return flow2.prepend(
-                    DefinePerSample("genWeightSum", sumWeightProvider),
-                    DefinePerSample("xsec", sumWeightProvider, "xsec"),
-                    AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "xsec", luminosity * 1000, getattr(self, "weight", 1))))
-            return flow2.prepend(
-                DefinePerSample("genWeightSum", sumWeightProvider),
-                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, self.xsec, luminosity * 1000, getattr(self, "weight", 1))))
-        else:
-            return flow2.prepend(AddWeight("weight", self.weight))
+#     def customizeFlow(self, flow, luminosity,  era=None):
+#         flow2 = super().customizeFlow(flow, era=era)
+#         from CMGRDF.flow import AddWeight
+#         if self.genWeightName:
+#             return flow2.prepend(AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
+#         else:
+#             return flow2.prepend(AddWeight("weight", self.weight))
 
-    def bookSumWeight(self, sumWeightProvider, eras):
-        for s in self.samples:
-            sumWeightProvider.bookEras(s, eras)
+#     def bookSumWeight(self, eras):
+#         for s in self.samples:
+#             s.bookSumWeight(eras)
 
 
 class DataDrivenSample(Sample):
