@@ -146,6 +146,19 @@ class Cut(SimpleExprFlowStep):
             print(f"ERROR attaching Cut({self.name}, {self.expr}")
             raise
 
+class Range(SimpleExprFlowStep):
+    def __init__(self, expr, **options):
+        super().__init__("Range", expr, **options)
+
+    def _attach(self, rdf):
+        try:
+            if isinstance(self.expr, int):
+                return rdf.Range(self.expr)
+            elif isinstance(self.expr, tuple|list):
+                return rdf.Range(*(self.expr))
+        except BaseException:
+            print(f"ERROR attaching Range({self.expr}")
+            raise
 
 class Define(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
