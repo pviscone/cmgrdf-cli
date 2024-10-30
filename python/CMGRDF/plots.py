@@ -22,7 +22,7 @@ def _unTLatex(string : str) -> str:
 
 
 class Plot(Target):
-    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, **options):
+    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, cut=None, **options):
         super(Plot, self).__init__(name, mcOnly=mcOnly)
         for k, v in options.items():
             setattr(self, k, v)
@@ -70,21 +70,17 @@ class Plot(Target):
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
+        self.cut = cut
         self._bigHash = None
 
     def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
-        #If in the expression there is an array access, we need to filter the events
-        #to avoid out of bound errors (mostly 0s)
-        #(e.g.) Electron_pt[0] -> Filter(Electron.size() > 0) before defining
-        branch_idx_pair = re.findall(r'(\w+)\[(\d+)\]', expr)
-        if bool(branch_idx_pair):
-            branch,idx=branch_idx_pair[0]
-            rdf2 = rdf.Filter(f"{branch}.size() > {idx}")
+        #print("Will create a new expression for plot "+self.name)
+        if self.cut is not None:
+            rdf2 = rdf.Filter(self.cut)
             rdf2 = rdf2.Define(name, expr)
         else:
-            #print("Will create a new expression for plot "+self.name)
             rdf2 = rdf.Define(name, expr)
         rdf2._from = rdf
         return (rdf2, name)
