@@ -59,7 +59,7 @@ def run_analysis(
         )
 
     #! -------------------------- RDF CONFIG ---------------------------- !#
-    if ncpu > 1 and nevents != -1:
+    if ncpu > 1 and nevents == -1:
         ROOT.EnableImplicitMT(ncpu)
 
     cpp_functions.load()
