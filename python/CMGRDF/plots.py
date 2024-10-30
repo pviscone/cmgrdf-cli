@@ -10,7 +10,6 @@ from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitCo
 from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target
-import CMGRDF
 
 
 def _unTLatex(string : str) -> str:
@@ -365,8 +364,9 @@ class PlotSetPrinter(object):
         ## make directory (FIXME make this better)
         if not os.path.exists(path):
             os.makedirs(path)
-            moduledir=os.path.dirname(os.path.realpath(CMGRDF.__file__))
-            os.system(f"cp {moduledir}/../../externals/index.php " + path)
+        if not os.path.exists(os.path.join(path, "index.php")):
+            moduledir = os.environ["CMGRDF"]
+            os.system(f"cp {moduledir}/externals/index.php " + path)
         opts = self._options.cloneAndUpdate(**options)
         outputName = plot.name
         stack = ROOT.THStack(outputName + "_stack", outputName)
