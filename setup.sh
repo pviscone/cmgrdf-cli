@@ -1,4 +1,5 @@
 # Check if the script is being sourced in bash, otherwise raise an error
+MAIN_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 CURRENT_SHELL=$(ps -p $$ -o comm=)
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     echo "ZSH can't source the cvmfs scripts. You must source it in bash and then return to zsh" >&2
@@ -34,4 +35,7 @@ if [[ "$1" == "build" ]]; then
 fi
 # Set the environment variables
 eval $(make env)
+if [[ "$1" == "build" ]]; then
+    pip install -r $MAIN_DIR/requirements.txt
+fi
 cd $CURRENT_PWD
