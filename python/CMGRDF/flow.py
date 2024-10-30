@@ -29,13 +29,26 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, sample=None, **options):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, samplePattern=None, **options):
+        """
+        Args:
+            name (str): The name of the flowstep.
+            onMC (bool, optional): Flag indicating if the flowstep has to be applied to Monte Carlo data. Defaults to True.
+            onDataDriven (bool, optional): Flag indicating if the flowstep has to be applied to data-driven objects. Defaults to True.
+            onData (bool, optional): Flag indicating if the flowstep has to be applied to real data. Defaults to True.
+            eras (list, optional): List of eras to which apply the flowstep for the analysis. Defaults to None.
+            samplePattern (str, optional): Apply the flowstep only to samples which name matches the given regex pattern. Defaults to None.
+            **options: Additional keyword arguments stored as attributes of the object.
+        """
+
+
+
         self.name = name
         self.onMC = onMC
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
-        self.sample = sample #regex pattern
+        self.sample =  re.compile(samplePattern+"$") if samplePattern else None #regex pattern
         for k, v in options.items():
             setattr(self, k, v)
 
