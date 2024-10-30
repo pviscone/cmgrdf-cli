@@ -13,7 +13,7 @@ Clone this repository with the `--recursive` option, so `cmgrdf-prototype` is al
 **Note: cmgrdf works both on el8 and el9 machines. But el9 is preferred.**
 
 ```bash
-git clone --recursive ssh://git@gitlab.cern.ch:7999/sos-framework/sos-analysis.git
+git clone --recursive ssh://git@gitlab.cern.ch:7999/darkphoton-ee/dp-ee-main.git
 cd sos-analysis
 ```
 The setup.sh script will setup everything needed.
