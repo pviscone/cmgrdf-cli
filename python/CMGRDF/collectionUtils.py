@@ -29,9 +29,9 @@ class DefineFromCollection(FlowStep):
 
         cols = set(rdf.GetColumnNames())
         for m in members:
-            rdf_func = rdf.Redefine if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else rdf.Define
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
             try:
-                rdf=rdf_func(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
+                rdf=getattr(rdf, rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
             except BaseException:
                 print(f"ERROR attaching {rdf_func}({self.name}, {self.srcColl}_{m}[{self.index}]")
                 raise
@@ -88,19 +88,19 @@ class DefineSkimmedCollection(FlowStep):
             members = self.members
 
         cols = set(rdf.GetColumnNames())
-        rdf_func = rdf.Redefine if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else rdf.Define
+        rdf_func =  "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
 
         if self.cut:
-            rdf = rdf_func(self.mask, self.cut)
+            rdf = getattr(rdf,rdf_func)(self.mask, self.cut)
         if self.mask:
-            rdf = rdf_func(f"n{self.name}", f"Sum({self.mask})")
+            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
-            rdf = rdf_func(f"n{self.name}", f"{self.indices}.size()")
+            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
         for m in members:
-            rdf_func = rdf.Redefine if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else rdf.Define
-            rdf = rdf_func(f"{self.name}_{m}", copyexpr.format(m=m))
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
+            rdf = getattr(rdf,rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
 
         for m in self.optMembers:
             if f"{self.srcColl}_{m}" in cols:
