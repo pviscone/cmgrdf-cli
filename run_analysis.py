@@ -7,7 +7,7 @@ from typing import List
 from typing_extensions import Annotated
 
 import ROOT
-from CMGRDF import Processor, PlotSetPrinter, Flow, Cut
+from CMGRDF import Processor, PlotSetPrinter, Flow, Range
 from CMGRDF.cms.eras import lumis as lumi
 
 from data import AddMC, AddData, all_data
@@ -82,6 +82,8 @@ def run_analysis(
     flow          = parse_function(flow_module, "flow", Flow, args=flow[1:])
     plots         = parse_function(plots_module, "plots", list, args=plots[1:])
 
+    if nevents != -1:
+        flow.prepend(Range(nevents))
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
