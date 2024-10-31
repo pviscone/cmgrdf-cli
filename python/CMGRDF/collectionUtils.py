@@ -2,28 +2,28 @@ from typing import Optional, Union
 from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
 
+
 class DefineFromCollection(FlowStep):
     """Define new scalar branchs looping over the members of a collection.
     Index can be an explicit index or a string with the name of the index branch (ex. 0 or LepGood_photonIdx[0])
     (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
     """
 
-    def __init__(self, name, srcColl, members : "list[str]" = None, index = None, redefine=False, **options):
+    def __init__(self, name, srcColl, members : "list[str]" = None, index=None, redefine=False, **options):
         super().__init__(name, **options)
-        self.members=members
+        self.members = members
         self.index = index
-        self.srcColl=srcColl
+        self.srcColl = srcColl
         self.rdf_func = "Redefine" if redefine else "Define"
 
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
-
     def _attach(self, rdf):
         if self.members is None:
-            members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
-                            if branch.c_str().startswith((f"{self.srcColl}_",f"Friends.{self.srcColl}_"))]
-            members = list(dict.fromkeys(members)) #Remove duplicates
+            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
+                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(dict.fromkeys(members))  # Remove duplicates
         else:
             members = self.members
 
@@ -31,7 +31,7 @@ class DefineFromCollection(FlowStep):
         for m in members:
             rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
             try:
-                rdf=getattr(rdf, rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
+                rdf = getattr(rdf, rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
             except BaseException:
                 print(f"ERROR attaching {rdf_func}({self.name}, {self.srcColl}_{m}[{self.index}]")
                 raise
@@ -47,6 +47,7 @@ class DefineFromCollection(FlowStep):
         if self.sample:
             out += f"\tsample: {self.sample}\n"
         return out
+
 
 class DefineSkimmedCollection(FlowStep):
     """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
@@ -81,26 +82,26 @@ class DefineSkimmedCollection(FlowStep):
 
     def _attach(self, rdf):
         if self.members is None:
-            members = [branch.c_str().split(f"{self.srcColl}_",1)[1] for branch in rdf.GetColumnNames()
-                            if branch.c_str().startswith((f"{self.srcColl}_",f"Friends.{self.srcColl}_"))]
-            members=list(dict.fromkeys(members)) #Remove duplicates
+            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
+                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(dict.fromkeys(members))  # Remove duplicates
         else:
             members = self.members
 
         cols = set(rdf.GetColumnNames())
-        rdf_func =  "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
+        rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
 
         if self.cut:
-            rdf = getattr(rdf,rdf_func)(self.mask, self.cut)
+            rdf = getattr(rdf, rdf_func)(self.mask, self.cut)
         if self.mask:
-            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"Sum({self.mask})")
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
-            rdf = getattr(rdf,rdf_func)(f"n{self.name}", f"{self.indices}.size()")
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
         for m in members:
             rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
-            rdf = getattr(rdf,rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
+            rdf = getattr(rdf, rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
 
         for m in self.optMembers:
             if f"{self.srcColl}_{m}" in cols:

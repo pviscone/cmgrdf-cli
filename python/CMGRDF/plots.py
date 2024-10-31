@@ -30,9 +30,9 @@ class Plot(Target):
         if typ == "Histo1D":
             self._expr = args[0]
             if isinstance(args[1], list):
-                self._bins= [float(e) for e in args[1]]
+                self._bins = [float(e) for e in args[1]]
             elif isinstance(args[1], tuple):
-                self._bins = tuple([float(e) if idx != 0 else int(e) for idx,e in enumerate(args[1])])
+                self._bins = tuple([float(e) if idx != 0 else int(e) for idx, e in enumerate(args[1])])
             else:
                 raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto1D
@@ -49,9 +49,9 @@ class Plot(Target):
         elif typ == "Histo2D":
             self._expr = args[0]
             if isinstance(args[1], list):
-                self._bins= [[float(e) for e in ax] for ax in args[1]]
+                self._bins = [[float(e) for e in ax] for ax in args[1]]
             elif isinstance(args[1], tuple):
-                self._bins = tuple([float(e) if idx not in [0,3] else int(e) for idx,e in enumerate(args[1])])
+                self._bins = tuple([float(e) if idx not in [0, 3] else int(e) for idx, e in enumerate(args[1])])
             else:
                 raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto2D

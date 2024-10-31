@@ -41,14 +41,12 @@ class FlowStep(object):
             **options: Additional keyword arguments stored as attributes of the object.
         """
 
-
-
         self.name = name
         self.onMC = onMC
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
-        self.sample =  re.compile(samplePattern+"$") if samplePattern else None #regex pattern
+        self.sample = re.compile(samplePattern + "$") if samplePattern else None  # regex pattern
         for k, v in options.items():
             setattr(self, k, v)
 
@@ -58,7 +56,7 @@ class FlowStep(object):
             if not self.onMC:
                 return False
             elif self.sample:
-                return bool(re.match(self.sample,sample.name))
+                return bool(re.match(self.sample, sample.name))
         elif sample.isData:
             if not self.onData:
                 return False
@@ -106,7 +104,6 @@ class FlowStep(object):
         print(self)
 
 
-
 class SimpleExprFlowStep(FlowStep):
     """ A Flow step which is fully defined by a single expression.
         This base class implements the equality and hash tests, while it's
@@ -146,6 +143,7 @@ class Cut(SimpleExprFlowStep):
             print(f"ERROR attaching Cut({self.name}, {self.expr}")
             raise
 
+
 class Range(SimpleExprFlowStep):
     def __init__(self, expr, **options):
         super().__init__("Range", expr, **options)
@@ -154,11 +152,12 @@ class Range(SimpleExprFlowStep):
         try:
             if isinstance(self.expr, int):
                 return rdf.Range(self.expr)
-            elif isinstance(self.expr, tuple|list):
+            elif isinstance(self.expr, tuple | list):
                 return rdf.Range(*(self.expr))
         except BaseException:
             print(f"ERROR attaching Range({self.expr}")
             raise
+
 
 class Define(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
@@ -478,21 +477,20 @@ class Flow(object):
         return self
 
     def __add__(self, other_flow):
-        return Flow(f"{self.name}+{other_flow.name}",[*self.steps,*other_flow.steps])
+        return Flow(f"{self.name}+{other_flow.name}", [*self.steps, *other_flow.steps])
 
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         return self.steps[key]
 
     def __str__(self):
         out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
-        for idx,s in enumerate(self.steps):
-            out +=f"\t{idx+1}. {s.__str__()}\n"
+        for idx, s in enumerate(self.steps):
+            out += f"\t{idx+1}. {s.__str__()}\n"
         return out
 
     @property
     def show(self):
         print(self)
-
 
 
 class Target(object):
