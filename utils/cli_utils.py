@@ -7,7 +7,14 @@ from CMGRDF import Flow, Cut
 
 def load_module(filepath):
     if filepath is not None:
-        return importlib.import_module(filepath.split(".py")[0].replace("/", "."))
+        if filepath.count(":")==0:
+            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")),[]
+        elif filepath.count(":")==1:
+            filepath, args = filepath.split(":")
+            args = args.split(",")
+            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")), args
+        else:
+            raise ValueError("The filepath should contain at most one ':' to specify the function arguments")
     return None
 
 
