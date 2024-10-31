@@ -66,7 +66,7 @@ def write_log(outfolder, command, modules=[]):
 
 
 def print_yields(yields, all_data, flow):
-    pprint("[bold red]----------------------------------------------- YIELDS -----------------------------------------------[/bold red]")
+    pprint("[bold red]---------------------- YIELDS -----------------------[/bold red]")
     for proc in all_data:
         print()
         table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")

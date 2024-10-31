@@ -119,8 +119,11 @@ def run_analysis(
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
+    pprint("[bold red]---------------------- DATASETS ----------------------[/bold red]")
+    pprint(f"Running eras: {eras}")
     console.print(datatable)
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
+    pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
         os.makedirs(os.path.join(outfolder,"cache"), exist_ok=True)
         cachepath = os.path.join(outfolder,"cache")
