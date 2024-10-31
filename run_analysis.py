@@ -27,10 +27,10 @@ def run_analysis(
     eras    : Annotated[str , typer.Option("-e", "--eras", help="Eras to run", rich_help_panel="Configs")],
     plots    : Annotated[str , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
-    data     : str  = typer.Option([None], "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
-    mc       : str  = typer.Option([None], "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
-    flow     : str  = typer.Option([None], "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
-    mcc      : str  = typer.Option([None], "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
+    data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
+    mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
+    flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
+    mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
 
     #! RDF options
     ncpu   : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),

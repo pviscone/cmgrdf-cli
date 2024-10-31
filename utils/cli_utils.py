@@ -15,7 +15,7 @@ def load_module(filepath):
             return importlib.import_module(filepath.split(".py")[0].replace("/", ".")), args
         else:
             raise ValueError("The filepath should contain at most one ':' to specify the function arguments")
-    return None
+    return None, []
 
 
 def parse_args(args, func):
