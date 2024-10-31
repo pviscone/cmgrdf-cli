@@ -35,7 +35,7 @@ def parse_function(module, name, typ, args=[]):
     elif isinstance(obj, types.FunctionType):
         kwargs = parse_args(args, obj)
         res = obj(**kwargs)
-        if isinstance(res, type):
+        if isinstance(res, typ):
             return res
         else:
             raise ValueError(f"The function should return an object of type {typ} but got {type(res)}")
