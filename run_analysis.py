@@ -2,6 +2,9 @@ import multiprocessing
 import os
 import sys
 
+from rich import print as pprint
+from rich.console import Console
+from rich.table import Table
 import typer
 from typing import List
 from typing_extensions import Annotated
@@ -85,10 +88,24 @@ def run_analysis(
     if nevents != -1:
         flow.prepend(Range(nevents))
 
+    #! ---------------------- PRINTING --------------------------- !#
+    print()
+    table = Table(title="Configurations", show_header=True, header_style="bold black")
+    table.add_column("Key", style="bold red")
+    table.add_column("Value")
+    table.add_row("ncpu", str(ncpu))
+    table.add_row("nevents", str(nevents))
+    console = Console()
+    console.print(table)
+
+    pprint("[bold red]---------------------- MCC ----------------------[/bold red]")
+    pprint(mccFlow.__str__().replace("\033[1m","").replace("\033[0m",""))
+    pprint("[bold red]--------------------- FLOW ----------------------[/bold red]")
+    pprint(flow.__str__().replace("\033[1m","").replace("\033[0m",""))
+
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
-
 
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
     maker = Processor().book(all_data, lumi, flow, plots, eras=eras).runPlots()
