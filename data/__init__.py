@@ -4,7 +4,12 @@ import re
 from CMGRDF import Data, DataSample, MCSample, Process, Cut
 from CMGRDF.modifiers import Prepend
 
+from rich.table import Table
+
 all_data = []
+datatable = Table(title="Processes", show_header=True, header_style="bold black")
+datatable.add_column("Process", style="bold red")
+datatable.add_column("type", style="bold red")
 
 
 def AddData(data_dict, friends, era_paths, mccFlow=None):
@@ -22,7 +27,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None):
 
             filtered_mcc = [step for step in mcc_steps if step.onData]
             hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
-
+            datatable.add_row(sample_name, "Data")
             data_datasets += [
                 DataSample(
                     sample_name,
@@ -52,6 +57,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None):
         label = process["label"]
         color = process["color"]
         process_samples = []
+        datatable.add_row(process_name, "MC")
         for sample in samples:
             sample_name, xsec = sample if isinstance(sample, tuple | list) else (sample, "xsec")
             for (
@@ -68,24 +74,27 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None):
                             hook_steps.append(mcc_step)
                     else:
                         hook_steps.append(mcc_step)
-                if "cut" in process: hook_steps.append(Cut("Selection",process["cut"]))
+                if "cut" in process:
+                    hook_steps.append(Cut("Selection", process["cut"]))
                 hook = Prepend(*hook_steps)
                 if "eras" in process:
                     if era not in process["eras"]:
                         continue
 
-                kwargs = {key:value for key,value in process.items() if key not in ["name","samples","label","color","eras","cut"]}
+                kwargs = {
+                    key: value
+                    for key, value in process.items()
+                    if key not in ["name", "samples", "label", "color", "eras", "cut"]
+                }
                 process_samples.append(
                     MCSample(
                         sample_name,
                         samples_path,
-                        friends=[
-                            friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends
-                        ],
+                        friends=[friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends],
                         xsec=xsec,
                         eras=[era],
                         hooks=[hook],
-                        **kwargs
+                        **kwargs,
                     )
                 )
 

@@ -2,6 +2,7 @@ import multiprocessing
 import os
 import sys
 
+from hist.intervals import ratio_uncertainty
 from rich import print as pprint
 from rich.console import Console
 from rich.table import Table
@@ -10,13 +11,13 @@ from typing import Tuple
 from typing_extensions import Annotated
 
 import ROOT
-from CMGRDF import Processor, PlotSetPrinter, Flow, Range
+from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey
 from CMGRDF.cms.eras import lumis as lumi
 
-from data import AddMC, AddData, all_data
+from data import AddMC, AddData, all_data, datatable
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
-from utils.log_utils import write_log
+from utils.log_utils import write_log, print_yields
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 
@@ -33,8 +34,10 @@ def run_analysis(
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
 
     #! RDF options
-    ncpu   : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable RDF verbosity", rich_help_panel="RDF Options"),
+    ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
+    verbose  : bool = typer.Option(False, "-v", "--verbose", help="Enable RDF verbosity", rich_help_panel="RDF Options"),
+    nocache  : bool = typer.Option(False, "--nocache", help="Disable caching", rich_help_panel="RDF Options"),
+    cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
 
     #! Debug options
     nevents: int = typer.Option(-1, "-n", "--nevents", help="Number of events to process. -1 means all events (nevents != -1 will run on single thread)", rich_help_panel="Debug"),
@@ -99,33 +102,52 @@ def run_analysis(
     if nevents != -1:
         flow.prepend(Range(nevents))
 
-    #! ---------------------- PRINTING --------------------------- !#
+    #! ---------------------- PRINT CONFIG --------------------------- !#
     print()
     table = Table(title="Configurations", show_header=True, header_style="bold black")
     table.add_column("Key", style="bold red")
     table.add_column("Value")
     table.add_row("ncpu", str(ncpu))
     table.add_row("nevents", str(nevents))
+    table.add_row("outfolder", outfolder)
+    table.add_row("Cache", str(not nocache))
+    if nocache is False:
+        table.add_row("Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache"))
     console = Console()
     console.print(table)
 
+    #! ---------------------- DATASET BUILDING ----------------------- !#
+    AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
+    AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
+    console.print(datatable)
+    #! ---------------------- RUN THE ANALYSIS ----------------------- !#
+    if nocache is False and cachepath is None:
+        os.makedirs(os.path.join(outfolder,"cache"), exist_ok=True)
+        cachepath = os.path.join(outfolder,"cache")
+        cache=SimpleCache(cachepath)
+    elif nocache is False:
+        cachepath = os.path.join(outfolder, cachepath)
+        cache=SimpleCache(cachepath)
+    else:
+        cache=None
+    maker = Processor(cache = cache)
+    maker.bookCutFlow(all_data, lumi, flow, eras = eras)
+    maker.book(all_data, lumi, flow, plots, eras = eras)
+    plotter = maker.runPlots()
+    printer = PlotSetPrinter(
+        topRightText=lumitext, stack=stack, maxRatioRange=maxratiorange, showRatio=ratio
+    ).printSet(plotter, outfolder)
+
+    yields = maker.runYields(mergeEras=True)
+
+    #!TODO Save yields report to file
+    #! ---------------------- WRITE COMMAND LOG ---------------------- !#
     pprint("[bold red]---------------------- MCC ----------------------[/bold red]")
     pprint(mccFlow.__str__().replace("\033[1m","").replace("\033[0m",""))
     pprint("[bold red]--------------------- FLOW ----------------------[/bold red]")
     pprint(flow.__str__().replace("\033[1m","").replace("\033[0m",""))
 
-    #! ---------------------- DATASET BUILDING ----------------------- !#
-    AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
-    AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
-
-    #! ---------------------- RUN THE ANALYSIS ----------------------- !#
-    maker = Processor().book(all_data, lumi, flow, plots, eras=eras).runPlots()
-    printer = PlotSetPrinter(
-        topRightText=lumitext, stack=stack, maxRatioRange=maxratiorange, showRatio=ratio
-    ).printSet(maker, outfolder)
-
-    #?ADD Report
-    #! ---------------------- WRITE COMMAND LOG ---------------------- !#
+    print_yields(yields, all_data, flow)
     write_log(outfolder, command, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
 
 

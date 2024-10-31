@@ -4,6 +4,7 @@ from CMGRDF.collectionUtils import DefineP4
 flow = Flow(
     "example",
     [
+    Cut("2pfEle","nElectron >= 2"),
     Define("diele_trigger_mask", "Take(Electron_isTriggering, DiElectron_l1idx) * Take(Electron_isTriggering, DiElectron_l2idx)"),
     Define("diele_mass_triggered", "DiElectron_mass[diele_trigger_mask]"),
     Define("diele_PFPF_mask", "Take(Electron_isPF, DiElectron_l1idx) * Take(Electron_isPF, DiElectron_l2idx)"),

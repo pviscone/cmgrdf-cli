@@ -1,6 +1,12 @@
 import os
 import ast
 
+from CMGRDF import Cut, MultiKey
+from hist.intervals import ratio_uncertainty
+from rich.console import Console
+from rich.table import Table
+from rich import print as pprint
+
 def get_imports_from_module(module):
     if not isinstance(module, str):
         module=module.__file__
@@ -57,3 +63,47 @@ def write_log(outfolder, command, modules=[]):
         os.system(f"cp -r --force {module.__file__} {outfolder}/configs/{module_dirpath}/{module_filename}")
         get_imports_and_copy(module, outfolder)
     return
+
+
+def print_yields(yields, all_data, flow):
+    pprint("[bold red]----------------------------------------------- YIELDS -----------------------------------------------[/bold red]")
+    for proc in all_data:
+        print()
+        table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
+        table.add_column("Cut", style="bold red")
+        table.add_column("Expr", style="bold red")
+        table.add_column("Pass", justify="center")
+        table.add_column("eff.", justify="center")
+        table.add_column("cumulative eff.", justify="center")
+
+        for idx, cut in enumerate(flow):
+            if type(cut) != Cut:
+                continue
+            y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
+            if idx == 0:
+                nevents, nerr = y.central, y.stat
+                old_passed = y.central
+
+            eff = y.central / old_passed
+            eff_err = ratio_uncertainty(y.central, old_passed, uncertainty_type="efficiency")
+            cumulative_eff = y.central / nevents
+            cumulative_eff_err = ratio_uncertainty(y.central, nevents, uncertainty_type="efficiency")
+            old_passed = y.central
+
+            subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
+            superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
+
+            eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
+            eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
+            cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
+            cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
+
+            table.add_row(
+                cut.name,
+                cut.expr,
+                f"{y.central:.0f} +- {y.stat:.0f}",
+                f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%",
+                f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %",
+            )
+        console = Console()
+        console.print(table)
