@@ -73,21 +73,22 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None):
                 if "eras" in process:
                     if era not in process["eras"]:
                         continue
-                try:
-                    process_samples.append(
-                        MCSample(
-                            sample_name,
-                            samples_path,
-                            friends=[
-                                friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends
-                            ],
-                            xsec=xsec,
-                            eras=[era],
-                            hooks=[hook],
-                        )
+
+                kwargs = {key:value for key,value in process.items() if key not in ["name","samples","label","color","eras","cut"]}
+                process_samples.append(
+                    MCSample(
+                        sample_name,
+                        samples_path,
+                        friends=[
+                            friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends
+                        ],
+                        xsec=xsec,
+                        eras=[era],
+                        hooks=[hook],
+                        **kwargs
                     )
-                except Exception:
-                    print(f"MCSample {sample_name} not found for era {era}")
+                )
+
         all_data.append(
             Process(
                 process_name,
