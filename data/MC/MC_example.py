@@ -1,12 +1,15 @@
 import ROOT
 
+#! genEventSumw is missing. Here there is a dummy weight value
 MCDict=[{
-    "name": "example",
+    "name": "JPsi",
     "samples": [
-        ("BuToKJPsi_JPsiToEE", 1),
+        ("BParkingNANO_JPsi", None),
     ],
-    "label":"Example",
+    "label":"J/\Psi",
     "color": ROOT.kBlue-3,
     "cut":"1",
+    "genWeightName":None,
+    "weight":"1",
     },
 ]
