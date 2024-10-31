@@ -6,7 +6,7 @@ from rich import print as pprint
 from rich.console import Console
 from rich.table import Table
 import typer
-from typing import List
+from typing import Tuple
 from typing_extensions import Annotated
 
 import ROOT
@@ -24,13 +24,13 @@ app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", 
 def run_analysis(
     #! Configs
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras    : Annotated[List[str] , typer.Option("-e", "--eras", help="Eras to run", rich_help_panel="Configs")],
-    plots    : Annotated[List[str] , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
+    eras    : Annotated[str , typer.Option("-e", "--eras", help="Eras to run", rich_help_panel="Configs")],
+    plots    : Annotated[str , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
-    data     : List[str]  = typer.Option([None], "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
-    mc       : List[str]  = typer.Option([None], "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
-    flow     : List[str]  = typer.Option([None], "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
-    mcc      : List[str]  = typer.Option([None], "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
+    data     : str  = typer.Option([None], "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
+    mc       : str  = typer.Option([None], "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
+    flow     : str  = typer.Option([None], "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
+    mcc      : str  = typer.Option([None], "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
 
     #! RDF options
     ncpu   : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
@@ -44,7 +44,7 @@ def run_analysis(
     lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     ratio        : bool        = typer.Option(True, "--NotRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
     stack        : bool        = typer.Option(True, "--NotStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
-    maxratiorange: List[float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
 ):
 
     command = " ".join(sys.argv)
@@ -67,23 +67,24 @@ def run_analysis(
 
     cpp_functions.load()
     #! ----------------------== Module imports -------------------------- !#
-    cfg_module   = load_module(cfg)
-    plots_module = load_module(plots[0])
-    data_module  = load_module(data[0])
-    mc_module    = load_module(mc[0])
-    mcc_module   = load_module(mcc[0])
-    flow_module  = load_module(flow[0])
+    eras = eras.split(",")
+    cfg_module  , _          = load_module(cfg)
+    plots_module, plots_args = load_module(plots)
+    data_module , data_args  = load_module(data)
+    mc_module   , mc_args    = load_module(mc)
+    mcc_module  , mcc_args   = load_module(mcc)
+    flow_module , flow_args  = load_module(flow)
 
     era_paths_Data = parse_function(cfg_module, "era_paths_Data", dict)
     era_paths_MC   = parse_function(cfg_module, "era_paths_MC", dict)
     PFs            = parse_function(cfg_module, "PFs", list)
     PMCs           = parse_function(cfg_module, "PMCs", list)
 
-    DataDict      = parse_function(data_module, "DataDict", dict, args=data[1:])
-    all_processes = parse_function(mc_module, "all_processes", list, args=mc[1:])
-    mccFlow       = parse_function(mcc_module, "mccFlow", Flow, args=mcc[1:])
-    flow          = parse_function(flow_module, "flow", Flow, args=flow[1:])
-    plots         = parse_function(plots_module, "plots", list, args=plots[1:])
+    DataDict      = parse_function(data_module, "DataDict", dict, args=data_args)
+    all_processes = parse_function(mc_module, "all_processes", list, args=mc_args)
+    mccFlow       = parse_function(mcc_module, "mccFlow", Flow, args=mcc_args)
+    flow          = parse_function(flow_module, "flow", Flow, args=flow_args)
+    plots         = parse_function(plots_module, "plots", list, args=plots_args)
 
     if nevents != -1:
         flow.prepend(Range(nevents))
