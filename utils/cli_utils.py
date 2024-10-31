@@ -36,6 +36,8 @@ def parse_function(module, name, typ, args=[]):
         obj = getattr(module, name, typ())
     else:
         obj = getattr(module, name, Flow("alwaysTrue", [Cut("alwaysTrue", "1")]))
+        if obj[0].expr!="1":
+            obj.prepend(Cut("nEvents", "1"))
 
     if isinstance(obj, typ):
         return obj
