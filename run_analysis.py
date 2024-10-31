@@ -46,6 +46,16 @@ def run_analysis(
     stack        : bool        = typer.Option(True, "--NotStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
     maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
 ):
+    """
+    Command line to run the analysis.
+
+    All the options in configs should be path to the python files that contain the objects specifien in the help message or a function that returns the object.
+
+    In case of the function, the arguments should be passed after a colon ":" separated by commas ",".
+    e.g. python run_analysis.py --cfg path/to/cfg.py:arg1=1,arg2=2
+
+    The functions should have just keyword arguments with type hints.
+    """
 
     command = " ".join(sys.argv)
     #! ------------------------- Sanity checks -------------------------- !#
