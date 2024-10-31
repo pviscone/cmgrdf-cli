@@ -44,9 +44,9 @@ def get_imports_and_copy(module, outfolder):
 
 
 def write_log(outfolder, command, modules=[]):
-    with open(f"{outfolder}/command.log", "w") as f:
-        f.write(command)
     os.makedirs(f"{outfolder}/configs", exist_ok=True)
+    with open(f"{outfolder}/configs/command.log", "w") as f:
+        f.write(command)
 
     main_dir=os.environ['CMGRDF'].rsplit("/", 1)[0]
     for module in modules:
