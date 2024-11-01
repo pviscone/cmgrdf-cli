@@ -15,7 +15,7 @@ from CMGRDF.cms.eras import lumis as lumi
 from data import AddMC, AddData, all_data, datatable
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
-from utils.log_utils import write_log, print_yields
+from utils.log_utils import write_log, print_yields, trace_calls
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 
@@ -58,6 +58,7 @@ def run_analysis(
     The functions should have just keyword arguments with type hints.
     """
 
+    sys.settrace(trace_calls)
     command = " ".join(sys.argv)
     #! ------------------------- Sanity checks -------------------------- !#
     if data is None and mc is None:
@@ -124,12 +125,11 @@ def run_analysis(
     console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
         os.makedirs(os.path.join(outfolder, "cache"), exist_ok=True)
-        cachepath = os.path.join(outfolder, "cache")
-        cache = SimpleCache(cachepath)
+        cache = SimpleCache(os.path.join(outfolder, "cache"))
     elif nocache is False:
-        cachepath = os.path.join(outfolder, cachepath)
         cache = SimpleCache(cachepath)
     else:
+        cachepath=-1
         cache = None
     maker = Processor(cache=cache)
     maker.bookCutFlow(all_data, lumi, flow, eras=eras)
@@ -148,8 +148,9 @@ def run_analysis(
     console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
     print_yields(yields, all_data, flow, console=console)
-    write_log(outfolder, command, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
-    console.save_text(os.path.join(outfolder, "configs/report.txt"))
+    sys.settrace(None)
+    write_log(outfolder, command, cachepath, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
+    console.save_text(os.path.join(outfolder, "log/report.txt"))
 
 if __name__ == "__main__":
     app()

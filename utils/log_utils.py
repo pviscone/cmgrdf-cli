@@ -1,70 +1,84 @@
 import os
-import ast
 
 from CMGRDF import Cut, MultiKey
 from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 
-def get_imports_from_module(module):
-    if not isinstance(module, str):
-        module=module.__file__
-    with open(module, "r") as file:
-        tree = ast.parse(file.read(), filename=module)
-
-    imports = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imports.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module if node.module else ""
-            for alias in node.names:
-                imports.append(f"{module}/{alias.name}")
-
-    return imports
-
-# I know, I know, paths should not be handled in this horrible way, but it's midnight.
-# I get it, Mr. Clean Code. I will polish this later. I promise. Maybe.
-
-# Recursively look for imports and copy the modules
-def get_imports_and_copy(module, outfolder):
-    main_dir=os.environ['CMGRDF'].rsplit("/", 1)[0]
-    imports = get_imports_from_module(module)
-
-    blacklist=["CMGRDF", "ROOT", "typing", "types", "importlib", "ast", "os", "sys", "typer"]
-    for mod in imports:
-        skip=False
-        for black in blacklist:
-            if black in mod:
-                skip=True
-                break
-        if skip: continue
-        mod=mod.replace('.','/')
-        if "/" in mod:
-            os.makedirs(f"{outfolder}/configs/{mod.rsplit('/',1)[0]}", exist_ok=True)
-        os.system(f"cp -r --force {main_dir}/{mod}.py {outfolder}/configs/{mod}.py")
-        get_imports_and_copy(f"{outfolder}/configs/{mod}.py", outfolder)
+main_dir = os.path.dirname(os.environ["CMGRDF"])  # Path to dp-ee-main folder
+accessed_files = []  # List to store the paths of .py files
 
 
-def write_log(outfolder, command, modules=[]):
-    os.makedirs(f"{outfolder}/configs", exist_ok=True)
-    with open(f"{outfolder}/configs/command.log", "w") as f:
-        f.write(command)
+# Trace all the imported py files
+def trace_calls(frame, event, arg):
+    if event != "call":
+        return
+    filename = frame.f_globals.get("__file__", None)
+    if filename and filename.endswith(".py"):
+        abs_path = os.path.abspath(filename)
+        if (
+            abs_path not in accessed_files
+            and abs_path.startswith(main_dir)
+            and not abs_path.startswith(os.environ["CMGRDF"])
+        ):
+            accessed_files.append(abs_path)
+    return trace_calls
 
-    main_dir=os.environ['CMGRDF'].rsplit("/", 1)[0]
+
+def write_log(outfolder, command, cachepath, modules=[]):
+    if cachepath is None:
+        cachestring = "--cachepath ../cache"
+    elif isinstance(cachepath, str):
+        # Strip cachepath from command
+        command = command.replace(f" --cachepath {cachepath}", "")
+        # get asbolute path
+        cachepath = os.path.abspath(cachepath)
+        cachestring = f"--cachepath {cachepath}"
+    else:
+        cachestring = ""
+    # Write the command string to file
+    os.makedirs(f"{outfolder}/log", exist_ok=True)
+    os.system(
+        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
+    )
+    os.system(f'echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
+
+    # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
+    os.system(
+        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > ../{os.path.join(outfolder, 'log/cmgrdf_commit.txt')}"
+    )
+    os.system(f"cd {os.environ['CMGRDF']} && git diff >> ../{os.path.join(outfolder, 'log/cmgrdf_commit.txt')}")
+
+    # Copy imported modules to log folder
     for module in modules:
-        if module is None: continue
-        module_relative_path = module.__file__.split(main_dir)[1]
-        module_dirpath, module_filename = module_relative_path.rsplit('/',1)
-        os.makedirs(f"{outfolder}/configs/{module_dirpath}", exist_ok=True)
-        os.system(f"cp -r --force {module.__file__} {outfolder}/configs/{module_dirpath}/{module_filename}")
-        get_imports_and_copy(module, outfolder)
+        if module is None:
+            continue
+        module_relative_dirpath = os.path.dirname(module.__file__.split(main_dir)[1])
+        module_newpath = os.path.join(outfolder, f"log/{module_relative_dirpath}")
+        os.makedirs(module_newpath, exist_ok=True)
+        module_dirpath = os.path.dirname(module.__file__)
+        # Check if there is __init__.py file in the module_dirpath directory
+        if os.path.exists(os.path.join(module_dirpath, f"__init__.py")):
+            os.system(f"cp -r --force {os.path.join(module_dirpath, '__init__.py')} {module_newpath}")
+        # Copy the module file in a log sub folder
+        os.system(f"cp -r --force {module.__file__} {module_newpath}")
+        # Always copy the cpp functions
+        os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'log')}")
+        # Copy the CLI file
+        os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'log')}")
+        copy_imports(outfolder)
     return
 
 
-def print_yields(yields, all_data, flow, console = Console()):
+def copy_imports(outfolder):
+    for file_path in accessed_files:
+        relative_path = file_path.split(main_dir)[1]
+        newpath = os.path.join(outfolder, f"log/{os.path.dirname(relative_path)}")
+        os.makedirs(newpath, exist_ok=True)
+        os.system(f"cp -r --force {file_path} {newpath}")
+
+
+def print_yields(yields, all_data, flow, console=Console()):
     console.print("[bold red]---------------------- YIELDS -----------------------[/bold red]")
     for proc in all_data:
         print()
