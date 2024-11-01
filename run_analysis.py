@@ -3,7 +3,6 @@ import os
 import sys
 
 from hist.intervals import ratio_uncertainty
-from rich import print as pprint
 from rich.console import Console
 from rich.table import Table
 import typer
@@ -113,17 +112,17 @@ def run_analysis(
     table.add_row("Cache", str(not nocache))
     if nocache is False:
         table.add_row("Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache"))
-    console = Console()
+    console = Console(record=True)
     console.print(table)
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
-    pprint("[bold red]---------------------- DATASETS ----------------------[/bold red]")
-    pprint(f"Running eras: {eras}")
+    console.print("[bold red]---------------------- DATASETS ----------------------[/bold red]")
+    console.print(f"Running eras: {eras}")
     console.print(datatable)
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
-    pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
+    console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
         os.makedirs(os.path.join(outfolder,"cache"), exist_ok=True)
         cachepath = os.path.join(outfolder,"cache")
@@ -145,14 +144,14 @@ def run_analysis(
 
     #!TODO Save yields report to file
     #! ---------------------- WRITE COMMAND LOG ---------------------- !#
-    pprint("[bold red]---------------------- MCC ----------------------[/bold red]")
-    pprint(mccFlow.__str__().replace("\033[1m","").replace("\033[0m",""))
-    pprint("[bold red]--------------------- FLOW ----------------------[/bold red]")
-    pprint(flow.__str__().replace("\033[1m","").replace("\033[0m",""))
+    console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
+    console.print(mccFlow.__str__().replace("\033[1m","").replace("\033[0m",""))
+    console.print("[bold red]--------------------- FLOW ----------------------[/bold red]")
+    console.print(flow.__str__().replace("\033[1m","").replace("\033[0m",""))
 
-    print_yields(yields, all_data, flow)
+    print_yields(yields, all_data, flow, console = console)
     write_log(outfolder, command, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
-
+    console.save_text(os.path.join(outfolder, "configs/report.txt"))
 
 if __name__ == "__main__":
     app()

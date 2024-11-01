@@ -5,7 +5,6 @@ from CMGRDF import Cut, MultiKey
 from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
-from rich import print as pprint
 
 def get_imports_from_module(module):
     if not isinstance(module, str):
@@ -65,8 +64,8 @@ def write_log(outfolder, command, modules=[]):
     return
 
 
-def print_yields(yields, all_data, flow):
-    pprint("[bold red]---------------------- YIELDS -----------------------[/bold red]")
+def print_yields(yields, all_data, flow, console = Console()):
+    console.print("[bold red]---------------------- YIELDS -----------------------[/bold red]")
     for proc in all_data:
         print()
         table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
@@ -105,5 +104,4 @@ def print_yields(yields, all_data, flow):
                 f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%",
                 f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %",
             )
-        console = Console()
         console.print(table)
