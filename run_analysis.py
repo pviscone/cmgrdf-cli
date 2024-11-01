@@ -149,7 +149,7 @@ def run_analysis(
 
     print_yields(yields, all_data, flow, console=console)
     sys.settrace(None)
-    write_log(outfolder, command, cachepath, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
+    write_log(outfolder, command, cachepath)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
 
 if __name__ == "__main__":

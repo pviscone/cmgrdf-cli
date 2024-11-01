@@ -25,7 +25,7 @@ def trace_calls(frame, event, arg):
     return trace_calls
 
 
-def write_log(outfolder, command, cachepath, modules=[]):
+def write_log(outfolder, command, cachepath):
     if cachepath is None:
         cachestring = "--cachepath ../cache"
     elif isinstance(cachepath, str):
@@ -49,24 +49,17 @@ def write_log(outfolder, command, cachepath, modules=[]):
     )
     os.system(f"cd {os.environ['CMGRDF']} && git diff >> ../{os.path.join(outfolder, 'log/cmgrdf_commit.txt')}")
 
-    # Copy imported modules to log folder
-    for module in modules:
-        if module is None:
-            continue
-        module_relative_dirpath = os.path.dirname(module.__file__.split(main_dir)[1])
-        module_newpath = os.path.join(outfolder, f"log/{module_relative_dirpath}")
-        os.makedirs(module_newpath, exist_ok=True)
-        module_dirpath = os.path.dirname(module.__file__)
-        # Check if there is __init__.py file in the module_dirpath directory
-        if os.path.exists(os.path.join(module_dirpath, f"__init__.py")):
-            os.system(f"cp -r --force {os.path.join(module_dirpath, '__init__.py')} {module_newpath}")
-        # Copy the module file in a log sub folder
-        os.system(f"cp -r --force {module.__file__} {module_newpath}")
-        # Always copy the cpp functions
-        os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'log')}")
-        # Copy the CLI file
-        os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'log')}")
-        copy_imports(outfolder)
+    # Copy all the accessed files to the log folder
+    copy_imports(outfolder)
+    # Always copy the cpp functions
+    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'log')}")
+    # Always copy the command template
+    os.makedirs(os.path.join(outfolder, "log/utils"), exist_ok=True)
+    os.system(
+        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/utils')}"
+    )
+    # Always copy the CLI file
+    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'log')}")
     return
 
 
