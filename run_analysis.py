@@ -39,7 +39,7 @@ def run_analysis(
     cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
 
     #! Debug options
-    nevents: int = typer.Option(-1, "-n", "--nevents", help="Number of events to process. -1 means all events (nevents != -1 will run on single thread)", rich_help_panel="Debug"),
+    nevents: int = typer.Option(-1, "-n", "--nevents", help="Number of events to process. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Plot options

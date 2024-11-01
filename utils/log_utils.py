@@ -71,23 +71,25 @@ def print_yields(yields, all_data, flow, console = Console()):
         table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
         table.add_column("Cut", style="bold red")
         table.add_column("Expr", style="bold red")
-        table.add_column("Pass", justify="center")
-        table.add_column("eff.", justify="center")
-        table.add_column("cumulative eff.", justify="center")
+        table.add_column("Pass (+- stat.)", justify="center")
+        table.add_column("eff. (+- stat.)", justify="center")
+        table.add_column("cumulative eff. (+- stat.)", justify="center")
 
-        for idx, cut in enumerate(flow):
+        nMC_events = None
+        for cut in flow:
             if type(cut) != Cut:
                 continue
             y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
-            if idx == 0:
-                nevents, nerr = y.central, y.stat
-                old_passed = y.central
+            if nMC_events is None:
+                nMC_events = (y.central**2) / (y.stat**2)
+                oldMC_passed = (y.central**2) / (y.stat**2)
 
-            eff = y.central / old_passed
-            eff_err = ratio_uncertainty(y.central, old_passed, uncertainty_type="efficiency")
-            cumulative_eff = y.central / nevents
-            cumulative_eff_err = ratio_uncertainty(y.central, nevents, uncertainty_type="efficiency")
-            old_passed = y.central
+            mc_passed = (y.central**2) / (y.stat**2)
+            eff = mc_passed / oldMC_passed
+            eff_err = ratio_uncertainty(mc_passed, oldMC_passed, uncertainty_type="efficiency")
+            cumulative_eff = mc_passed / nMC_events
+            cumulative_eff_err = ratio_uncertainty(mc_passed, nMC_events, uncertainty_type="efficiency")
+            oldMC_passed = (y.central**2) / (y.stat**2)
 
             subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
             superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
