@@ -2,7 +2,6 @@ import multiprocessing
 import os
 import sys
 
-from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 import typer
@@ -24,7 +23,7 @@ app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", 
 def run_analysis(
     #! Configs
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras    : Annotated[str , typer.Option("-e", "--eras", help="Eras to run", rich_help_panel="Configs")],
+    eras    : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     plots    : Annotated[str , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
@@ -39,13 +38,13 @@ def run_analysis(
     cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
 
     #! Debug options
-    nevents: int = typer.Option(-1, "-n", "--nevents", help="Number of events to process. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
+    nevents : int = typer.Option(-1, "-n", "--nevents", help="Number of events to process. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Plot options
-    lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
-    ratio        : bool        = typer.Option(True, "--NotRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
-    stack        : bool        = typer.Option(True, "--NotStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
+    lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
+    noRatio      : bool        = typer.Option(False, "--NoRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
+    noStack      : bool        = typer.Option(False, "--NoStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
     maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
 ):
     """
@@ -124,32 +123,31 @@ def run_analysis(
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
     console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
-        os.makedirs(os.path.join(outfolder,"cache"), exist_ok=True)
-        cachepath = os.path.join(outfolder,"cache")
-        cache=SimpleCache(cachepath)
+        os.makedirs(os.path.join(outfolder, "cache"), exist_ok=True)
+        cachepath = os.path.join(outfolder, "cache")
+        cache = SimpleCache(cachepath)
     elif nocache is False:
         cachepath = os.path.join(outfolder, cachepath)
-        cache=SimpleCache(cachepath)
+        cache = SimpleCache(cachepath)
     else:
-        cache=None
-    maker = Processor(cache = cache)
-    maker.bookCutFlow(all_data, lumi, flow, eras = eras)
-    maker.book(all_data, lumi, flow, plots, eras = eras)
+        cache = None
+    maker = Processor(cache=cache)
+    maker.bookCutFlow(all_data, lumi, flow, eras=eras)
+    maker.book(all_data, lumi, flow, plots, eras=eras)
     plotter = maker.runPlots()
-    printer = PlotSetPrinter(
-        topRightText=lumitext, stack=stack, maxRatioRange=maxratiorange, showRatio=ratio
-    ).printSet(plotter, outfolder)
+    PlotSetPrinter(topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio).printSet(
+        plotter, outfolder
+    )
 
     yields = maker.runYields(mergeEras=True)
 
-    #!TODO Save yields report to file
     #! ---------------------- WRITE COMMAND LOG ---------------------- !#
     console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
-    console.print(mccFlow.__str__().replace("\033[1m","").replace("\033[0m",""))
+    console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
     console.print("[bold red]--------------------- FLOW ----------------------[/bold red]")
-    console.print(flow.__str__().replace("\033[1m","").replace("\033[0m",""))
+    console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
-    print_yields(yields, all_data, flow, console = console)
+    print_yields(yields, all_data, flow, console=console)
     write_log(outfolder, command, modules=[cfg_module, plots_module, data_module, mc_module, mcc_module, flow_module])
     console.save_text(os.path.join(outfolder, "configs/report.txt"))
 
