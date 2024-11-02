@@ -7,9 +7,21 @@ from CMGRDF.modifiers import Prepend
 from rich.table import Table
 
 all_data = []
-datatable = Table(title="Processes", show_header=True, header_style="bold black")
-datatable.add_column("Process", style="bold red")
-datatable.add_column("type", style="bold red")
+processtable = Table(title="Processes", show_header=True, header_style="bold black")
+processtable.add_column("Process", style="bold red")
+processtable.add_column("type", style="bold red")
+
+datatable = Table(title="Data", show_header=True, header_style="bold black")
+datatable.add_column("Era", style="bold red")
+datatable.add_column("Sample", style="bold red")
+datatable.add_column("Suberas", style="bold red")
+datatable.add_column("Selections", style="bold red")
+
+MCtable = Table(title="MC Samples", show_header=True, header_style="bold black")
+MCtable.add_column("Process", style="bold red")
+MCtable.add_column("Samples", style="bold red")
+MCtable.add_column("xsec", style="bold red")
+MCtable.add_column("Selections", style="bold red")
 
 
 def AddData(data_dict, friends, era_paths, mccFlow=None):
@@ -18,16 +30,18 @@ def AddData(data_dict, friends, era_paths, mccFlow=None):
     else:
         mcc_steps = mccFlow.steps
     for era, samples in data_dict.items():
+        datatable.add_row(era, "", "", "")
         P0, samples_path, friends_path = era_paths[era]
         samples_path = os.path.join(P0, samples_path)
         friends_path = os.path.join(P0, friends_path)
         data_datasets = []
         for sample in samples:
             sample_name, suberas, triggers = sample
+            processtable.add_row(sample_name, "Data")
+            datatable.add_row("", sample_name, str(suberas), triggers)
 
             filtered_mcc = [step for step in mcc_steps if step.onData]
             hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
-            datatable.add_row(sample_name, "Data")
             data_datasets += [
                 DataSample(
                     sample_name,
@@ -43,6 +57,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None):
                 )
                 for subera in suberas
             ]
+        datatable.add_section()
         all_data.append(Data(data_datasets))
 
 
@@ -57,9 +72,11 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None):
         label = process["label"]
         color = process["color"]
         process_samples = []
-        datatable.add_row(process_name, "MC")
+        processtable.add_row(process_name, "MC")
+        MCtable.add_row(process_name, "", "", process["cut"] if "cut" in process else "")
         for sample in samples:
             sample_name, xsec = sample if isinstance(sample, tuple | list) else (sample, "xsec")
+            MCtable.add_row("", sample_name, str(xsec), "")
             for (
                 era,
                 paths,
@@ -97,7 +114,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None):
                         **kwargs,
                     )
                 )
-
+        MCtable.add_section()
         all_data.append(
             Process(
                 process_name,

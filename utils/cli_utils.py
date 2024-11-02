@@ -8,7 +8,7 @@ from CMGRDF import Flow, Cut
 def load_module(filepath):
     if filepath is not None:
         if filepath.count(":")==0:
-            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")),[]
+            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")), []
         elif filepath.count(":")==1:
             filepath, args = filepath.split(":")
             args = args.split(",")

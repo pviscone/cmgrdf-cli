@@ -12,12 +12,13 @@ import ROOT
 from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey
 from CMGRDF.cms.eras import lumis as lumi
 
-from data import AddMC, AddData, all_data, datatable
+from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
 from utils.log_utils import write_log, print_yields, trace_calls
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
+console = Console(record=True)
 
 @app.command()
 def run_analysis(
@@ -66,7 +67,7 @@ def run_analysis(
 
     #! ---------------------- Debug and verbosity ----------------------- !#
     if disableBreakpoints:
-        os.environ['PYTHONBREAKPOINT'] = '0'
+        os.environ["PYTHONBREAKPOINT"] = "0"
 
     if verbose:
         verbosity = ROOT.Experimental.RLogScopedVerbosity(
@@ -79,7 +80,7 @@ def run_analysis(
 
     cpp_functions.load()
     #! ----------------------== Module imports -------------------------- !#
-    eras = eras.split(",")
+    eras        = eras.split(",")
     cfg_module  , _          = load_module(cfg)
     plots_module, plots_args = load_module(plots)
     data_module , data_args  = load_module(data)
@@ -103,24 +104,40 @@ def run_analysis(
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print()
-    table = Table(title="Configurations", show_header=True, header_style="bold black")
-    table.add_column("Key", style="bold red")
-    table.add_column("Value")
-    table.add_row("ncpu", str(ncpu))
-    table.add_row("nevents", str(nevents))
-    table.add_row("outfolder", outfolder)
-    table.add_row("Cache", str(not nocache))
+    config_table = Table(title="Configurations", show_header=True, header_style="bold black")
+    config_table.add_column("Key", style="bold red")
+    config_table.add_column("Value")
+    config_table.add_row("ncpu", str(ncpu))
+    config_table.add_row("nevents", str(nevents))
+    config_table.add_row("outfolder", outfolder)
+    config_table.add_row("Cache", str(not nocache))
     if nocache is False:
-        table.add_row("Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache"))
-    console = Console(record=True)
-    console.print(table)
+        config_table.add_row(
+            "Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache")
+        )
+
+    config_table.add_row("Eras", str(cachepath))
+    config_table.add_row("Data friends", str(PFs))
+    config_table.add_row("MC friends", str(PMCs))
+
+    console.print(config_table)
+    console.print("")
+    for era in eras:
+        console.print(f"Era: {era}")
+        console.print(f"\tData path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][1])}")
+        console.print(f"\tMC path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][1])}")
+        console.print(f"\tData friend path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][2])}")
+        console.print(f"\tMC friend path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][2])}")
+    console.print("")
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
     console.print("[bold red]---------------------- DATASETS ----------------------[/bold red]")
     console.print(f"Running eras: {eras}")
+    console.print(processtable)
     console.print(datatable)
+    console.print(MCtable)
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
     console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
@@ -129,15 +146,15 @@ def run_analysis(
     elif nocache is False:
         cache = SimpleCache(cachepath)
     else:
-        cachepath=-1
+        cachepath = -1
         cache = None
     maker = Processor(cache=cache)
     maker.bookCutFlow(all_data, lumi, flow, eras=eras)
     maker.book(all_data, lumi, flow, plots, eras=eras)
     plotter = maker.runPlots()
-    PlotSetPrinter(topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio).printSet(
-        plotter, outfolder
-    )
+    PlotSetPrinter(
+        topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio
+    ).printSet(plotter, outfolder)
 
     yields = maker.runYields(mergeEras=True)
 
@@ -151,6 +168,7 @@ def run_analysis(
     sys.settrace(None)
     write_log(outfolder, command, cachepath)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
+
 
 if __name__ == "__main__":
     app()
