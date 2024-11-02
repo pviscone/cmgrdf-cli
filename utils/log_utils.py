@@ -5,7 +5,9 @@ from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 
-main_dir = os.path.dirname(os.environ["CMGRDF"])  # Path to dp-ee-main folder
+import __main__
+
+main_dir = os.path.dirname(__main__.__file__)  # Path to dp-ee-main folder
 accessed_files = []  # List to store the paths of .py files
 
 
@@ -19,7 +21,7 @@ def trace_calls(frame, event, arg):
         if (
             abs_path not in accessed_files
             and abs_path.startswith(main_dir)
-            and not abs_path.startswith(os.environ["CMGRDF"])
+            and not abs_path.startswith(os.path.join(main_dir, "cmgrdf-prototype"))
         ):
             accessed_files.append(abs_path)
     return trace_calls
