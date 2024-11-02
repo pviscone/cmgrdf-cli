@@ -82,22 +82,22 @@ def run_analysis(
     #! ----------------------== Module imports -------------------------- !#
     eras        = eras.split(",")
     cfg_module  , _          = load_module(cfg)
-    plots_module, plots_args = load_module(plots)
-    data_module , data_args  = load_module(data)
-    mc_module   , mc_args    = load_module(mc)
-    mcc_module  , mcc_args   = load_module(mcc)
-    flow_module , flow_args  = load_module(flow)
+    plots_module, plots_kwargs = load_module(plots)
+    data_module , data_kwargs  = load_module(data)
+    mc_module   , mc_kwargs    = load_module(mc)
+    mcc_module  , mcc_kwargs   = load_module(mcc)
+    flow_module , flow_kwargs  = load_module(flow)
 
     era_paths_Data = parse_function(cfg_module, "era_paths_Data", dict)
     era_paths_MC   = parse_function(cfg_module, "era_paths_MC", dict)
     PFs            = parse_function(cfg_module, "PFs", list)
     PMCs           = parse_function(cfg_module, "PMCs", list)
 
-    DataDict      = parse_function(data_module, "DataDict", dict, args=data_args)
-    all_processes = parse_function(mc_module, "all_processes", list, args=mc_args)
-    mccFlow       = parse_function(mcc_module, "mccFlow", Flow, args=mcc_args)
-    flow          = parse_function(flow_module, "flow", Flow, args=flow_args)
-    plots         = parse_function(plots_module, "plots", list, args=plots_args)
+    DataDict      = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
+    all_processes = parse_function(mc_module, "all_processes", list, kwargs=mc_kwargs)
+    mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
+    flow          = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
+    plots         = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
 
     if nevents != -1:
         flow.prepend(Range(nevents))
