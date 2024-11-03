@@ -116,7 +116,7 @@ def run_analysis(
             "Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache")
         )
 
-    config_table.add_row("Eras", str(cachepath))
+    config_table.add_row("Eras", str(eras))
     config_table.add_row("Data friends", str(PFs))
     config_table.add_row("MC friends", str(PMCs))
 
