@@ -56,7 +56,7 @@ def run_analysis(
     In case of the function, the arguments should be passed after a colon ":" separated by commas ",".
     e.g. python run_analysis.py --cfg path/to/cfg.py:arg1=1,arg2=2
 
-    The functions should have just keyword arguments with type hints.
+    The functions should have just keyword arguments.
     """
 
     sys.settrace(trace_calls)
