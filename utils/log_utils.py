@@ -84,12 +84,12 @@ def print_yields(yields, all_data, flow, console=Console()):
         table.add_column("eff. (+- stat.)", justify="center")
         table.add_column("cumulative eff. (+- stat.)", justify="center")
 
-        nMC_events = None
+        started = False
         for cut in flow:
             if type(cut) != Cut:
                 continue
             y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
-            if nMC_events is None:
+            if not started:
                 nMC_events = (y.central**2) / (y.stat**2)
                 oldMC_passed = (y.central**2) / (y.stat**2)
 
@@ -112,7 +112,8 @@ def print_yields(yields, all_data, flow, console=Console()):
                 cut.name,
                 cut.expr,
                 f"{y.central:.0f} +- {y.stat:.0f}",
-                f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%",
-                f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %",
+                f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
+                f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %"  if started else "",
             )
+            started = True
         console.print(table)
