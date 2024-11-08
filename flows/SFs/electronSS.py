@@ -25,6 +25,8 @@ class electronSmearing(BaseCorrection):
         super().__init__(self.name, **kwargs)
         self._init = False
         self.era = era
+        if self.era is not None:
+            self.init(era=self.era)
 
     def init(self, era=None):
         if era is None:
@@ -56,7 +58,7 @@ class electronSmearing(BaseCorrection):
                     sf_up[i] = generator.Gaus(1., rho + <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
                     sf_down[i] = generator.Gaus(1., rho - <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
                 }
-                return RVec<ROOT::RVec<float>>{sf_up*pt, sf_down*pt};
+                return {sf_up*pt, sf_down*pt};
             }
         """.replace("<era>", self.era).replace("<corrector>", self.corrector)
 
@@ -67,20 +69,24 @@ class electronSmearing(BaseCorrection):
         self._init = True
         return self
 
-    #TODO invalint pointer if doSyst=True, FIX
     def _attach(self, rdf):
+        if self.defineNew is False:
+            rdf = rdf.Define(
+                f"_Old_{self.pt}_", self.pt
+            )  # Save the old pt. This is needed for the syst variation. I cannot vary before redefining, this invalidate the pointer to the old pt that Vary uses
+            rdf = rdf.Redefine(self.pt, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
+        else:
+            rdf = rdf.Define(self.defineNew, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
+
         if self.doSyst:
+            original_pt = f"_Old_{self.pt}_" if self.defineNew is False else self.pt
             rdf = rdf.Vary(
                 self.pt if self.defineNew is False else self.defineNew,
-                f"electronSmearingSF_syst_{self.era}({self.pt}, {self.eta}, {self.r9})",
+                f"electronSmearingSF_syst_{self.era}({original_pt}, {self.eta}, {self.r9})",
                 variationTags=["up", "down"],
                 variationName=self.name,
             )
-        if self.defineNew is False:
-            return rdf.Redefine(self.pt, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
-        else:
-            return rdf.Define(self.defineNew, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
-
+        return rdf
 
 
 class electronScale(BaseCorrection):
