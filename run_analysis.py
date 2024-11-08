@@ -12,6 +12,7 @@ from typing_extensions import Annotated
 import ROOT
 from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey
 from CMGRDF.cms.eras import lumis as lumi
+from CMGRDF.stat import DatacardWriter
 
 from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 import cpp_functions
@@ -32,6 +33,7 @@ def run_analysis(
     mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
     flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
+    noSyst   : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
 
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
@@ -45,9 +47,16 @@ def run_analysis(
 
     #! Plot options
     lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
-    noRatio      : bool        = typer.Option(False, "--NoRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
-    noStack      : bool        = typer.Option(False, "--NoStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
+    noRatio      : bool        = typer.Option(False, "--noRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
+    noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
     maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
+
+    #! Datacard options
+    autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
+    autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
+    threshold       : int  = typer.Option(0.0, "--threshold", help="Minimum event yield to consider processes", rich_help_panel="Datacard Options"),
+    regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 ):
     """
     Command line to run the analysis.
@@ -111,6 +120,8 @@ def run_analysis(
             new_steps = []
             for era in eras:
                 copy_step = copy.deepcopy(step)
+                if noSyst:
+                    copy_step.doSyst  = False
                 new_steps.append(copy_step.init(era=era))
             if len(eras)>1:
                 flow.steps[idx:idx+1]=new_steps
@@ -165,10 +176,10 @@ def run_analysis(
         cache = None
     maker = Processor(cache=cache)
     maker.bookCutFlow(all_data, lumi, flow, eras=eras)
-    maker.book(all_data, lumi, flow, plots, eras=eras)
-    plotter = maker.runPlots()
+    maker.book(all_data, lumi, flow, plots, eras=eras, withUncertainties=True)
+    plotter = maker.runPlots(mergeEras=mergeEras)
     PlotSetPrinter(
-        topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio
+        topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio, noStackSignals=True, showErrors=True
     ).printSet(plotter, outfolder)
 
     yields = maker.runYields(mergeEras=True)
@@ -183,6 +194,9 @@ def run_analysis(
     sys.settrace(None)
     write_log(outfolder, command, cachepath)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
+
+    cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold)
+    cardMaker.makeCards(plotter, MultiKey(), outfolder+"/cards/{name}_{flow}_{era}.txt")
 
 
 if __name__ == "__main__":
