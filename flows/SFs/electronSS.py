@@ -47,7 +47,6 @@ class electronSmearing(BaseCorrection):
 
         cpp_unc = """
             ROOT::RVec<ROOT::RVec<float>> electronSmearingSF_syst_<era> (const ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
-                return {pt, pt};
                 int n = eta.size();
                 auto generator = TRandom();
                 ROOT::RVec<float> sf_up(n);
@@ -55,7 +54,7 @@ class electronSmearing(BaseCorrection):
                 for (int i = 0; i < n; i++) {
                     float rho = generator.Gaus(1., <corrector>->evaluate({"rho", eta[i], r9[i]}));
                     sf_up[i] = generator.Gaus(1., rho + <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
-                    sf_down[i] = generator.Gaus(1., rho + <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
+                    sf_down[i] = generator.Gaus(1., rho - <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
                 }
                 return RVec<ROOT::RVec<float>>{sf_up*pt, sf_down*pt};
             }
