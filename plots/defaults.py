@@ -12,10 +12,10 @@ histo2d_defaults = {}
 # The first matched pattern will be used
 # TODO xTitle like a regex pattern?
 name1d_defaults = {
-    ".*_pt_.*": dict(
+    ".*_pt.*": dict(
         bins=(50, 0, 30),
     ),
-    ".*_mass_.*": dict(
+    ".*_mass.*": dict(
         bins=(30, 2.7, 3.3),
     ),
 }

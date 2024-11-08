@@ -3,6 +3,7 @@ import types
 import typing
 
 from CMGRDF import Flow, Cut
+from CMGRDF.flow import SimpleExprFlowStep
 
 
 def load_module(filepath):
@@ -35,7 +36,7 @@ def parse_function(module, name, typ, kwargs={}):
             raise ValueError(f"The function should return an object of type {typ} but got {type(obj)}")
 
     if isinstance(obj, Flow):
-        if obj[0].expr != "1":
+        if not isinstance(obj[0], SimpleExprFlowStep) or obj[0].expr != "1":
             obj.prepend(Cut("nEvents", "1"))
 
     return obj

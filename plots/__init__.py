@@ -18,6 +18,7 @@ class Hist(BaseHist):
         if "typ" in user_kwargs:
             del user_kwargs["typ"]
 
+        pattern_kwargs = {}
         for pattern in name1d_defaults:
             if re.search(pattern, name):
                 pattern_kwargs = copy.deepcopy(name1d_defaults[pattern])

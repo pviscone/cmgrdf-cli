@@ -1,3 +1,4 @@
+import copy
 import multiprocessing
 import os
 import sys
@@ -24,7 +25,7 @@ console = Console(record=True)
 def run_analysis(
     #! Configs
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras    : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
+    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     plots    : Annotated[str , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
@@ -101,6 +102,20 @@ def run_analysis(
 
     if nevents != -1:
         flow.prepend(Range(nevents))
+
+    #! ------------------ Corrections handling ------------------------ !#
+    # Dirty workaround to handle corrections
+
+    for idx, step in enumerate(flow):
+        if hasattr(step, "_isCorrection") and step.era is None:
+            new_steps = []
+            for era in eras:
+                copy_step = copy.deepcopy(step)
+                new_steps.append(copy_step.init(era=era))
+            if len(eras)>1:
+                flow.steps[idx:idx+1]=new_steps
+            else:
+                flow.steps[idx]=new_steps[0]
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print()
