@@ -14,7 +14,7 @@ Clone this repository with the `--recursive` option, so `cmgrdf-prototype` is al
 
 ```bash
 git clone --recursive ssh://git@gitlab.cern.ch:7999/darkphoton-ee/dp-ee-main.git
-cd sos-analysis
+cd dp-ee-main
 ```
 The setup.sh script will setup everything needed.
 
@@ -118,7 +118,7 @@ era_paths_Data={
 ```
 You can use as placeholder for era, sample name and subera the following strings: `{era}`, `{name}`, `{subera}`
 
-### Sample definition
+### Sample definition (To review)
 
 The definition of the samples is in the `data` directory.
 
