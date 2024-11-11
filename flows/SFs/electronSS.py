@@ -1,32 +1,22 @@
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
-from flows.SFs import BaseCorrection
+from flows.SFs import BaseCorrection, BranchCorrection
 
 import ROOT
 
 #!TODO There is no smearings for 2023, I am using 2022 for now FIX
-era_map = {
+corrections_map = {
     "2023": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2022_Summer22/electronSS.json.gz",
     "2022EE": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2022_Summer22EE/electronSS.json.gz",
 }
 
 
 class electronSmearing(BaseCorrection):
-    def __init__(self, pt, eta, r9, doSyst=True, era=None, name="Electron_smearing", defineNew=False, **kwargs):
-        self.doSyst = doSyst
-        kwargs.setdefault("onData", False)
-        kwargs.setdefault("onDataDriven", False)
-
+    def __init__(self, name, pt, eta, r9, defineNew=False, **kwargs):
         self.pt = pt
         self.eta = eta
         self.r9 = r9
-        self.name = name
         self.defineNew = defineNew
-
-        super().__init__(self.name, **kwargs)
-        self._init = False
-        self.era = era
-        if self.era is not None:
-            self.init(era=self.era)
+        super().__init__(name, **kwargs)
 
     def init(self, era=None):
         if era is None:
@@ -34,64 +24,49 @@ class electronSmearing(BaseCorrection):
         self.era = era
         self.eras = [era]
 
-        self.corrector = CorrectionlibFactory.loadCorrector(era_map[self.era], "Smearing", check=True)[0]
+        self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[self.era], "Smearing", check=True)[0]
         cpp_sf = """
-            ROOT::RVec<float> electronSmearingSF_corr_<era> (const ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
+            ROOT::RVec<float> electronSmearingSF_<era> (const std::string &syst_type, const ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
                 int n = eta.size();
                 auto generator = TRandom();
                 ROOT::RVec<float> sf(n);
                 for (int i = 0; i < n; i++) {
-                    sf[i] = generator.Gaus(1., <corrector>->evaluate({"rho", eta[i], r9[i]}));
+                    float rho = <corrector>->evaluate({"rho", eta[i], r9[i]});
+                    if (syst_type == "up"){
+                        rho += <corrector>->evaluate({"err_rho", eta[i], r9[i]});
+                    } else if (syst_type == "down"){
+                        rho -= <corrector>->evaluate({"err_rho", eta[i], r9[i]});
+                    } else if (syst_type != "nominal"){
+                        throw std::invalid_argument("Unknown syst_type: " + syst_type);
+                    }
+                    sf[i] = generator.Gaus(1., rho);
                 }
                 return sf*pt;
             }
         """.replace("<era>", self.era).replace("<corrector>", self.corrector)
 
-        cpp_unc = """
-            ROOT::RVec<ROOT::RVec<float>> electronSmearingSF_syst_<era> (const ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
-                int n = eta.size();
-                auto generator = TRandom();
-                ROOT::RVec<float> sf_up(n);
-                ROOT::RVec<float> sf_down(n);
-                for (int i = 0; i < n; i++) {
-                    float rho = <corrector>->evaluate({"rho", eta[i], r9[i]});
-                    sf_up[i] = generator.Gaus(1., rho + <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
-                    sf_down[i] = generator.Gaus(1., rho - <corrector>->evaluate({"err_rho", eta[i], r9[i]}));
-                }
-                return {sf_up*pt, sf_down*pt};
-            }
-        """.replace("<era>", self.era).replace("<corrector>", self.corrector)
-
         ROOT.gInterpreter.Declare(cpp_sf)
-        if self.doSyst:
-            ROOT.gInterpreter.Declare(cpp_unc)
-
         self._init = True
-        return self
 
-    def _attach(self, rdf):
-        if self.defineNew is False:
-            rdf = rdf.Define(
-                f"_Old_{self.pt}_", self.pt
-            )  # Save the old pt. This is needed for the syst variation. I cannot vary before redefining, this invalidate the pointer to the old pt that Vary uses
-            rdf = rdf.Redefine(self.pt, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
-        else:
-            rdf = rdf.Define(self.defineNew, f"electronSmearingSF_corr_{self.era}({self.pt}, {self.eta}, {self.r9})")
-
-        if self.doSyst:
-            original_pt = f"_Old_{self.pt}_" if self.defineNew is False else self.pt
-            rdf = rdf.Vary(
-                self.pt if self.defineNew is False else self.defineNew,
-                f"electronSmearingSF_syst_{self.era}({original_pt}, {self.eta}, {self.r9})",
-                variationTags=["up", "down"],
-                variationName=self.name,
-            )
-        return rdf
+        branch_name = self.pt if not bool(self.defineNew) else self.defineNew
+        return BranchCorrection(
+            branch_name,
+            f'electronSmearingSF_{self.era}("nominal", {self.pt}, {self.eta}, {self.r9})',
+            f'electronSmearingSF_{self.era}("up", _OLD_{self.pt}_, {self.eta}, {self.r9})',
+            f'electronSmearingSF_{self.era}("down", _OLD_{self.pt}_, {self.eta}, {self.r9})',
+            preserve=[self.pt],
+            onData=False,
+            onDataDriven=False,
+            era=self.era,
+            doSyst=self.doSyst,
+            nuisName=self.nuisName,
+            redefine=not bool(self.defineNew),
+        )
 
 
 class electronScale(BaseCorrection):
     def __init__(self, doSyst=True, **kwargs):
         pass
 
-    def _attach(self):
+    def init(self):
         pass
