@@ -171,13 +171,116 @@ all_processes=[
 > The only thing is that, when plotting, the color and the label of the process will be taken from the first definition of the process.
 
 
-### MCC, Flows & Plots
-ToExplain
+### MCC
+*Optional*
+
+The MCC is just a **list** of flowstep that are added to each sample as a Prepend hook. They usually contains just a bunch of alias.
+
+The MCC config file must contain a list of flowsteps or a function that return a list of flowstep called `mccFlow`
+
+### Flows
+The flow config file contains the analysis flow.
+It must contain a Flow object or a function that return a Flow object called `flow`
+
+### Plots
+The plot config file contains the list of plots to plot.
+Currently only 1D and 2D histograms are supported (e.g. no TEfficiency)
+
+Instead of using `Plot` objects from CMGRDF, you can use `Hist` (for 1D) and `Hist2D` (for 2D).
+
+`from plots import Hist`
+
+They work exactly like CMGRDF `Plots` objects but with Hist you can make advantage of defaults arguments.
+
+In `plots/defaults.py` you can set default arguments for the histogram. You can find 5 dictionaries:
+- global_defaults : These arguments are passed to all the histograms
+- histo1d_defaults: These arguments are passed to all the 1D histograms
+- histo2d_defaults: These arguments are passed to all the 2D histograms
+- name1d_defaults : Here you can define a regex pattern as a key and a dictionary for each regex pattern. The first regex pattern that will match the name of a 1D `Hist` object will have the defined arguments applied
+- name2d_defaults : Same thing but for 2D Hists **(Not implemented yet)**
+
+Of course, you can ovverride the defalut values just defining a new one in the `Hist` definition
+The priority is
+
+` global_defaults < histo1d_defaults < branch_defaults < user defined`
+
+
+The config file must contain a list of Hists or a function that returns a list of Hists called `plots`
 
 ### Corrections and systematics
-ToExplain
+Here the things are a bit weird.
+
+Since we have to apply different corrections to different eras and there is no way to have access to the era in the `_attach` method of the FlowStep objects, here there are a bunch of workarounds to make everything work.
+
+To fix this, CMGRDF would require a huge refactoring
+
+To define a correction/variation you have to create a class that inherits `from flows.SFs import BaseCorrection`
+the class must have an `__init__` and an `init` method.
+
+The `__init__` method is used just to store the name of the branches that you need to compute the variation
+
+For the `init` method let's distinguish between Event weight corrections and branch corrections (e.g. JES)
+
+In the `init(self, era)` method you have to:
+1. load the right correctionlib json for the given era (you can define a dictionary)
+2. write a string with the cpp code that returns a float (for event weights) or an RVec (for branch corrections)
+3. Declare the cpp_code with ROOT.gInterpreter.Declare
+4. Branch Corrections: return a `from flows.SFs import BranchCorrection` object
+4. Weight Corrections: `if self.doSyst: return AddWeightUncerainty else: return AddWeight`
+5. Use these new classes in the flow to apply corrections
+
+You can decide if apply also systematic variations to each correction using the argument `doSyst` (default True).
+
+>**In general Branch corrections are applied at the beginning of the flow (before the object/event selection) while weight corrections at the end of the flow** Also remember to specify if the corrections have to be applied just on MC or also on Data
+
+Please, don't be mad at me for all this :(
+
+Anyway the best way to understand this is look to electron ID corrections in `flows/SFs/electronID` for Event weight corrections and to electron Smearing corrections in `flows/SFs/electronSS` for branch corrections.
 
 
 # Command Line Interface
+To run the analysis you can use the `run_analysis.py` CLI, use --help to see all the options.
 
-ToExplain
+Basically the idea is to pass the name of the config files to run the analysis, e.g.
+
+```bash
+python run_analysis.py --cfg cfg/cfg_example.py --data data/data_example.py --mc data/MCProcesses_example.py --flow flows/flow_example.py  --plots plots/plots_example.py -o temp --eras 2023
+```
+
+The needed arguments are:
+- cfg: path to the cfg config file
+- data: path to the data config file
+- mc: path to the mc config file
+- flow: path to the flow config file
+- plots: path to the plots config file
+- o: output directory
+- eras: list of eras to process
+
+If the config file contains a function that return the needed object you can set the arguments of the function with the following syntax  `--option:arg1=value1,arg2=value2` (you can use keyword arguments only)
+
+e.g. `--flow flows/flow.py:region=\"Signal\",Eleptcut=5`
+
+---
+The CLI will print on the terminal:
+- A table containing the mainm configurations (eras, ncpu, etc.)
+- The list of data and MC paths for all the eras (also for friends)
+- A table with all the processes, the samples, the cross-sections and the preselection strings
+- The list of steps of the MCC
+- The list of steps of the Flow
+- The RDataFrame logging
+- For each process a table with all the cuts with the yields, relative efficiencies and cumulative efficiencies
+
+
+---
+In the outfolder, the CLI will save:
+- The CMGRDF output (index.php to visualize plots on webeos, pdf and png plots, txt with yields for each plot, hist saved in root file)
+- a cards folder with Combine datacards for each plot and root input files
+- A log folder that contains:
+    - `cache` folder that contains the cache of the analysis (for rerunning it faster) (enabled by default)
+    - `report.txt` A file that contains the terminal output of the CLI
+    - `cmgrdf_commit.txt` A file that contains the commit hash of the CMGRDF used to runned the analysis and (if in a dirty state), the git diff
+    - All the files needed to rerun the analysis (not all the files in the repo, just the one you need)
+    - `command.sh` A bash command that check if you are running with the same CMGRDF version (otherwise it will warn you) and rerun the same analysis
+
+
+> To visualize correctly `report.txt` on WEBEOS you have to add `AddDefaultCharset utf-8` to your .htaccess
