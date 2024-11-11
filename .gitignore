@@ -1,5 +1,6 @@
 *.pyc
 *~
 temp/
+temp
 pyproject.toml
 .vscode/
