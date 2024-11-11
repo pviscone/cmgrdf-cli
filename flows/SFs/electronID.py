@@ -33,9 +33,6 @@ class electronID(BaseCorrection):
         self.name = name
 
         super().__init__(self.name, nuisName=variationName, **kwargs)
-        self.era = era
-        if self.era is not None:
-            self.init(era=self.era)
 
     def init(self, era=None):
         if era is None:
@@ -63,7 +60,6 @@ class electronID(BaseCorrection):
         )
 
         ROOT.gInterpreter.Declare(cpp_sf)
-        self._init = True
 
         if self.doSyst:
             return AddWeightUncertainty(

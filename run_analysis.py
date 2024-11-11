@@ -124,6 +124,7 @@ def run_analysis(
                 if noSyst:
                     copy_step.doSyst  = False
                 new_steps.append(copy_step.init(era=era))
+                new_steps[-1]._init = True
             if len(eras)>1:
                 flow.steps[idx:idx+1]=new_steps
             else:

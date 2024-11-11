@@ -46,7 +46,6 @@ class electronSmearing(BaseCorrection):
         """.replace("<era>", self.era).replace("<corrector>", self.corrector)
 
         ROOT.gInterpreter.Declare(cpp_sf)
-        self._init = True
 
         branch_name = self.pt if not bool(self.defineNew) else self.defineNew
         return BranchCorrection(
