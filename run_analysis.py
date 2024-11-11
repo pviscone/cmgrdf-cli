@@ -53,6 +53,7 @@ def run_analysis(
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
 
     #! Datacard options
+    asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
     autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
     autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
     threshold       : int  = typer.Option(0.0, "--threshold", help="Minimum event yield to consider processes", rich_help_panel="Datacard Options"),
@@ -164,6 +165,13 @@ def run_analysis(
     console.print(processtable)
     console.print(datatable)
     console.print(MCtable)
+
+    #! ---------------------- PRINT THE FLOW ----------------------- !#
+    console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
+    console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
+    console.print("[bold red]--------------------- FLOW ----------------------[/bold red]")
+    console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
+
     #! ---------------------- RUN THE ANALYSIS ----------------------- !#
     console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if nocache is False and cachepath is None:
@@ -184,18 +192,13 @@ def run_analysis(
 
     yields = maker.runYields(mergeEras=True)
 
-    #! ---------------------- WRITE COMMAND LOG ---------------------- !#
-    console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
-    console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
-    console.print("[bold red]--------------------- FLOW ----------------------[/bold red]")
-    console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
-
+    #! ---------------------- PRINT YIELDS ---------------------- !#
     print_yields(yields, all_data, flow, console=console)
     sys.settrace(None)
     write_log(outfolder, command, cachepath)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
 
-    cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold)
+    cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
     cardMaker.makeCards(plotter, MultiKey(), outfolder+"/cards/{name}_{flow}_{era}.txt")
 
 
