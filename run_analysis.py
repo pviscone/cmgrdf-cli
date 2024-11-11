@@ -38,7 +38,7 @@ def run_analysis(
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose  : bool = typer.Option(False, "-v", "--verbose", help="Enable RDF verbosity", rich_help_panel="RDF Options"),
-    nocache  : bool = typer.Option(False, "--nocache", help="Disable caching", rich_help_panel="RDF Options"),
+    nocache  : bool = typer.Option(False, "--noCache", help="Disable caching", rich_help_panel="RDF Options"),
     cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
 
     #! Debug options
