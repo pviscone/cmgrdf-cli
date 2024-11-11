@@ -118,7 +118,7 @@ era_paths_Data={
 ```
 You can use as placeholder for era, sample name and subera the following strings: `{era}`, `{name}`, `{subera}`
 
-### Sample definition (To review)
+### Sample definition
 
 The definition of the samples is in the `data` directory.
 
