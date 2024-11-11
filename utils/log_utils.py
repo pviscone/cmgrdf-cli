@@ -44,12 +44,14 @@ def write_log(outfolder, command, cachepath):
         f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
     )
     os.system(f'echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
+    #get abs path to outfolder
+    abs_outfolder = os.path.abspath(outfolder)
 
     # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
     os.system(
-        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > ../{os.path.join(outfolder, 'log/cmgrdf_commit.txt')}"
+        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'log/cmgrdf_commit.txt')}"
     )
-    os.system(f"cd {os.environ['CMGRDF']} && git diff >> ../{os.path.join(outfolder, 'log/cmgrdf_commit.txt')}")
+    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(abs_outfolder, 'log/cmgrdf_commit.txt')}")
 
     # Copy all the accessed files to the log folder
     copy_imports(outfolder)
@@ -75,6 +77,7 @@ def copy_imports(outfolder):
 
 def print_yields(yields, all_data, flow, console=Console()):
     console.print("[bold red]---------------------- YIELDS -----------------------[/bold red]")
+    console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
     for proc in all_data:
         print()
         table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
@@ -117,3 +120,4 @@ def print_yields(yields, all_data, flow, console=Console()):
             )
             started = True
         console.print(table)
+    console.print("[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]")
