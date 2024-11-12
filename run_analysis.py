@@ -16,6 +16,7 @@ from CMGRDF.cms.eras import lumis as lumi
 from CMGRDF.stat import DatacardWriter
 
 from data import AddMC, AddData, all_data, processtable, datatable, MCtable
+from flows.SFs import BranchCorrection
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
 from utils.log_utils import write_log, print_yields, trace_calls
@@ -141,6 +142,9 @@ def run_analysis(
                 new_steps[-1]._init = True
                 new_steps[-1].era   = era
                 new_steps[-1].eras  = [era]
+                new_steps[-1].nuisName = step.nuisName
+                if isinstance(new_steps[-1], BranchCorrection):
+                    new_steps[-1].doSyst = step.doSyst
             if len(eras)>1:
                 flow.steps[idx:idx+1]=new_steps
             else:
