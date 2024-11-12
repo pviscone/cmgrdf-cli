@@ -171,14 +171,20 @@ def run_analysis(
     flow_modules = []
     flow_kwarges  = []
     flow_list = []
-    for flow_config in flows:
-        flow_module , flow_kwargs  = load_module(flow_config)
-        flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
-        flow_modules.append(flow_module)
-        flow_kwarges.append(flow_kwargs)
-        flow_list.append(flow_obj)
-        flow_table.add_row(flow_config, flow_obj.name)
-    console.print(flow_table)
+    if flows is not None:
+        for flow_config in flows:
+            flow_module , flow_kwargs  = load_module(flow_config)
+            flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
+            flow_modules.append(flow_module)
+            flow_kwarges.append(flow_kwargs)
+            flow_list.append(flow_obj)
+            flow_table.add_row(flow_config, flow_obj.name)
+        console.print(flow_table)
+    else:
+        flow_modules = [None]
+        flow_kwarges = [None]
+        flow_list = [Flow("empty", Cut("empty", "1"))]
+        flows = [""]
 
     #! ---------------------- Print MCCs -------------------------- !#
     console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
