@@ -117,7 +117,7 @@ def run_analysis(
     # Dirty workaround to handle corrections
 
     for idx, step in enumerate(flow):
-        if hasattr(step, "_isCorrection") and step.era is None:
+        if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
             new_steps = []
             for era in eras:
                 copy_step = copy.deepcopy(step)
@@ -125,6 +125,8 @@ def run_analysis(
                     copy_step.doSyst  = False
                 new_steps.append(copy_step.init(era=era))
                 new_steps[-1]._init = True
+                new_steps[-1].era   = era
+                new_steps[-1].eras  = [era]
             if len(eras)>1:
                 flow.steps[idx:idx+1]=new_steps
             else:
