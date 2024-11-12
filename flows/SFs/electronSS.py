@@ -75,8 +75,91 @@ class electronSmearing(BaseCorrection):
 
 
 class electronScale(BaseCorrection):
-    def __init__(self, doSyst=True, **kwargs):
-        pass
+    def __init__(self, name, pt, gain, run, eta, r9, et, defineNew=False, **kwargs):
+        self.pt = pt
+        self.gain = gain
+        self.run = run
+        self.eta = eta
+        self.r9 = r9
+        self.et = et
+        self.defineNew = defineNew
+        super().__init__(name, **kwargs)
+        self.doSyst = False
+        #! ELECTRON SCALE IS APPLIED TO DATA VBUT VARIATION ON MC, 2 DIFFERENT FLOWSTEPS
 
-    def init(self):
-        pass
+    def init(self, era = None):
+        if era is None:
+            raise ValueError("Must be defined with one and only one era")
+
+        self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[era], "Scale", check=True)[0]
+        cpp_sf = """
+            ROOT::RVec<float> electronScaleSF_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+                int n = eta.size();
+                for (int i = 0; i < n; i++) {
+                    pt[i] = pt[i]*<corrector>->evaluate({"total_correction", gain[i], eta[i], r9[i], et[i]});
+                return pt;
+                }
+            }
+        """.replace("<era>", era).replace("<corrector>", self.corrector)
+        ROOT.gInterpreter.Declare(cpp_sf)
+
+        branch_name = self.pt if not bool(self.defineNew) else self.defineNew
+        return BranchCorrection(
+                branch_name,
+                f'electronScaleSF_{era}({self.pt}, {self.gain}, {self.run}, {self.eta}, {self.r9}, {self.et})',
+                onData = True,
+                onDataDriven = True,
+                onMC = False,
+                redefine=not bool(self.defineNew),
+            )
+
+
+class electronScaleVariation(BaseCorrection):
+    def __init__(self, name, pt, gain, run, eta, r9, et, defineNew=False, **kwargs):
+        self.pt = pt
+        self.gain = gain
+        self.run = run
+        self.eta = eta
+        self.r9 = r9
+        self.et = et
+        self.defineNew = defineNew
+        super().__init__(name, **kwargs)
+
+    def init(self, era = None):
+        if era is None:
+            raise ValueError("Must be defined with one and only one era")
+
+        self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[era], "Scale", check=True)[0]
+        cpp_up = """
+            ROOT::RVec<float> electronScaleSF_<era>_up (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+                int n = eta.size();
+                for (int i = 0; i < n; i++) {
+                    pt[i] = pt[i]*(1+<corrector>->evaluate({"total_uncertainty", gain[i], eta[i], r9[i], et[i]}));
+                return pt;
+                }
+            }
+        """.replace("<era>", era).replace("<corrector>", self.corrector)
+
+        cpp_down = """
+            ROOT::RVec<float> electronScaleSF_<era>_down (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+                int n = eta.size();
+                for (int i = 0; i < n; i++) {
+                    pt[i] = pt[i]*(1-<corrector>->evaluate({"total_uncertainty", gain[i], eta[i], r9[i], et[i]}));
+                return pt;
+                }
+            }
+        """.replace("<era>", era).replace("<corrector>", self.corrector)
+
+        ROOT.gInterpreter.Declare(cpp_up)
+        ROOT.gInterpreter.Declare(cpp_down)
+        branch_name = self.pt if not bool(self.defineNew) else self.defineNew
+        return BranchCorrection(
+                branch_name,
+                self.pt,
+                f"electronScaleSF_{era}_up({self.pt}, {self.gain}, {self.run}, {self.eta}, {self.r9}, {self.et})",
+                f"electronScaleSF_{era}_down({self.pt}, {self.gain}, {self.run}, {self.eta}, {self.r9}, {self.et})",
+                onData = False,
+                onDataDriven = False,
+                onMC = True,
+                redefine=not bool(self.defineNew),
+            )
