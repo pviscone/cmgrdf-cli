@@ -37,7 +37,7 @@ def run_analysis(
 
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
-    verbose  : bool = typer.Option(False, "-v", "--verbose", help="Enable RDF verbosity", rich_help_panel="RDF Options"),
+    verbose  : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
     nocache  : bool = typer.Option(False, "--noCache", help="Disable caching", rich_help_panel="RDF Options"),
     cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
 
@@ -59,6 +59,8 @@ def run_analysis(
     autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
     threshold       : int  = typer.Option(0.0, "--threshold", help="Minimum event yield to consider processes", rich_help_panel="Datacard Options"),
     regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
+
+    #! Snapshot options
 ):
     """
     Command line to run the analysis.
@@ -81,9 +83,13 @@ def run_analysis(
     if disableBreakpoints:
         os.environ["PYTHONBREAKPOINT"] = "0"
 
-    if verbose:
+    if verbose==1:
         verbosity = ROOT.Experimental.RLogScopedVerbosity(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
+        )
+    elif verbose==2:
+        verbosity = ROOT.Experimental.RLogScopedVerbosity(
+            ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
         )
 
     #! -------------------------- RDF CONFIG ---------------------------- !#
