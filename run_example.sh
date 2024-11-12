@@ -1,1 +1,1 @@
-python run_analysis.py --cfg cfg/cfg_example.py --data data/data_example.py --mc data/MCProcesses_example.py --flow flows/flow_example.py  --plots plots/plots_example.py -o temp --eras 2023
+python run_analysis.py --cfg cfg/cfg_example.py --data data/data_example.py --mc data/MCProcesses_example.py --flow flows/flow_example.py --flow flows/flow_example2.py:leadEleptcut=5  --plots plots/plots_example.py -o $WWW/dp-temp --eras 2023   --noCache   --datacards --snapshot --columnSel "#new,Electron_.*"
