@@ -3,17 +3,64 @@ from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
 
 
+class DefineFromCollection(FlowStep):
+    """Define new scalar branchs looping over the members of a collection.
+    Index can be an explicit index or a string with the name of the index branch (ex. 0 or LepGood_photonIdx[0])
+    (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
+    """
+
+    def __init__(self, name, srcColl, members : "list[str]" = None, index=None, redefine=False, **options):
+        super().__init__(name, **options)
+        self.members = members
+        self.index = index
+        self.srcColl = srcColl
+        self.rdf_func = "Redefine" if redefine else "Define"
+
+        if index is None:
+            raise RuntimeError(f"Error in {self.name}: must specify index")
+
+    def _attach(self, rdf):
+        if self.members is None:
+            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
+                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(dict.fromkeys(members))  # Remove duplicates
+        else:
+            members = self.members
+
+        cols = set(rdf.GetColumnNames())
+        for m in members:
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
+            try:
+                rdf = getattr(rdf, rdf_func)(f"{self.name}_{m}", f"{self.srcColl}_{m}.at({self.index})")
+            except BaseException:
+                print(f"ERROR attaching {rdf_func}({self.name}, {self.srcColl}_{m}[{self.index}]")
+                raise
+        return rdf
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl},{self.index})\033[0m\n"
+        if self.members:
+            out += f"\tmembers: {self.members}\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
+
+
 class DefineSkimmedCollection(FlowStep):
     """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
 
     def __init__(self,
                  name : str,
                  srcColl : str,
-                 members : "list[str]",
+                 members : "list[str]" = None,
                  optMembers : "list[str]" = [],
                  cut : str = None,
                  mask : str = None,
                  indices : str = None,
+                 redefine=False,
                  **options):
         super().__init__(name, **options)
         self.srcColl = srcColl
@@ -26,6 +73,7 @@ class DefineSkimmedCollection(FlowStep):
             raise RuntimeError(f"Error in {self.name}: must specify exactly one of cut, mask or indices")
         if self.cut is not None:
             self.mask = srcColl + "_is" + name
+        self.rdf_func = "Redefine" if redefine else "Define"
 
     def _params(self):
         return (self.srcColl,
@@ -33,17 +81,28 @@ class DefineSkimmedCollection(FlowStep):
                 self.cut, self.mask, self.indices)
 
     def _attach(self, rdf):
+        if self.members is None:
+            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
+                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(dict.fromkeys(members))  # Remove duplicates
+        else:
+            members = self.members
+
+        cols = set(rdf.GetColumnNames())
+        rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
+
         if self.cut:
-            rdf = rdf.Define(self.mask, self.cut)
+            rdf = getattr(rdf, rdf_func)(self.mask, self.cut)
         if self.mask:
-            rdf = rdf.Define(f"n{self.name}", f"Sum({self.mask})")
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
-            rdf = rdf.Define(f"n{self.name}", f"{self.mask}.size()")
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
-        for m in self.members:
-            rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
-        cols = set(rdf.GetColumnNames())
+        for m in members:
+            rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
+            rdf = getattr(rdf, rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
+
         for m in self.optMembers:
             if f"{self.srcColl}_{m}" in cols:
                 rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
@@ -57,6 +116,23 @@ class DefineSkimmedCollection(FlowStep):
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
         _recursiveAddToHash(self._params(), hasher)
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl})\033[0m\n"
+        if self.cut:
+            out += f"\tcut: {self.cut}\n"
+        if self.mask:
+            out += f"\tmask: {self.mask}\n"
+        elif self.indices:
+            out += f"\tindices: {self.indices}\n"
+        if self.members:
+            out += f"\tmembers: {self.members}\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
 
 
 class DefineP4(Define):

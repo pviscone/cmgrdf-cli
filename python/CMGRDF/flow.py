@@ -1,4 +1,5 @@
 import copy
+import re
 import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
@@ -28,19 +29,36 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, suberas=None):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, suberas=None, samplePattern=None, **options):
+        """
+        Args:
+            name (str): The name of the flowstep.
+            onMC (bool, optional): Flag indicating if the flowstep has to be applied to Monte Carlo data. Defaults to True.
+            onDataDriven (bool, optional): Flag indicating if the flowstep has to be applied to data-driven objects. Defaults to True.
+            onData (bool, optional): Flag indicating if the flowstep has to be applied to real data. Defaults to True.
+            eras (list, optional): List of eras to which apply the flowstep for the analysis. Defaults to None.
+            samplePattern (str, optional): Apply the flowstep only to samples which name matches the given regex pattern. Defaults to None.
+            **options: Additional keyword arguments stored as attributes of the object.
+        """
+
+
         self.name = name
         self.onMC = onMC
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
         self.suberas = suberas
+        self.sample = re.compile(samplePattern + "$") if samplePattern else None  # regex pattern
+        for k, v in options.items():
+            setattr(self, k, v)
 
     def appliesTo(self, sample : Sample, era) -> bool:
         assert isinstance(sample, Sample)
         if sample.isMC:
             if not self.onMC:
                 return False
+            elif self.sample:
+                return bool(re.match(self.sample, sample.name))
         elif sample.isData:
             if not self.onData:
                 return False
@@ -76,6 +94,19 @@ class FlowStep(object):
     def _addToHash(self, hasher):
         _recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
 
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name})\033[0m\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
+
+    @property
+    def show(self):
+        print(self)
+
 
 class SimpleExprFlowStep(FlowStep):
     """ A Flow step which is fully defined by a single expression.
@@ -85,8 +116,6 @@ class SimpleExprFlowStep(FlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, **options)
         self.expr = expr
-        for k, v in options.items():
-            setattr(self, k, v)
 
     def __eq__(self, other) -> bool:
         if other.__class__ == self.__class__:
@@ -96,6 +125,15 @@ class SimpleExprFlowStep(FlowStep):
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
         _recursiveAddToHash(self.expr, hasher)
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.expr})\033[0m\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
 
 
 class Cut(SimpleExprFlowStep):
@@ -107,6 +145,21 @@ class Cut(SimpleExprFlowStep):
             return rdf.Filter(self.expr, self.name)
         except BaseException:
             print(f"ERROR attaching Cut({self.name}, {self.expr}")
+            raise
+
+
+class Range(SimpleExprFlowStep):
+    def __init__(self, expr, **options):
+        super().__init__("Range", expr, **options)
+
+    def _attach(self, rdf):
+        try:
+            if isinstance(self.expr, int):
+                return rdf.Range(self.expr)
+            elif isinstance(self.expr, tuple | list):
+                return rdf.Range(*(self.expr))
+        except BaseException:
+            print(f"ERROR attaching Range({self.expr}")
             raise
 
 
@@ -406,8 +459,8 @@ class Flow(object):
         self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx + 1:]
         return self
 
-    def remove(self, name):
-        self.steps = [s for s in self.steps if s.name != name]
+    def remove(self, *names):
+        self.steps = [s for s in self.steps if s.name not in names]
         return self
 
     def filterSteps(self, stepFilter):
@@ -428,6 +481,22 @@ class Flow(object):
         if not found:
             raise RuntimeError("Not found step %s in flow %s" % (name, self.name))
         return self
+
+    def __add__(self, other_flow):
+        return Flow(f"{self.name}+{other_flow.name}", [*self.steps, *other_flow.steps])
+
+    def __getitem__(self, key):
+        return self.steps[key]
+
+    def __str__(self):
+        out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
+        for idx, s in enumerate(self.steps):
+            out += f"\t{idx+1}. {s.__str__()}\n"
+        return out
+
+    @property
+    def show(self):
+        print(self)
 
 
 class Target(object):

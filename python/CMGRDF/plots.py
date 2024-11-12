@@ -22,14 +22,19 @@ def _unTLatex(string : str) -> str:
 
 
 class Plot(Target):
-    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, **options):
+    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, cut=None, **options):
         super(Plot, self).__init__(name, mcOnly=mcOnly)
         for k, v in options.items():
             setattr(self, k, v)
         self.type = typ
         if typ == "Histo1D":
             self._expr = args[0]
-            self._bins = args[1]
+            if isinstance(args[1], list):
+                self._bins = [float(e) for e in args[1]]
+            elif isinstance(args[1], tuple):
+                self._bins = tuple([float(e) if idx != 0 else int(e) for idx, e in enumerate(args[1])])
+            else:
+                raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto1D
             self.finish = self.finishHisto1D
             self.style = self.styleHisto1D
@@ -43,7 +48,12 @@ class Plot(Target):
             self._template = self._model.GetHistogram()
         elif typ == "Histo2D":
             self._expr = args[0]
-            self._bins = args[1]
+            if isinstance(args[1], list):
+                self._bins = [[float(e) for e in ax] for ax in args[1]]
+            elif isinstance(args[1], tuple):
+                self._bins = tuple([float(e) if idx not in [0, 3] else int(e) for idx, e in enumerate(args[1])])
+            else:
+                raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto2D
             self.finish = self.finishHisto2D
             self.style = self.styleHisto2D
@@ -60,13 +70,18 @@ class Plot(Target):
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
+        self.cut = cut
         self._bigHash = None
 
     def _prepareExpr(self, rdf, expr, name):
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
         #print("Will create a new expression for plot "+self.name)
-        rdf2 = rdf.Define(name, expr)
+        if self.cut is not None:
+            rdf2 = rdf.Filter(self.cut)
+            rdf2 = rdf2.Define(name, expr)
+        else:
+            rdf2 = rdf.Define(name, expr)
         rdf2._from = rdf
         return (rdf2, name)
 
@@ -351,11 +366,12 @@ class PlotSetPrinter(object):
             self.printPlot(plot, path.format(**plotKey), **options)
 
     def printPlot(self, plot, path, **options):
-        ## make directory (FIXME make this better, and use https://gitlab.cern.ch/php-plots/php-plots)
+        ## make directory (FIXME make this better)
         if not os.path.exists(path):
             os.makedirs(path)
-            if os.path.exists("/afs/cern.ch"):
-                os.system("cp /afs/cern.ch/user/g/gpetrucc/php/index.php " + path)
+        if not os.path.exists(os.path.join(path, "index.php")):
+            moduledir = os.environ["CMGRDF"]
+            os.system(f"cp {moduledir}/externals/index.php " + path)
         opts = self._options.cloneAndUpdate(**options)
         outputName = plot.name
         stack = ROOT.THStack(outputName + "_stack", outputName)
@@ -721,6 +737,8 @@ class PlotSetPrinter(object):
         c1._legend = leg
 
     def doRatioHists(self, pane, plot, nums, den, opts, locvars):
+        if plot.type not in ["Histo1D"]:
+            return
         doWide = locvars["doWide"]
         textSize = opts.smallTextSize
         pane.cd()
