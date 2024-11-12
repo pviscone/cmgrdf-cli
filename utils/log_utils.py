@@ -76,7 +76,6 @@ def copy_imports(outfolder):
 
 
 def print_yields(yields, all_data, flow, console=Console()):
-    console.print("[bold red]---------------------- YIELDS -----------------------[/bold red]")
     console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
     for proc in all_data:
         print()
