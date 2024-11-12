@@ -137,38 +137,41 @@ data={
 while for MC samples:
 
 ```python
-dicts_list=[{
-    "name": process_name,
-    "samples": [
-        nameSample1, #if string, xsec = xsec in friends
-        (nameSample2, 87.31484), #if tuple, xsec is the second element
-        ...#other samples
+dicts={
+    "process_name" : {
+    "groups" :[
+        "name": "group_name",
+        "samples": [
+            "nameSample1", #if string, xsec = xsec in friends
+            ("nameSample2", 87.31484), #if tuple, xsec is the second element
+            ...#other samples
         ],
+        "cut":  "cut_string"
+        "eras": era_list #OPTIONAL, eras where the sample is present
+    ]
     "label":label,
     "color": root_color,
-    "cut":cut_string
-    "eras": era_list #OPTIONAL, eras where the sample is present
-},
+    },
     ...#other processes
-]
+}
 ```
-If a group of samples is used often in multiple processes, you can put the `samples` lists in `data/MC/sample_lists.py` and import them to build the process dictionaries.
+The idea of groups is grouping samples in the same process that share the same preselections in a single RDataFrame.
+E.g. it make sense to use it when you have samples splitted in HT bins.
 
-The processes are defined in the directory `data/MC`. Group of MC samples are imported and grouped in the MCProcesses files in `data`, into the list `all_processes`
+If a group of samples is used often in multiple processes, it is convenient to define them elsewhere and import them when you need them
+
+The processes are defined in the directory `data/MC`. Group of MC samples are imported and grouped in the MCProcesses files in `data`, into the dict `all_processes`
 
 ```python
 from data.MC import l2os_prompt_tt, l2os_prompt_dy, l2os_prompt_vv,#...
 
-all_processes=[
-    *l2os_prompt_tt.prompt_tt,
-    *l2os_prompt_dy.prompt_dy,
-    *l2os_prompt_vv.prompt_vv,
+all_processes={
+    **l2os_prompt_tt.prompt_tt,
+    **l2os_prompt_dy.prompt_dy,
+    **l2os_prompt_vv.prompt_vv,
     #...
-]
+}
 ```
-> **Note**
-> If you have to apply different cuts in the same process is perfectly fine to define multiple dictionaries with the sampe process name and different samples and cuts.
-> The only thing is that, when plotting, the color and the label of the process will be taken from the first definition of the process.
 
 
 ### MCC

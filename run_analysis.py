@@ -30,7 +30,7 @@ def run_analysis(
     plots    : Annotated[str , typer.Option("-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
-    mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] list", rich_help_panel="Configs"),
+    mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
     flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
     noSyst   : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
@@ -106,7 +106,7 @@ def run_analysis(
     PMCs           = parse_function(cfg_module, "PMCs", list)
 
     DataDict      = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
-    all_processes = parse_function(mc_module, "all_processes", list, kwargs=mc_kwargs)
+    all_processes = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
     mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
     flow          = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
     plots         = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
@@ -162,8 +162,8 @@ def run_analysis(
     console.print("")
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
-    AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow)
-    AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow)
+    AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
+    AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow, eras = eras)
     console.print("[bold red]---------------------- DATASETS ----------------------[/bold red]")
     console.print(f"Running eras: {eras}")
     console.print(processtable)
