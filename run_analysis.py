@@ -1,6 +1,7 @@
 import copy
 import multiprocessing
 import os
+import re
 import sys
 
 from rich.console import Console
@@ -10,7 +11,7 @@ from typing import Tuple
 from typing_extensions import Annotated
 
 import ROOT
-from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey
+from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey, Snapshot
 from CMGRDF.cms.eras import lumis as lumi
 from CMGRDF.stat import DatacardWriter
 
@@ -61,6 +62,12 @@ def run_analysis(
     regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 
     #! Snapshot options
+    snapshot   : str = typer.Option("", "--snapshot", help="Path where to create the snapshot.", rich_help_panel="Snapshot Options"),
+    columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
+    columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
+    noMC       : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
+    noData     : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
+    MCpattern  : str = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
 ):
     """
     Command line to run the analysis.
@@ -219,6 +226,28 @@ def run_analysis(
         if mergeEras:
             card_path = card_path.replace("{era}", "allEras")
         cardMaker.makeCards(plotter, MultiKey(), card_path)
+
+    #! ---------------------- CREATE SNAPSHOT ----------------------!#
+    if snapshot:
+        if "{flow}" in snapshot:
+            snapshot = snapshot.replace("{flow}", flow.name)
+
+        snap_list = []
+        for dat in all_data:
+            if dat.isData and noData:
+                continue
+            if not dat.isData and noMC:
+                continue
+            if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
+                continue
+            snap_list.append(dat)
+
+        maker.clear().book(snap_list, lumi, flow, Snapshot(snapshot, columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+        report = maker.runSnapshots()
+        console.print("[bold red]---------------------- SNAPSHOT ----------------------[/bold red]")
+        console.print(f"Snapshoted at {snapshot}")
+        for key, snap in report:
+            console.print("%-10s  %-20s : %10u entries  %9.3f GB   %s" % (key.process, key.sample, snap.entries, snap.size / (1024.**3), snap.fname))
 
 
 if __name__ == "__main__":
