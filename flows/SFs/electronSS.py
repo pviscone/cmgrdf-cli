@@ -1,7 +1,6 @@
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
-from flows.SFs import BaseCorrection, BranchCorrection
+from flows.SFs import BaseCorrection, BranchCorrection, Declare
 
-import ROOT
 
 #!TODO There is no smearings for 2023, I am using 2022 for now FIX
 corrections_map = {
@@ -57,9 +56,9 @@ class electronSmearing(BaseCorrection):
             }
         """.replace("<era>", era).replace("<corrector>", self.corrector)
 
-        ROOT.gInterpreter.Declare(cpp_sf)
-        ROOT.gInterpreter.Declare(cpp_up)
-        ROOT.gInterpreter.Declare(cpp_down)
+        Declare(cpp_sf)
+        Declare(cpp_up)
+        Declare(cpp_down)
 
         branch_name = self.pt if not bool(self.defineNew) else self.defineNew
         return BranchCorrection(
@@ -101,7 +100,7 @@ class electronScale(BaseCorrection):
                 }
             }
         """.replace("<era>", era).replace("<corrector>", self.corrector)
-        ROOT.gInterpreter.Declare(cpp_sf)
+        Declare(cpp_sf)
 
         branch_name = self.pt if not bool(self.defineNew) else self.defineNew
         return BranchCorrection(
@@ -150,8 +149,8 @@ class electronScaleVariation(BaseCorrection):
             }
         """.replace("<era>", era).replace("<corrector>", self.corrector)
 
-        ROOT.gInterpreter.Declare(cpp_up)
-        ROOT.gInterpreter.Declare(cpp_down)
+        Declare(cpp_up)
+        Declare(cpp_down)
         branch_name = self.pt if not bool(self.defineNew) else self.defineNew
         return BranchCorrection(
                 branch_name,

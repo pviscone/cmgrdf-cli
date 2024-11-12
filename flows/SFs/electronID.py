@@ -1,7 +1,6 @@
-from flows.SFs import BaseCorrection
+from flows.SFs import BaseCorrection, Declare
 from CMGRDF import AddWeightUncertainty, AddWeight
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
-import ROOT
 
 P = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/"
 
@@ -21,18 +20,17 @@ era_map = {
 
 
 class electronID(BaseCorrection):
-    def __init__(self, name, wp, eta, pt, phi, era=None, variationName="Electron_ID", **kwargs):
+    def __init__(self, name, wp, eta, pt, phi, era=None, **kwargs):
         """
         wp: Loose, Medium, Reco20to75, RecoAbove75, RecoBelow20, Tight, Veto, wp80iso, wp80noiso, wp90iso, wp90noiso
         """
-        self.variationName = variationName
         self.pt = pt
         self.eta = eta
         self.phi = phi
         self.wp = wp
         self.name = name
 
-        super().__init__(self.name, nuisName=variationName, **kwargs)
+        super().__init__(self.name, **kwargs)
 
     def init(self, era=None):
         if era is None:
@@ -59,7 +57,7 @@ class electronID(BaseCorrection):
             .replace("<year_string>", era_map[self.era])
         )
 
-        ROOT.gInterpreter.Declare(cpp_sf)
+        Declare(cpp_sf)
 
         if self.doSyst:
             return AddWeightUncertainty(
@@ -67,7 +65,6 @@ class electronID(BaseCorrection):
                 f'electronIDSF_{self.era}_{self.wp}("sfup", {self.eta}, {self.pt}, {self.phi})',
                 f'electronIDSF_{self.era}_{self.wp}("sfdown", {self.eta}, {self.pt}, {self.phi})',
                 nominal=f'electronIDSF_{self.era}_{self.wp}("sf", {self.eta}, {self.pt}, {self.phi})',
-                nuisName=self.variationName,
                 onData=False,
                 onDataDriven=False,
             )
