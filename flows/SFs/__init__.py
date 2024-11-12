@@ -1,6 +1,16 @@
+import hashlib
+
 from CMGRDF.flow import FlowStep
 from CMGRDF.utils import _recursiveAddToHash
 
+import ROOT
+
+declared = []
+def Declare(string):
+    hash_str = hashlib.sha512(string.encode('utf-8')).hexdigest()
+    if hash_str not in declared:
+        ROOT.gInterpreter.Declare(string)
+        declared.append(hash_str)
 
 class BaseCorrection(FlowStep):
     def __init__(self, name, *args, doSyst=True, nuisName=None, era=None, **kwargs):
@@ -61,3 +71,13 @@ class BranchCorrection(BaseCorrection):
             )
 
         return rdf
+
+    def __str__(self):
+        out = f"\033[1m{self.__class__.__name__}({self.nuisName})\n\tVariated branch: {self.name}\033[0m\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        out += f"\tdoSyst: {self.doSyst}\n"
+        return out
