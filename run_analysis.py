@@ -53,6 +53,7 @@ def run_analysis(
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
 
     #! Datacard options
+    datacards        : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
     asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
     autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
     autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
@@ -201,8 +202,10 @@ def run_analysis(
     write_log(outfolder, command, cachepath)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
 
-    cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
-    cardMaker.makeCards(plotter, MultiKey(), outfolder+"/cards/{name}_{flow}_{era}.txt")
+    #! ---------------------- CREATE DATACARDS ---------------------- !#
+    if datacards:
+        cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
+        cardMaker.makeCards(plotter, MultiKey(), outfolder+"/cards/{name}_{flow}_{era}.txt")
 
 
 if __name__ == "__main__":

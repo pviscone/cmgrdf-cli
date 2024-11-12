@@ -274,7 +274,7 @@ The CLI will print on the terminal:
 ---
 In the outfolder, the CLI will save:
 - The CMGRDF output (index.php to visualize plots on webeos, pdf and png plots, txt with yields for each plot, hist saved in root file)
-- a cards folder with Combine datacards for each plot and root input files
+- a cards folder with Combine datacards for each plot and root input files (if runned with `--datacards`)
 - A log folder that contains:
     - `cache` folder that contains the cache of the analysis (for rerunning it faster) (enabled by default)
     - `report.txt` A file that contains the terminal output of the CLI
