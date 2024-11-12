@@ -400,7 +400,6 @@ class PlotSetPrinter(object):
                 warnAboutNegativeBins(hist, fullName)
             if hist.Integral() <= 0:
                 continue
-
             if proc.isSignal and opts.noStackSignals:
                 plot.restyleAsOutline(hist)
                 outlines.append(hist)
