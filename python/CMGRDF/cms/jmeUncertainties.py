@@ -61,7 +61,7 @@ jsonMap = {
 }
 
 
-jetVetoTags= { 
+jetVetoTags = {
     "2022"   : "Summer22_23Sep2023_RunCD_V1",
     "2022EE" : "Summer22EE_23Sep2023_RunEFG_V1",
 }
@@ -73,7 +73,7 @@ class JMEFactory(object):
     @classmethod
     def loadJME(cls, doMET, era, subera, jetAlgo, isData, splitJER, uncSources, suffix):
         configCls = calcConfigs.METVariations if doMET else calcConfigs.JetVariations
-        config = configCls(jsonMap[era]+"/jet_jerc.json.gz", jetAlgo)
+        config = configCls(jsonMap[era] + "/jet_jerc.json.gz", jetAlgo)
         config.jecTag = jecTagsDATA[era + subera] if isData else jecTags[era]
         config.jecLevel = "L1L2L3Res"
         config.splitJER = splitJER
@@ -190,19 +190,20 @@ class JMEUncertaintiesDefine(Define):
             print(f"ERROR attaching Define({self.name}, {self.expr}")
             raise
 
-class JetVetoMapCut( Cut ):
-    def __init__(self, cutName, era,  **options):
-        super().__init__( cutName, f"passesJetVetoMap_{era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
-        self.era=era
+
+class JetVetoMapCut(Cut):
+    def __init__(self, cutName, era, **options):
+        super().__init__(cutName, f"passesJetVetoMap_{era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
+        self.era = era
         self._fname = jsonMap[era] + '/jetvetomaps.json.gz'
         self._corrName = jetVetoTags[era]
-        self._init=False
+        self._init = False
 
     def init(self):
-        vetoMapId = CorrectionlibFactory.loadCorrector( self._fname, self._corrName, check=True)[0]
-        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta, 
+        vetoMapId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
+        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
                                                                   const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
-                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF, 
+                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
                                                                   const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
         bool ret=true;
         for (int ijet=0; ijet<Jet_pt.size(); ++ijet){
@@ -222,9 +223,9 @@ class JetVetoMapCut( Cut ):
         }
         return ret;
 }'''.replace("<era>", self.era).replace("<correctionname>", vetoMapId))
-        self._init=True
+        self._init = True
+
     def _attach(self, rdf):
         if not self._init:
             self.init()
-        return super()._attach( rdf )
-                                  
+        return super()._attach(rdf)

@@ -41,7 +41,6 @@ class FlowStep(object):
             **options: Additional keyword arguments stored as attributes of the object.
         """
 
-
         self.name = name
         self.onMC = onMC
         self.onData = onData
@@ -201,8 +200,6 @@ class ReDefine(SimpleExprFlowStep):
         except BaseException:
             print(f"ERROR attaching ReDefine({self.name}, {self.expr}")
             raise
-
-
 
 
 class DefinePerSample(FlowStep):
@@ -491,7 +488,7 @@ class Flow(object):
     def __str__(self):
         out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
         for idx, s in enumerate(self.steps):
-            out += f"\t{idx+1}. {s.__str__()}\n"
+            out += f"\t{idx + 1}. {s.__str__()}\n"
         return out
 
     @property

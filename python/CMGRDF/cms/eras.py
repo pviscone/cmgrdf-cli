@@ -34,7 +34,7 @@ lumiUncertainties = [
     NormUncertainty("CMS_lumi_2016", 1.010, eras=["2016APV", "2016"]),
     NormUncertainty("CMS_lumi_2017", 1.020, eras=["2017"]),
     NormUncertainty("CMS_lumi_2018", 1.015, eras=["2018"]),
-    NormUncertainty("CMS_lumi_2022", 1.014, eras=["2022", "2022EE"]), # will probably need to be updated
+    NormUncertainty("CMS_lumi_2022", 1.014, eras=["2022", "2022EE"]),  # will probably need to be updated
 ]
 lumiUncerty2016 = NormUncertainty("CMS_lumi", 1.012)
 lumiUncerty2017 = NormUncertainty("CMS_lumi", 1.023)
