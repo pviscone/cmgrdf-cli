@@ -20,7 +20,7 @@ from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from flows.SFs import BranchCorrection
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
-from utils.log_utils import write_log, print_yields, trace_calls
+from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_and_parse_flow, print_mcc, print_flow, print_yields, print_snapshot
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -126,69 +126,18 @@ def run_analysis(
     plots         = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
-    console.print()
-    config_table = Table(title="Configurations", show_header=True, header_style="bold black")
-    config_table.add_column("Key", style="bold red")
-    config_table.add_column("Value")
-    config_table.add_row("ncpu", str(ncpu))
-    config_table.add_row("nevents", str(nevents))
-    config_table.add_row("outfolder", outfolder)
-    config_table.add_row("Cache", str(not nocache))
-    config_table.add_row("Datacards", str(datacards))
-    config_table.add_row("Snapshot", str(snapshot))
-    if nocache is False:
-        config_table.add_row(
-            "Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache")
-        )
-
-    config_table.add_row("Eras", str(eras))
-    config_table.add_row("Data friends", str(PFs))
-    config_table.add_row("MC friends", str(PMCs))
-
-    console.print(config_table)
-    console.print("")
-    for era in eras:
-        console.print(f"Era: {era}")
-        console.print(f"\tData path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][1])}")
-        console.print(f"\tMC path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][1])}")
-        console.print(f"\tData friend path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][2])}")
-        console.print(f"\tMC friend path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][2])}")
-    console.print("")
+    print_configs(console, ncpu, nevents, outfolder, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow, eras = eras)
-    console.print("[bold red]---------------------- DATASETS ----------------------[/bold red]")
-    console.print(f"Running eras: {eras}")
-    console.print(processtable)
-    console.print(datatable)
-    console.print(MCtable)
+    print_dataset(console, processtable, datatable, MCtable, eras)
 
-    #! ---------------------- Print flows table -------------------------- !#
-    flow_table = Table(title="Flows", show_header=True, header_style="bold black")
-    flow_table.add_column("Configs", style="bold red")
-    flow_table.add_column("Name")
-    flow_modules = []
-    flow_kwarges  = []
-    flow_list = []
-    if flows is not None:
-        for flow_config in flows:
-            flow_module , flow_kwargs  = load_module(flow_config)
-            flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
-            flow_modules.append(flow_module)
-            flow_kwarges.append(flow_kwargs)
-            flow_list.append(flow_obj)
-            flow_table.add_row(flow_config, flow_obj.name)
-        console.print(flow_table)
-    else:
-        flow_modules = [None]
-        flow_kwarges = [None]
-        flow_list = [Flow("empty", Cut("empty", "1"))]
-        flows = [""]
+    #! -------------- Print flows table and parse flows -------------------- !#
+    flows, flow_modules, flow_kwarges, flow_list = print_and_parse_flow(console, flows)
 
     #! ---------------------- Print MCCs -------------------------- !#
-    console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
-    console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
+    print_mcc(console, mccFlow)
 
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
@@ -233,8 +182,7 @@ def run_analysis(
                     flow.steps[idx]=new_steps[0]
 
         #! ---------------------- PRINT THE FLOW ----------------------- !#
-        console.print(f"[bold red]--------------------- FLOW: {flow.name} ----------------------[/bold red]")
-        console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
+        print_flow(console, flow)
 
         #! ---------------------- BOOK Plots and cutflow ----------------------- !#
         pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
@@ -285,22 +233,8 @@ def run_analysis(
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
-        console.print("[bold red]---------------------- SNAPSHOTS ----------------------[/bold red]")
-        console.print(f"columnSel: {columnSel.split(',') if columnSel is not None else []}")
-        console.print(f"columnVeto: {columnVeto.split(',') if columnVeto is not None else []}")
-        console.print(f"MCpattern: {MCpattern if MCpattern is not None else []}")
-        console.print(f"flowPattern: {flowPattern if flowPattern is not None else []}")
-        snapshot_table = Table(title="Snapshots", show_header=True, header_style="bold black")
-        snapshot_table.add_column("Flow", style="bold red")
-        snapshot_table.add_column("Process")
-        snapshot_table.add_column("Sample")
-        snapshot_table.add_column("Entries")
-        snapshot_table.add_column("Size")
-        snapshot_table.add_column("Path")
         report = maker.runSnapshots()
-        for key, snap in report:
-            snapshot_table.add_row(key.flow, key.process, key.sample, f"{snap.entries}", f"{(snap.size/(1024.**3)):9.3f} GB", snap.fname)
-        console.print(snapshot_table)
+        print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
 
     sys.settrace(None)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
