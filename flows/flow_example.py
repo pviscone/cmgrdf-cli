@@ -25,7 +25,7 @@ flow = Flow(
     Cut("2wp90PFEle","nWp90Ele >= 2"),
 
     #! Event weights/syst
-    electronID("Wp90Ele_weight", "wp90noiso", "Wp90Ele_eta", "Wp90Ele_pt", "Wp90Ele_phi"),
+    electronID("electronIDSF_wp90noiso_", "wp90noiso", "Wp90Ele_eta", "Wp90Ele_pt", "Wp90Ele_phi"),
     AddWeightUncertainty("lumi", "1.016")
     ],
 )
