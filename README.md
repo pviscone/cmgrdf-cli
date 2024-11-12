@@ -252,12 +252,14 @@ python run_analysis.py --cfg cfg/cfg_example.py --data data/data_example.py --mc
 
 The needed arguments are:
 - cfg: path to the cfg config file
-- data: path to the data config file
 - mc: path to the mc config file
 - flow: path to the flow config file
-- plots: path to the plots config file
 - o: output directory
 - eras: list of eras to process
+
+Optional but really useful arguments are
+- plots: path to the plots config file (If not given you will have only the yields)
+- data: path to the data config file (Otherwise you will have MC only plots)
 
 If the config file contains a function that return the needed object you can set the arguments of the function with the following syntax  `--option:arg1=value1,arg2=value2` (you can use keyword arguments only)
 
