@@ -24,7 +24,7 @@ class electronSmearing(BaseCorrection):
         self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[era], "Smearing", check=True)[0]
 
         cpp_sf = """
-            ROOT::RVec<float> electronSmearingSF_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
+            ROOT::RVec<float>& electronSmearingSF_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     float rho = <corrector>->evaluate({"rho", eta[i], r9[i]});
@@ -35,7 +35,7 @@ class electronSmearing(BaseCorrection):
         """.replace("<era>", era).replace("<corrector>", self.corrector)
 
         cpp_up = """
-            ROOT::RVec<float> electronSmearing_up_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
+            ROOT::RVec<float>& electronSmearing_up_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     float rho = <corrector>->evaluate({"rho", eta[i], r9[i]}) + <corrector>->evaluate({"err_rho", eta[i], r9[i]});
@@ -46,7 +46,7 @@ class electronSmearing(BaseCorrection):
         """.replace("<era>", era).replace("<corrector>", self.corrector)
 
         cpp_down = """
-            ROOT::RVec<float> electronSmearing_down_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
+            ROOT::RVec<float>& electronSmearing_down_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     float rho = <corrector>->evaluate({"rho", eta[i], r9[i]}) - <corrector>->evaluate({"err_rho", eta[i], r9[i]});
@@ -92,7 +92,7 @@ class electronScale(BaseCorrection):
 
         self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[era], "Scale", check=True)[0]
         cpp_sf = """
-            ROOT::RVec<float> electronScaleSF_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+            ROOT::RVec<float>& electronScaleSF_<era> (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     pt[i] = pt[i]*<corrector>->evaluate({"total_correction", gain[i], eta[i], r9[i], et[i]});
@@ -130,7 +130,7 @@ class electronScaleVariation(BaseCorrection):
 
         self.corrector = CorrectionlibFactory.loadCorrector(corrections_map[era], "Scale", check=True)[0]
         cpp_up = """
-            ROOT::RVec<float> electronScaleSF_<era>_up (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+            ROOT::RVec<float>& electronScaleSF_<era>_up (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     pt[i] = pt[i]*(1+<corrector>->evaluate({"total_uncertainty", gain[i], eta[i], r9[i], et[i]}));
@@ -140,7 +140,7 @@ class electronScaleVariation(BaseCorrection):
         """.replace("<era>", era).replace("<corrector>", self.corrector)
 
         cpp_down = """
-            ROOT::RVec<float> electronScaleSF_<era>_down (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
+            ROOT::RVec<float>& electronScaleSF_<era>_down (ROOT::RVec<float> &pt, const ROOT::RVec<int> &gain, const ROOT::RVec<float> &eta, const ROOT::RVec<float> &r9, const ROOT::RVec<float> &et){
                 int n = eta.size();
                 for (int i = 0; i < n; i++) {
                     pt[i] = pt[i]*(1-<corrector>->evaluate({"total_uncertainty", gain[i], eta[i], r9[i], et[i]}));
