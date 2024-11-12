@@ -227,7 +227,7 @@ For the `init` method let's distinguish between Event weight corrections and bra
 In the `init(self, era)` method you have to:
 1. load the right correctionlib json for the given era (you can define a dictionary)
 2. write a string with the cpp code that returns a float (for event weights) or an RVec (for branch corrections)
-3. Declare the cpp_code with ROOT.gInterpreter.Declare
+3. Declare the cpp_code with `flows.SFs.Declare` (use this instead of ROOT.gIterpreter.Declare because it checks that the string was not already declared)
 4. Branch Corrections: return a `from flows.SFs import BranchCorrection` object
 4. Weight Corrections: `if self.doSyst: return AddWeightUncerainty else: return AddWeight`
 5. Use these new classes in the flow to apply corrections
@@ -264,6 +264,8 @@ Optional but really useful arguments are
 If the config file contains a function that return the needed object you can set the arguments of the function with the following syntax  `--option:arg1=value1,arg2=value2` (you can use keyword arguments only)
 
 e.g. `--flow flows/flow.py:region=\"Signal\",Eleptcut=5`
+
+
 
 ---
 The CLI will print on the terminal:

@@ -6,8 +6,9 @@ import sys
 
 from rich.console import Console
 from rich.table import Table
+from rich import print as pprint
 import typer
-from typing import Tuple
+from typing import Tuple, List
 from typing_extensions import Annotated
 
 import ROOT
@@ -30,10 +31,10 @@ def run_analysis(
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
     eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
+    flows    : List[str]  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] object. Multiple flow at once can be runned", rich_help_panel="Configs"),
     plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs"),
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
     mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
-    flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red]", rich_help_panel="Configs"),
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
     noSyst   : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
 
@@ -63,12 +64,13 @@ def run_analysis(
     regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 
     #! Snapshot options
-    snapshot   : str = typer.Option("", "--snapshot", help="Path where to create the snapshot.", rich_help_panel="Snapshot Options"),
+    snapshot   : bool = typer.Option(False, "--snapshot", help="Save snapshots in outfolder/snap/{name}_{era}_{flow}.root", rich_help_panel="Snapshot Options"),
     columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     noMC       : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
     noData     : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
     MCpattern  : str = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
+    flowPattern: str = typer.Option(None, "--flowPattern", help="Regex patterns to select flows mathcing the flow name (comma separated)", rich_help_panel="Snapshot Options"),
 ):
     """
     Command line to run the analysis.
@@ -112,7 +114,6 @@ def run_analysis(
     data_module , data_kwargs  = load_module(data)
     mc_module   , mc_kwargs    = load_module(mc)
     mcc_module  , mcc_kwargs   = load_module(mcc)
-    flow_module , flow_kwargs  = load_module(flow)
 
     era_paths_Data = parse_function(cfg_module, "era_paths_Data", dict)
     era_paths_MC   = parse_function(cfg_module, "era_paths_MC", dict)
@@ -122,36 +123,10 @@ def run_analysis(
     DataDict      = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
     all_processes = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
     mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
-    flow          = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
     plots         = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
 
-    if nevents != -1:
-        flow.prepend(Range(nevents))
-
-    #! ------------------ Corrections handling ------------------------ !#
-    # Dirty workaround to handle corrections
-
-    for idx, step in enumerate(flow):
-        if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
-            new_steps = []
-            for era in eras:
-                copy_step = copy.deepcopy(step)
-                if noSyst:
-                    copy_step.doSyst  = False
-                new_steps.append(copy_step.init(era=era))
-                new_steps[-1]._init = True
-                new_steps[-1].era   = era
-                new_steps[-1].eras  = [era]
-                new_steps[-1].nuisName = step.nuisName
-                if isinstance(new_steps[-1], BranchCorrection):
-                    new_steps[-1].doSyst = step.doSyst
-            if len(eras)>1:
-                flow.steps[idx:idx+1]=new_steps
-            else:
-                flow.steps[idx]=new_steps[0]
-
     #! ---------------------- PRINT CONFIG --------------------------- !#
-    print()
+    console.print()
     config_table = Table(title="Configurations", show_header=True, header_style="bold black")
     config_table.add_column("Key", style="bold red")
     config_table.add_column("Value")
@@ -159,6 +134,8 @@ def run_analysis(
     config_table.add_row("nevents", str(nevents))
     config_table.add_row("outfolder", outfolder)
     config_table.add_row("Cache", str(not nocache))
+    config_table.add_row("Datacards", str(datacards))
+    config_table.add_row("Snapshot", str(snapshot))
     if nocache is False:
         config_table.add_row(
             "Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache")
@@ -187,14 +164,27 @@ def run_analysis(
     console.print(datatable)
     console.print(MCtable)
 
-    #! ---------------------- PRINT THE FLOW ----------------------- !#
+    #! ---------------------- Print flows table -------------------------- !#
+    flow_table = Table(title="Flows", show_header=True, header_style="bold black")
+    flow_table.add_column("Configs", style="bold red")
+    flow_table.add_column("Name")
+    flow_modules = []
+    flow_kwarges  = []
+    flow_list = []
+    for flow_config in flows:
+        flow_module , flow_kwargs  = load_module(flow_config)
+        flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
+        flow_modules.append(flow_module)
+        flow_kwarges.append(flow_kwargs)
+        flow_list.append(flow_obj)
+        flow_table.add_row(flow_config, flow_obj.name)
+    console.print(flow_table)
+
+    #! ---------------------- Print MCCs -------------------------- !#
     console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
     console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
-    console.print("[bold red]--------------------- FLOW ----------------------[/bold red]")
-    console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
-    #! ---------------------- RUN THE ANALYSIS ----------------------- !#
-    console.print("[bold red]---------------------- RUNNING ----------------------[/bold red]")
+    #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
         os.makedirs(os.path.join(outfolder, "cache"), exist_ok=True)
         cache = SimpleCache(os.path.join(outfolder, "cache"))
@@ -204,55 +194,110 @@ def run_analysis(
         cachepath = -1
         cache = None
     maker = Processor(cache=cache)
-    maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
+    #! ---------------------- LOOP ON FLOWS -------------------------- !#
+    for _i in range(len(flows)):
+        flow_module = flow_modules[_i]
+        flow_kwargs = flow_kwarges[_i]
+        flow = flow_list[_i]
+
+        if nevents != -1:
+            flow.prepend(Range(nevents))
+
+        #! ------------------ Corrections handling ------------------------ !#
+        # Dirty workaround to handle corrections
+
+        for idx, step in enumerate(flow):
+            if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
+                new_steps = []
+                for era in eras:
+                    copy_step = copy.deepcopy(step)
+                    if noSyst:
+                        copy_step.doSyst  = False
+                    new_steps.append(copy_step.init(era=era))
+                    new_steps[-1]._init = True
+                    new_steps[-1].era   = era
+                    new_steps[-1].eras  = [era]
+                    new_steps[-1].nuisName = type(step).__name__
+                    if isinstance(new_steps[-1], BranchCorrection):
+                        new_steps[-1].doSyst = step.doSyst
+                if len(eras)>1:
+                    flow.steps[idx:idx+1]=new_steps
+                else:
+                    flow.steps[idx]=new_steps[0]
+
+        #! ---------------------- PRINT THE FLOW ----------------------- !#
+        console.print(f"[bold red]--------------------- FLOW: {flow.name} ----------------------[/bold red]")
+        console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
+
+        #! ---------------------- BOOK Plots and cutflow ----------------------- !#
+        pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
+        maker.bookCutFlow(all_data, lumi, flow, eras=eras)
+
+        if plots is not None:
+            maker.book(all_data, lumi, flow, plots, eras=eras, withUncertainties=True)
+
+        #! ---------------------- BOOK SNAPSHOT ----------------------!#
+        if snapshot:
+            snap_list = []
+            for dat in all_data:
+                if dat.isData and noData:
+                    continue
+                if not dat.isData and noMC:
+                    continue
+                if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
+                    continue
+                snap_list.append(dat)
+            if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
+                maker.book(snap_list, lumi, flow, Snapshot(outfolder + "/snap/{name}_{era}_{flow}.root".replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+
+    #!---------------------- PRINT Plots ---------------------- !#
+    pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if plots is not None:
-        maker.book(all_data, lumi, flow, plots, eras=eras, withUncertainties=True)
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
             topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio, noStackSignals=True, showErrors=True
-        ).printSet(plotter, outfolder)
+        ).printSet(plotter, outfolder + "/flow_{flow}/")
 
     yields = maker.runYields(mergeEras=True)
-
-    #! ---------------------- PRINT YIELDS ---------------------- !#
-    print_yields(yields, all_data, flow, console=console)
-    sys.settrace(None)
+    #!---------------------- PRINT YIELDS ---------------------- !#
+    console.print("[bold red]###################################################################### YIELDS ######################################################################-[/bold red]")
+    for f in flow_list:
+        print_yields(yields, all_data, f, console=console)
     write_log(outfolder, command, cachepath)
-    console.save_text(os.path.join(outfolder, "log/report.txt"))
 
-    #! ---------------------- CREATE DATACARDS ---------------------- !#
+    #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
+        pprint("[bold red]---------------------- Saving datacards ----------------------[/bold red]")
         if plots is None:
             raise ValueError("You need to provide the plots file to create the datacards")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
-        card_path = outfolder+"/cards/{name}_{flow}_{era}.txt"
+        card_path = outfolder+"/cards/{name}_{era}_{flow}.txt"
         if mergeEras:
             card_path = card_path.replace("{era}", "allEras")
         cardMaker.makeCards(plotter, MultiKey(), card_path)
 
-    #! ---------------------- CREATE SNAPSHOT ----------------------!#
+    #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
-        if "{flow}" in snapshot:
-            snapshot = snapshot.replace("{flow}", flow.name)
-
-        snap_list = []
-        for dat in all_data:
-            if dat.isData and noData:
-                continue
-            if not dat.isData and noMC:
-                continue
-            if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
-                continue
-            snap_list.append(dat)
-
-        maker.clear().book(snap_list, lumi, flow, Snapshot(snapshot, columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+        console.print("[bold red]---------------------- SNAPSHOTS ----------------------[/bold red]")
+        console.print(f"columnSel: {columnSel.split(',') if columnSel is not None else []}")
+        console.print(f"columnVeto: {columnVeto.split(',') if columnVeto is not None else []}")
+        console.print(f"MCpattern: {MCpattern if MCpattern is not None else []}")
+        console.print(f"flowPattern: {flowPattern if flowPattern is not None else []}")
+        snapshot_table = Table(title="Snapshots", show_header=True, header_style="bold black")
+        snapshot_table.add_column("Flow", style="bold red")
+        snapshot_table.add_column("Process")
+        snapshot_table.add_column("Sample")
+        snapshot_table.add_column("Entries")
+        snapshot_table.add_column("Size")
+        snapshot_table.add_column("Path")
         report = maker.runSnapshots()
-        console.print("[bold red]---------------------- SNAPSHOT ----------------------[/bold red]")
-        console.print(f"Snapshoted at {snapshot}")
         for key, snap in report:
-            console.print("%-10s  %-20s : %10u entries  %9.3f GB   %s" % (key.process, key.sample, snap.entries, snap.size / (1024.**3), snap.fname))
+            snapshot_table.add_row(key.flow, key.process, key.sample, f"{snap.entries}", f"{(snap.size/(1024.**3)):9.3f} GB", snap.fname)
+        console.print(snapshot_table)
 
+    sys.settrace(None)
+    console.save_text(os.path.join(outfolder, "log/report.txt"))
 
 if __name__ == "__main__":
     app()
