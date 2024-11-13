@@ -175,7 +175,7 @@ def run_analysis(
                     new_steps[-1].eras  = [era]
                     new_steps[-1].nuisName = type(step).__name__
                     if isinstance(new_steps[-1], BranchCorrection):
-                        new_steps[-1].doSyst = step.doSyst
+                        new_steps[-1].doSyst = copy_step.doSyst
                 if len(eras)>1:
                     flow.steps[idx:idx+1]=new_steps
                 else:
