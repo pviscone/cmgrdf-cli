@@ -58,7 +58,7 @@ class BranchCorrection(BaseCorrection):
     def _attach(self, rdf):
         if self.preserve:
             for preserve in self.preserve:
-                rdf = rdf.Define(f"_OLD_{preserve}_", preserve)
+                rdf = rdf.Define(f"Preserved{preserve}__", preserve)
 
         rdf_func = "Redefine" if self.redefine else "Define"
         rdf = getattr(rdf, rdf_func)(self.name, self.nominal)

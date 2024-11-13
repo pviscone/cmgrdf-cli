@@ -64,8 +64,8 @@ class electronSmearing(BaseCorrection):
         return BranchCorrection(
             branch_name,
             f'electronSmearingSF_{era}({self.pt}, {self.eta}, {self.r9})',
-            f'electronSmearing_up_{era}(_OLD_{self.pt}_, {self.eta}, {self.r9})',
-            f'electronSmearing_down_{era}(_OLD_{self.pt}_, {self.eta}, {self.r9})',
+            f'electronSmearing_up_{era}(Preserved{self.pt}__, {self.eta}, {self.r9})',
+            f'electronSmearing_down_{era}(Preserved{self.pt}__, {self.eta}, {self.r9})',
             preserve=[self.pt],
             onData=False,
             onDataDriven=False,
