@@ -29,6 +29,6 @@ def flow(leadEleptcut=10):
 
         #! Event weights/syst
         electronID("electronIDSF_wp90noiso_", "wp90noiso", "Wp90Ele_eta", "Wp90Ele_pt", "Wp90Ele_phi"),
-        AddWeightUncertainty("lumi", "1.016")
+        AddWeightUncertainty("lumi", "1.016", onData = False)
         ],
     )
