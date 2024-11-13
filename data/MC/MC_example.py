@@ -13,6 +13,7 @@ MCDict={
         ],
         "label":"J/\Psi",
         "color": ROOT.kBlue-3,
+        "normUncertainty": 1.5
     }
 }
 
