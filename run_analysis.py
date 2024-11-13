@@ -230,11 +230,13 @@ def run_analysis(
         if mergeEras:
             card_path = card_path.replace("{era}", "allEras")
         cardMaker.makeCards(plotter, MultiKey(), card_path)
+        os.system(f"cp $CMGRDF/externals/index.php {outfolder}/cards/index.php")
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
         report = maker.runSnapshots()
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
+        os.system(f"cp $CMGRDF/externals/index.php {outfolder}/snap/index.php")
 
     sys.settrace(None)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
