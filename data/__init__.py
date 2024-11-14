@@ -31,6 +31,8 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
         mcc_steps = []
     else:
         mcc_steps = mccFlow.steps
+
+    data_datasets = []
     for era, samples in data_dict.items():
         if era not in eras:
             continue
@@ -38,18 +40,16 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
         P0, samples_path, friends_path = era_paths[era]
         samples_path = os.path.join(P0, samples_path)
         friends_path = os.path.join(P0, friends_path)
-        data_datasets = []
         for sample in samples:
             sample_name, suberas, triggers = sample
             processtable.add_row(sample_name, "Data")
             datatable.add_row("", sample_name, str(suberas), triggers)
-
             filtered_mcc = [step for step in mcc_steps if step.onData]
             hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
             data_datasets += [
                 DataSample(
-                    sample_name,
-                    samples_path.format(subera=subera, name="{name}", era="{era}"),
+                    f"{sample_name}_Run{era}{subera}", #NEEDED especially for the snapshot (otherwise same filename)
+                    samples_path.format(subera=subera, name=sample_name, era="{era}"),
                     friends=[
                         friends_path.format(subera=subera, folder=friend, name="{name}", era="{era}")
                         for friend in friends
@@ -62,7 +62,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
                 for subera in suberas
             ]
         datatable.add_section()
-        all_data.append(Data(data_datasets))
+    all_data.append(Data(data_datasets))
 
 #!Add table
 def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
