@@ -130,8 +130,8 @@ for x in bkgnames:
 roofit.imp(ROOT.RooMultiPdf("bkg_multi", "All pdfs", roofit.workspace.cat("bkg_index"), pdflist))
 NDATA = mggPlotReport.histData().Integral()
 NSIG = mggPlotReport.histByProcName(SIGNAME).Integral()
-roopdfs = dict((x, roofit.factory(f"SUM::totpdf_{x}(prod::nsig_{x}(mu_{x}[1,-5,20],{NSIG})*sig_ttH,bkg_{x}_norm[0,{2*NDATA}]*bkg_{x})")) for x in bkgnames)
-roopdf = roofit.factory(f"SUM::totpdf(prod::nsig(mu[1,-5,10],{NSIG})*sig_ttH,bkg_multi_norm[0,{2*NDATA}]*bkg_multi)")
+roopdfs = dict((x, roofit.factory(f"SUM::totpdf_{x}(prod::nsig_{x}(mu_{x}[1,-5,20],{NSIG})*sig_ttH,bkg_{x}_norm[0,{2 * NDATA}]*bkg_{x})")) for x in bkgnames)
+roopdf = roofit.factory(f"SUM::totpdf(prod::nsig(mu[1,-5,10],{NSIG})*sig_ttH,bkg_multi_norm[0,{2 * NDATA}]*bkg_multi)")
 roodata = mggPlotReport.histData().asRooDataHist()
 #roopdf.fitTo(roodata) # fitting with MultiPDF won't work in plain RooFit
 for x in roopdfs:

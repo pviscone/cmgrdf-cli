@@ -13,8 +13,8 @@ if "ONNXRUNTIME" in os.environ:
     ROOT.gInterpreter.ProcessLine('#include "OnnxDNNEvaluator.h"')
 
 from CMGRDF.utils import MultiKey, MultiReport, localOrEOS, NormUncertainty
-from CMGRDF.data import Source, MCSample, DataDrivenSample, DataSample, Process, Data
-from CMGRDF.flow import Define, ReDefine, DefineDefault, Alias, Vary, Cut, AddWeight, AddWeightUncertainty, Marker, Flow, Yield
+from CMGRDF.data import Source, MCGroup, DataDrivenSample, DataSample, Process, Data
+from CMGRDF.flow import Define, ReDefine, DefineDefault, Alias, Vary, Cut, AddWeight, AddWeightUncertainty, Marker, Flow, Yield, Range
 from CMGRDF.snapshot import Snapshot
 from CMGRDF.plots import Plot, PlotResult, PlotSetPrinter
 from CMGRDF.processor import Processor
