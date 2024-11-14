@@ -71,7 +71,7 @@ class Source(object):
             ret = ROOT.RDataFrame(spec)
         for meta in self._metas:
 
-            if isinstance(meta[1]) == str:
+            if isinstance(meta[1], str):
                 ret = ret.Define(meta[0], meta[1])
             else:
                 ret = ret.DefinePerSample(meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")')  # could implement other types
