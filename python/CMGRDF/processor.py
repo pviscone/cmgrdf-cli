@@ -168,7 +168,7 @@ class Processor(object):
                                 if t not in branch.leaves:
                                     branch.leaves[t] = t.attach(branch.rdf(), sample, era)
                                 fut = branch.leaves[t]
-                                if withUncertainties and branch.hasUncertainties() and sample.isVariationFrom is None:
+                                if withUncertainties and branch.hasUncertainties():
                                     # postpone to all at the end, to avoid multiple JITs
                                     futuresToVary.append((plotKey, proc, sample, t, fut))
                                 elif isinstance(t, Yield):
@@ -232,7 +232,7 @@ class Processor(object):
                                         if t not in wbranch.leaves:
                                             wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era)
                                         fut = wbranch.leaves[t]
-                                        if withUncertainties and branch.hasUncertainties() and sample.isVariationFrom is None:
+                                        if withUncertainties and branch.hasUncertainties():
                                             # postpone to all at the end, to avoid multiple JITs
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
                                         else:
@@ -277,24 +277,8 @@ class Processor(object):
                         self._cache.writePlot(self._toCache[plotKey], result, resvars)
                 ret.append(plotKey, (proc, sample, target, result, resvars))
 
-            externalVariations=[]
             for (plotKey, proc, sample, target, result, resvars) in self._fromCache:
-                if sample.isVariationFrom is None:
-                    ret.append(plotKey, (proc, sample, target, result, resvars))
-                else:
-                    externalVariations.append( (plotKey, (proc, sample, target, result)))
-            for plotKeyExtra, (procExtra, sampleExtra, targetExtra, resultExtra) in externalVariations:
-                foundNominal=0
-                for plotKeyNominal, (procNominal, sampleNominal, targetNominal, resultNominal, resvarsNominal) in ret:
-                    if sampleExtra.isVariationFrom[0] != sampleNominal: continue
-                    if targetNominal != targetExtra: continue
-                    resvarsNominal[isVariationFrom[1]]=resultExtra
-                    foundNominal=foundNominal+1
-                if foundNominal == 0:
-                    raise RuntimeError( f"Couldn't find nominal result for variation {plotKeyExtra}")
-                if foundNominal > 0:
-                    raise RuntimeError( f"Variation {plotKeyExtra} is assigned to more than one nominal result")
-                    
+                ret.append(plotKey, (proc, sample, target, result, resvars))
             self._rawResults = ret
         return self._rawResults
 

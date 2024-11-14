@@ -153,7 +153,7 @@ class Sample(object):
        It can have hooks that modify the processing flow, and normalization uncertainties.
     """
 
-    def __init__(self, name : str, source, hooks=[], eras=None, subera=None, friends=None, normUncertainty=None, suffix="", isVariationFrom=None, **kwargs):
+    def __init__(self, name : str, source, hooks=[], eras=None, subera=None, friends=None, normUncertainty=None, suffix="", **kwargs):
         """source can be any 4 of the following:
              - a source object, if this sample doesn't have a list of eras
              - a dict (era -> Source) if this sample has a list of eras.
@@ -172,7 +172,6 @@ class Sample(object):
         self.eras = eras
         self.subera = subera
         self.suffix = suffix
-        self.isVariationFrom = isVariationFrom
 
         for k, v in kwargs.items():
             setattr(self, k, v)
