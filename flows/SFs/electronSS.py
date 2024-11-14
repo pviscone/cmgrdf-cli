@@ -2,8 +2,9 @@ from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 from flows.SFs import BaseCorrection, BranchCorrection, Declare
 
 
-#!TODO There is no smearings for 2023, I am using 2022 for now FIX
+#!TODO There is no smearings for 2023, I am using 2022 for now just as example. FIX
 corrections_map = {
+    "2022": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2022_Summer22/electronSS.json.gz",
     "2023": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2022_Summer22/electronSS.json.gz",
     "2022EE": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2022_Summer22EE/electronSS.json.gz",
 }
