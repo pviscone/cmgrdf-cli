@@ -27,7 +27,7 @@ class Source(object):
         self._metas = []
 
     def createRDF(self, treeName="Events"):
-        metaInfo = ROOT.RDF.Experimental.RMetaData();
+        metaInfo = ROOT.RDF.Experimental.RMetaData()
         for meta in self._metas:
             metaInfo.Add(meta[0], meta[1])
 
@@ -71,7 +71,7 @@ class Source(object):
 
             ret = ROOT.RDataFrame(spec)
         for meta in self._metas:
-        
+
             if isinstance(meta[1]) == str:
                 ret = ret.Define(meta[0], meta[1])
             else:
@@ -85,8 +85,8 @@ class Source(object):
         else:
             return id(self) == id(o)
 
-    def addMeta(self, field, value ):
-        self._metas.append((field, value) )
+    def addMeta(self, field, value):
+        self._metas.append((field, value))
 
     def bigHash(self, friends=True):
         if not self._bigHash:
@@ -258,7 +258,6 @@ class MCSample(Sample):
             for era in self.eras:
                 self.source(era).addMeta("_xsec", self.xsec)
 
-
     def customizeFlow(self, flow, luminosity, era=None):
         flow2 = super().customizeFlow(flow, era=era)
         from CMGRDF.flow import AddWeight
@@ -287,11 +286,10 @@ class MCSample(Sample):
                 elif chain.GetBranch("genEventSumw_"):
                     genSumWeightName = "genEventSumw_"
                 else:
-                    raise RuntimeError("ERROR: can't find gen sum name in sample " +self.name)
+                    raise RuntimeError("ERROR: can't find gen sum name in sample " + self.name)
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
-            hist = ROOT.gROOT.FindObject( "htemp")
+            hist = ROOT.gROOT.FindObject("htemp")
             src.addMeta("genWeightSum", hist.GetBinContent(1))
-
 
     def __str__(self):
         xsec_string = f", xsec = {self.xsec}" if self.xsec else ""
