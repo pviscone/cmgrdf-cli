@@ -63,7 +63,7 @@ popd
 
 ```bash
 pushd externals
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz | tar xzv
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.18.1/onnxruntime-linux-x64-1.18.1.tgz | tar xzv
 popd
 ```
 
@@ -111,7 +111,7 @@ popd
 
 ```bash
 pushd externals
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.16.0.tgz | tar xzv
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.18.1/onnxruntime-linux-x64-1.18.1.tgz | tar xzv
 popd
 ```
 

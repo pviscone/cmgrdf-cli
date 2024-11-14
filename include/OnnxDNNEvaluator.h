@@ -22,8 +22,8 @@ public:
       throw std::logic_error("This works only with a single input tensor");
     if (session_.GetOutputCount() != 1)
       throw std::logic_error("This works only with a single output tensor");
-    inputName_ = std::string(session_.GetInputName(0, Ort::AllocatorWithDefaultOptions()));
-    outputName_ = std::string(session_.GetOutputName(0, Ort::AllocatorWithDefaultOptions()));
+    inputName_ = std::string(session_.GetInputNameAllocated(0, Ort::AllocatorWithDefaultOptions()).get());
+    outputName_ = std::string(session_.GetOutputNameAllocated(0, Ort::AllocatorWithDefaultOptions()).get());
     inputNameC_[0] = inputName_.c_str();
     outputNameC_[0] = outputName_.c_str();
     auto inputTypeInfo = session_.GetInputTypeInfo(0);

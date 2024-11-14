@@ -29,7 +29,7 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, samplePattern=None, **options):
+    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, suberas=None, samplePattern=None, **options):
         """
         Args:
             name (str): The name of the flowstep.
@@ -46,6 +46,7 @@ class FlowStep(object):
         self.onData = onData
         self.onDataDriven = onDataDriven
         self.eras = eras
+        self.suberas = suberas
         self.sample = re.compile(samplePattern + "$") if samplePattern else None  # regex pattern
         for k, v in options.items():
             setattr(self, k, v)
@@ -64,6 +65,8 @@ class FlowStep(object):
             if not self.onDataDriven:
                 return False
         if self.eras and (era not in self.eras):
+            return False
+        if sample.subera and self.suberas and (sample.subera not in self.suberas):
             return False
         return True
 
@@ -485,7 +488,7 @@ class Flow(object):
     def __str__(self):
         out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
         for idx, s in enumerate(self.steps):
-            out += f"\t{idx+1}. {s.__str__()}\n"
+            out += f"\t{idx + 1}. {s.__str__()}\n"
         return out
 
     @property
