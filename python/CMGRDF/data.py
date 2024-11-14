@@ -24,39 +24,39 @@ class Source(object):
         self.friends = friends
         self._bigHash = None
         self._bigHashNoFriends = None
-        self._metas=[]
+        self._metas = []
 
     def createRDF(self, treeName="Events"):
-        metaInfo=ROOT.RDF.Experimental.RMetaData();
+        metaInfo = ROOT.RDF.Experimental.RMetaData();
         for meta in self._metas:
             metaInfo.Add(meta[0], meta[1])
-        
+
         if len(self.files) == 1:
             if os.path.isdir(self.files[0]):
                 if treeName == "Events":
                     assert (self.friends is None)  # not supported
-                sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0]+'/*.root',metaInfo)
-                spec=ROOT.RDF.Experimental.RDatasetSpec()
+                sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0] + '/*.root', metaInfo)
+                spec = ROOT.RDF.Experimental.RDatasetSpec()
                 spec.AddSample(sample)
                 ret = ROOT.RDataFrame(spec)
 
             else:
-                sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0], metaInfo)
-                spec=ROOT.RDF.Experimental.RDatasetSpec()
+                sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0], metaInfo)
+                spec = ROOT.RDF.Experimental.RDatasetSpec()
                 spec.AddSample(sample)
                 if treeName == "Events" and self.friends is not None:
                     for f in self.friends:
                         if isinstance(f, tuple):
-                            spec.WithGlobalFriends(f[0],f[1])
+                            spec.WithGlobalFriends(f[0], f[1])
                         elif isinstance(f, str):
                             spec.WithGlobalFriends("Friends", f)
                         else:
                             raise RuntimeError("Unsupported friend %r for %s" % (f, self))
                 ret = ROOT.RDataFrame(spec)
         else:
-            
-            sample=ROOT.RDF.Experimental.RSample(self.name, treeName, self.files, metaInfo)
-            spec=ROOT.RDF.Experimental.RDatasetSpec()
+
+            sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files, metaInfo)
+            spec = ROOT.RDF.Experimental.RDatasetSpec()
             spec.AddSample(sample)
 
             friendChains = []
@@ -71,11 +71,11 @@ class Source(object):
 
             ret = ROOT.RDataFrame(spec)
         for meta in self._metas:
-            if type(meta[1]) == str: # when its a string, we are defining an existing branch
-                ret=ret.Define( meta[0], meta[1])
-            else:
-                ret=ret.DefinePerSample( meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")') # could implement other types
 
+
+if isinstance(meta[1],             if )                ret = ret.Define(meta[0], meta[1])
+            else:
+                ret = ret.DefinePerSample(meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")')  # could implement other types
 
         return ret
 
@@ -85,8 +85,8 @@ class Source(object):
         else:
             return id(self) == id(o)
 
-    def addMeta( self, field, value ):
-        self._metas.append( (field, value) )
+    def addMeta(self, field, value ):
+        self._metas.append((field, value) )
 
     def bigHash(self, friends=True):
         if not self._bigHash:
@@ -253,12 +253,11 @@ class MCSample(Sample):
         self.xsec = xsec
         self.isMC = True
         if self.eras is None:
-            self.source().addMeta( "_xsec", self.xsec)
+            self.source().addMeta("_xsec", self.xsec)
         else:
             for era in self.eras:
-                self.source(era).addMeta( "_xsec", self.xsec)
-            
-        
+                self.source(era).addMeta("_xsec", self.xsec)
+
 
     def customizeFlow(self, flow, luminosity, era=None):
         flow2 = super().customizeFlow(flow, era=era)
@@ -275,27 +274,24 @@ class MCSample(Sample):
 
     def bookSumWeight(self, eras):
         for era in eras:
-            src=self.source(era)
+            src = self.source(era)
             if src is None:
-                continue 
-            chain=ROOT.TChain("Runs")
+                continue
+            chain = ROOT.TChain("Runs")
             for f in src.files:
                 chain.Add(f)
-            genSumWeightName=self.genSumWeightName
+            genSumWeightName = self.genSumWeightName
             if genSumWeightName == "_auto_":
                 if chain.GetBranch("genEventSumw"):
-                    genSumWeightName="genEventSumw"
+                    genSumWeightName = "genEventSumw"
                 elif chain.GetBranch("genEventSumw_"):
-                    genSumWeightName="genEventSumw_"
+                    genSumWeightName = "genEventSumw_"
                 else:
-                    raise RuntimeError("ERROR: can't find gen sum name in sample "+self.name)
+                    raise RuntimeError("ERROR: can't find gen sum name in sample " +self.name)
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
-            hist=ROOT.gROOT.FindObject( "htemp")
-            src.addMeta( "genWeightSum", hist.GetBinContent(1))
-            
+            hist = ROOT.gROOT.FindObject( "htemp")
+            src.addMeta("genWeightSum", hist.GetBinContent(1))
 
-
-            
 
     def __str__(self):
         xsec_string = f", xsec = {self.xsec}" if self.xsec else ""

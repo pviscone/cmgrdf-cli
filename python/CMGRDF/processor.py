@@ -141,13 +141,13 @@ class Processor(object):
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
                     for sample in proc.samples:
-                    
+
                         src = sample.source(era)
                         if not src:
                             continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era],  era=era)
+                            sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         branch = self._growBranch(src, sflow)
@@ -197,7 +197,7 @@ class Processor(object):
         for p in processes:
             for s in p.samples:
                 if s.isMC:
-                    s.bookSumWeight( eras)
+                    s.bookSumWeight(eras)
         if isinstance(flows, Flow):
             flows = [flows]
         futuresToVary = []
