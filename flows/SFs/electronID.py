@@ -57,6 +57,9 @@ class electronID(BaseCorrection):
             .replace("<year_string>", era_map[self.era])
         )
 
+        if era=="2022":
+            cpp_sf.replace(", const ROOT::RVec<float> &phi","").replace(", phi[i]","")
+
         Declare(cpp_sf)
 
         if self.doSyst:
