@@ -90,6 +90,27 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                 group_dict["eras"] = process_dict["eras"]
             MCtable.add_row("", group_name, "", "", str(group_dict.get("eras", eras)) , cut)
 
+            #Create MCGroup hook
+            hook_steps = []
+
+            #Attach MCC steps to hooks
+            for mcc_step in mcc_steps:
+                if hasattr(mcc_step, "process") and hasattr(mcc_step, "group"):
+                    raise ValueError("Cannot have both process and group in the same step")
+                if hasattr(mcc_step, "process"):
+                    if bool(re.match(mcc_step.process, process)):
+                        hook_steps.append(mcc_step)
+                elif hasattr(mcc_step, "group"):
+                    if bool(re.match(mcc_step.group, group_name)):
+                        hook_steps.append(mcc_step)
+                else:
+                    hook_steps.append(mcc_step)
+
+            #Attach group cuts to hooks
+            if cut != "1":
+                hook_steps.append(Cut("Selection", cut))
+            hook = Prepend(*hook_steps)
+
             #! Loop over all samples
             for sample in samples:
                 sample_name, xsec = sample if isinstance(sample, tuple | list) else (sample, "xsec")
@@ -99,39 +120,18 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                 for (era, paths) in era_paths.items():
                     if era not in eras:
                         continue
-                    if "eras" in group_dict:
-                        if era not in group_dict["eras"]:
-                            continue
+                    if "eras" in group_dict and era not in group_dict["eras"]:
+                        continue
 
                     P0, samples_path, friends_path = paths
                     samples_path = os.path.join(P0, samples_path)
                     friends_path = os.path.join(P0, friends_path)
-                    hook_steps = []
-
-                    #Attach MCC steps to hooks
-                    for mcc_step in mcc_steps:
-                        if hasattr(mcc_step, "process") and hasattr(mcc_step, "group"):
-                            raise ValueError("Cannot have both process and group in the same step")
-                        if hasattr(mcc_step, "process"):
-                            if bool(re.match(mcc_step.process, process)):
-                                hook_steps.append(mcc_step)
-                        elif hasattr(mcc_step, "group"):
-                            if bool(re.match(mcc_step.group, group_name)):
-                                hook_steps.append(mcc_step)
-                        else:
-                            hook_steps.append(mcc_step)
-
-                    #Attach group cuts to hooks
-                    if cut != "1":
-                        hook_steps.append(Cut("Selection", cut))
-                    hook = Prepend(*hook_steps)
 
                     group_kwargs = {
                         key: value
                         for key, value in group_dict.items()
                         if key not in ["name", "samples", "eras", "cut"]
                     }
-
                     mcgroup_samples.append(
                         MCSample(
                         sample_name,
