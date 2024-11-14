@@ -223,11 +223,12 @@ def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPatter
     snapshot_table.add_column("Flow", style="bold red")
     snapshot_table.add_column("Process")
     snapshot_table.add_column("Sample")
+    snapshot_table.add_column("Era")
     snapshot_table.add_column("Entries")
     snapshot_table.add_column("Size")
     snapshot_table.add_column("Path")
     for key, snap in report:
         snapshot_table.add_row(
-            key.flow, key.process, key.sample, f"{snap.entries}", f"{(snap.size/(1024.**3)):9.3f} GB", snap.fname
+            key.flow, key.process, key.sample, key.era, f"{snap.entries}", f"{(snap.size/(1024.**3)):9.3f} GB", snap.fname
         )
     console.print(snapshot_table)
