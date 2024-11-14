@@ -59,7 +59,6 @@ class Source(object):
             spec = ROOT.RDF.Experimental.RDatasetSpec()
             spec.AddSample(sample)
 
-            friendChains = []
             if treeName == "Events":
                 if self.friends is not None:
                     for i, files in enumerate(self.friends):
