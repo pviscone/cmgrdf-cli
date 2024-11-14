@@ -57,24 +57,27 @@ class electronID(BaseCorrection):
             .replace("<year_string>", era_map[self.era])
         )
 
+        func_call = f'electronIDSF_{self.era}_{self.wp}(<sftype>, {self.eta}, {self.pt}, {self.phi})'
+
         if era=="2022":
-            cpp_sf.replace(", const ROOT::RVec<float> &phi","").replace(", phi[i]","")
+            cpp_sf = cpp_sf.replace(", const ROOT::RVec<float> &phi","").replace(", phi[i]","")
+            func_call = func_call.replace(f", {self.phi}", "")
 
         Declare(cpp_sf)
 
         if self.doSyst:
             return AddWeightUncertainty(
                 self.name,
-                f'electronIDSF_{self.era}_{self.wp}("sfup", {self.eta}, {self.pt}, {self.phi})',
-                f'electronIDSF_{self.era}_{self.wp}("sfdown", {self.eta}, {self.pt}, {self.phi})',
-                nominal=f'electronIDSF_{self.era}_{self.wp}("sf", {self.eta}, {self.pt}, {self.phi})',
+                func_call.replace("<sftype>", '"sfup"'),
+                func_call.replace("<sftype>", '"sfdown"'),
+                func_call.replace("<sftype>", '"sf"'),
                 onData=False,
                 onDataDriven=False,
             )
         else:
             return AddWeight(
                 self.name,
-                f'electronIDSF_{self.era}_{self.wp}("sf", {self.eta}, {self.pt}, {self.phi})',
+                func_call.replace("<sftype>", '"sf"'),
                 onData=False,
                 onDataDriven=False,
             )
