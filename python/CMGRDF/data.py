@@ -312,11 +312,12 @@ class MCSample(Sample):
         self.genSumWeightName = genSumWeightName
         self.xsec = xsec
         self.isMC = True
-        if self.eras is None:
-            self.source().addMeta("_xsec", self.xsec)
-        else:
-            for era in self.eras:
-                self.source(era).addMeta("_xsec", self.xsec)
+        if self.xsec:
+            if self.eras is None:
+                self.source().addMeta("_xsec", self.xsec)
+            else:
+                for era in self.eras:
+                    self.source(era).addMeta("_xsec", self.xsec)
 
     def customizeFlow(self, flow, luminosity, era=None):
         flow2 = super().customizeFlow(flow, era=era)
