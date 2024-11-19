@@ -23,7 +23,7 @@ class Source(object):
         self.era = era
         self.friends = friends
         self._bigHash = None
-        self._bigHashNoFriends = None
+        self._bigHashNoFriendsNoMeta = None
         self._filesForHash = None
         self._friendsForHash = None
         self._metas = []
@@ -98,10 +98,10 @@ class Source(object):
                 return False
         return True
 
-    def bigHash(self, friends=True):
+    def bigHash(self, friendsAndMeta=True):
         if not self._bigHash:
             self._makeBigHash()
-        return self._bigHash if friends else self._bigHashNoFriends
+        return self._bigHash if friendsAndMeta else self._bigHashNoFriendsNoMeta
 
     def _makeFilesHash(self):
         if os.path.exists(self.files[0]):  # files may not exist if e.g. they're globs or root URLs
@@ -130,16 +130,16 @@ class Source(object):
         if not self._filesForHash:
             self._makeFilesHash()
         self._bigHash = recursiveHash(self.name, self.era, self._metas, self._filesForHash, self._friendsForHash)
-        if self.friends:
-            self._bigHashNoFriends = recursiveHash(self.name, self.era, self._metas, self._filesForHash)
-        else:
-            self._bigHashNoFriends = self._bigHash
+        self._bigHashNoFriendsNoMeta = recursiveHash(self.name, self.era, self._filesForHash)
 
     def __hash__(self):
         return hash(self.bigHash())
 
     def longId(self):
         return "%s-%s-%s" % (safeName(self), self.era if self.era else "", self.bigHash())
+
+    def idForSumCache(self, cacheName):
+        return "%s-%s-%s-%s" % (safeName(self), self.era if self.era else "", self.bigHash(False), cacheName)
 
     def __str__(self):
         return "Source(%s%s, %d files[%s%s]%s, id %s)" % (
@@ -332,12 +332,15 @@ class MCSample(Sample):
         assert ((self.eras is None) == (era is None))
         return self._genWeightSum[era]
 
-    def bookSumWeight(self, eras):
+    def bookSumWeight(self, eras, cache=None):
         """Compute the sum of weights for this sample, and return the number of computations actually done"""
         ret = 0
         for era in eras:
             src = self.source(era)
             if src is None or src.hasMeta("genWeightSum"):
+                continue
+            if cache and cache.hasSum(src, self.genSumWeightName):
+                src.addMeta("genWeightSum", cache.getSum(src, self.genSumWeightName))
                 continue
             chain = ROOT.TChain("Runs")
             for f in src.files:
@@ -352,7 +355,10 @@ class MCSample(Sample):
                     raise RuntimeError("ERROR: can't find gen sum name in sample " + self.name)
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
             hist = ROOT.gROOT.FindObject("htemp")
-            src.addMeta("genWeightSum", hist.GetBinContent(1))
+            sumw = hist.GetBinContent(1)
+            src.addMeta("genWeightSum", sumw)
+            if cache:
+                cache.writeSum(src, self.genSumWeightName, sumw)
             ret += 1
         return ret
 
@@ -418,9 +424,9 @@ class MCGroup(Sample):
         else:
             return flow2.prepend(AddWeight("weight", self.weight))
 
-    def bookSumWeight(self, eras):
+    def bookSumWeight(self, eras, **kwargs):
         """Compute the sum of weights for these samples, and return the number of computations actually done"""
-        return sum(s.bookSumWeight(eras) for s in self.samples)
+        return sum(s.bookSumWeight(eras, **kwargs) for s in self.samples)
 
 
 class DataDrivenSample(Sample):

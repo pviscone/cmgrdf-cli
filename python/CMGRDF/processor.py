@@ -120,9 +120,11 @@ class Processor(object):
         for p in processes:
             for s in p.samples:
                 if s.isMC and s.genWeightName is not None:
-                    n += s.bookSumWeight(eras)
+                    n += s.bookSumWeight(eras, cache=self._cache)
+        if self._cache:
+            self._cache.commitSums()
         t1 = time.perf_counter()
-        if logPerformance:
+        if logPerformance and n > 0:
             print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
 
     def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=False, logPerformance=True):

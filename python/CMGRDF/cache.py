@@ -13,14 +13,14 @@ class SumCache(object):
         self._fileName = jsonFileName
         self._cache = self._maybeRead()
 
-    def has(self, source : Source):
-        return source.longId() in self._cache
+    def has(self, source : Source, genSumName : str):
+        return source.idForSumCache(genSumName) in self._cache
 
-    def get(self, source : Source):
-        return self._cache[source.longId()][0]
+    def get(self, source : Source, genSumName : str):
+        return self._cache[source.idForSumCache(genSumName)][0]
 
-    def write(self, source : Source, wsum : float):
-        self._cache[source.longId()] = (wsum, time.time())
+    def write(self, source : Source, genSumName : str, wsum : float):
+        self._cache[source.idForSumCache(genSumName)] = (wsum, time.time())
 
     def commitToDisk(self):
         if not os.path.isdir(os.path.dirname(self._fileName)):
@@ -93,16 +93,16 @@ class SimpleCache(object):
         self._data = CacheLayer(os.path.join(root, "data"), **kwargs) if cacheDatasets else None
         self._plots = CacheLayer(os.path.join(root, "plots"), **kwargs) if cachePlots else None
 
-    def hasSum(self, source : Source):
-        return self._sums.has(source) if self._sums else False
+    def hasSum(self, source : Source, genSumName : str):
+        return self._sums.has(source, genSumName) if self._sums else False
 
-    def getSum(self, source : Source):
+    def getSum(self, source : Source, genSumName : str):
         assert self._sums
-        return self._sums.get(source)
+        return self._sums.get(source, genSumName)
 
-    def writeSum(self, source : Source, wsum : float):
+    def writeSum(self, source : Source, genSumName : str, wsum : float):
         if self._sums:
-            self._sums.write(source, wsum)
+            self._sums.write(source, genSumName, wsum)
 
     def hasPlot(self, k3):
         """Check with key beign a tuple(sourceid, flowid, targetid)"""
