@@ -62,8 +62,8 @@ jsonMap = {
 
 
 jetVetoTags = {
-    "2022"   : "Summer22_23Sep2023_RunCD_V1",
-    "2022EE" : "Summer22EE_23Sep2023_RunEFG_V1",
+    "2022": "Summer22_23Sep2023_RunCD_V1",
+    "2022EE": "Summer22EE_23Sep2023_RunEFG_V1",
 }
 
 

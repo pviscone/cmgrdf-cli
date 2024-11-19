@@ -101,7 +101,7 @@ class Processor(object):
         tree = self._trees[source]
         if flow:
             for step in flow.steps:
-                tree = tree.maybeBranch(step, verbose=False)
+                tree = tree.maybeBranch(step, verbose=verbose)
             tree = tree.maybeBranch(ComputeTotalWeight(), verbose=verbose)
         return tree
 
@@ -114,21 +114,31 @@ class Processor(object):
             self._lumiMap[multiKey] = lumi
         return self._lumiMap[multiKey]
 
+    def prebookSumWeights(self, processes, eras, logPerformance=True):
+        t0 = time.perf_counter()
+        n = 0
+        for p in processes:
+            for s in p.samples:
+                if s.isMC and s.genWeightName is not None:
+                    n += s.bookSumWeight(eras)
+        t1 = time.perf_counter()
+        if logPerformance:
+            print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
+
     def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=False, logPerformance=True):
         if self._state == Processor.State.Run:
             raise RuntimeError("After book() and run(), call clear() before booking again")
         self._state = Processor.State.Booked
         self._rawResults = None  # invalidate existing results
-        t0 = time.perf_counter()
-        n0 = len(self._futures)
 
         if eras is None:
             eras = [None]
             lumi = {None: lumi}
-        for p in processes:
-            for s in p.samples:
-                if s.isMC and s.genWeightName is not None:
-                    s.bookSumWeight(eras)
+        self.prebookSumWeights(processes, eras, logPerformance=logPerformance)
+
+        t0 = time.perf_counter()
+        n0 = len(self._futures)
+
         if isinstance(flows, Flow):
             flows = [flows]
         if isinstance(targets, Target):
@@ -189,15 +199,14 @@ class Processor(object):
 
     def bookCutFlow(self, processes : List[Process], lumi, flows : Union[Flow, List[Flow]], cutNames=None, eras=None, taskName="", withUncertainties=False, logPerformance=True):
         self._rawResults = None  # invalidate existing results
-        t0 = time.perf_counter()
-        n0 = len(self._futures)
+
         if eras is None:
             eras = [None]
             lumi = {None: lumi}
-        for p in processes:
-            for s in p.samples:
-                if s.isMC:
-                    s.bookSumWeight(eras)
+        self.prebookSumWeights(processes, eras, logPerformance=logPerformance)
+
+        t0 = time.perf_counter()
+        n0 = len(self._futures)
         if isinstance(flows, Flow):
             flows = [flows]
         futuresToVary = []
@@ -212,7 +221,7 @@ class Processor(object):
                             continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], self._summer.provider(), era=era)
+                            sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         ## now we have to go cut by cut
