@@ -62,7 +62,8 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
                 for subera in suberas
             ]
         datatable.add_section()
-    all_data.append(Data(data_datasets))
+    if len(data_datasets) > 0:
+        all_data.append(Data(data_datasets))
 
 #!Add table
 def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
@@ -150,4 +151,5 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
         for key, value in process_dict.items()
         if key not in ["groups", "eras", "label", "color"]
     }
-    all_data.append(Process(process, process_list, label=label, fillColor=color, **process_kwargs))
+    if len(process_list) > 0:
+        all_data.append(Process(process, process_list, label=label, fillColor=color, **process_kwargs))
