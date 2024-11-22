@@ -194,7 +194,7 @@ class Processor(object):
             lumi = {None: lumi}
         for p in processes:
             for s in p.samples:
-                if s.isMC:
+                if s.isMC and s.genWeightName is not None:
                     s.bookSumWeight(self._summer, eras)
         if isinstance(flows, Flow):
             flows = [flows]
