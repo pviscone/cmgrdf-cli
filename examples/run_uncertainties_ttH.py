@@ -30,18 +30,16 @@ cuts = Flow("dilep",
             )
 
 plots = [
-    Plot("mll", "mll", (120, 12, 132), xTitle="m(ll)", legend="TL", _jitTypes=("float", "double")),
-    Plot("nJet30", "nJet30", (6, 1.5, 7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int", "double")),
-    Plot("nBJet30", "nBJet30", (5, -0.5, 4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10, _jitTypes=("int", "double")),
-    Plot("met", "MET_pt", (75, 0, 150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10, _jitTypes=("float", "double")),
+    Plot("mll", "mll", (120, 12, 132), xTitle="m(ll)", legend="TL"),
+    Plot("nJet30", "nJet30", (6, 1.5, 7.5), xTitle="Number of jets (p_{T} > 30)", logy=True, moreY=10),
+    Plot("nBJet30", "nBJet30", (5, -0.5, 4.5), xTitle="Number of b-jets (p_{T} > 30)", logy=True, moreY=10),
+    Plot("met", "MET_pt", (75, 0, 150), xTitle="p_{T}^{miss} (GeV)", logy=True, moreY=10),
 ]
 
 lumi = 59.
 
-ROOT.EnableImplicitMT(8)
-maker = Processor()
-#verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo)
-#verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10)
+from CMGRDF.utils import processorFromCommandLineArgs
+maker = processorFromCommandLineArgs()
 maker.book(data, lumi, cuts, plots, withUncertainties=True)
 result_plots = maker.runPlots()
 printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)" % lumi, showRatio=True)

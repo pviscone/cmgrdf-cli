@@ -4,7 +4,6 @@ import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
 
-
 class FlowStep(object):
     """A generic step to the processing flow.
 
@@ -180,7 +179,11 @@ class Alias(SimpleExprFlowStep):
 
     def _attach(self, rdf):
         try:
-            return rdf.Alias(self.name, self.expr)
+            if "DistRDF" in rdf.__module__:
+                #print(f"Using Define({self.name}, {self.expr}) instead of Alias since it's not supported in DistRDF")
+                return rdf.Define(self.name, self.expr)
+            else:
+                return rdf.Alias(self.name, self.expr)
         except BaseException:
             print(f"ERROR attaching Alias({self.name}, {self.expr}")
             raise
@@ -360,8 +363,12 @@ class ComputeTotalWeight(SimpleExprFlowStep):
                     #print(f"Using Redefine[1]({self.name}, {expr})")
                     return rdf.Redefine(self.name, expr)
             else:
-                #print(f"Using Alias({self.name}, {expr})")
-                return rdf.Alias(self.name, expr)
+                if "DistRDF" in rdf.__module__:
+                    #print(f"Using Define({self.name}, {expr}) instead of Alias since it's not supported in DistRDF")
+                    return rdf.Define(self.name, expr)
+                else:
+                    #print(f"Using Alias({self.name}, {expr})")
+                    return rdf.Alias(self.name, expr)
         else:
             if existing:
                 #print(f"Using Redefine({self.name}, {expr})")
@@ -506,9 +513,9 @@ class Target(object):
     def attach(self, rdf, sample, era):
         raise RuntimeError("Must be implemented by subclass")
 
-    def bookVariations(self, future):
+    def bookVariations(self, future, VariationsFor):
         """Calls RDF.Experimental.VariationsFor or any customization of it"""
-        return ROOT.RDF.Experimental.VariationsFor(future)
+        return VariationsFor(future)
 
     def finish(self, value, sample, era):
         """Performs any post-processing of the nominal value returned by the RDF future.
@@ -546,9 +553,9 @@ class Yield(Target):
     def attachSumw2(self, rdf):
         return rdf.Define(self.weight + "2", self.weight + "*" + self.weight).Sum(self.weight + "2")
 
-    def bookVariations(self, future):
+    def bookVariations(self, future, VariationsFor):
         sum2 = self.attachSumw2(future._rdf)
-        return (sum2, ROOT.RDF.Experimental.VariationsFor(future))
+        return (sum2, VariationsFor(future))
 
     def finishVarFuture(self, varfuture, sample, era):
         ret = dict()

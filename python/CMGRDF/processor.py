@@ -7,18 +7,21 @@ from enum import Enum
 import ROOT
 from CMGRDF.histoWithNuisances import HistoWithNuisances, YieldWithNuisances, mergePlots
 from CMGRDF.utils import MultiKey, MultiReport, safeName
-from CMGRDF.data import Source, Process
+from CMGRDF.data import Source, MCGroup, Process
 from CMGRDF.flow import ComputeTotalWeight, Alias, Define, ReDefine, DefineDefault, Vary, FlowStep, Flow, Target, Yield
 from CMGRDF.plots import Plot, PlotResult
 from CMGRDF.snapshot import Snapshot
 
 
 class _Branch(object):
-    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]"):
+    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", local=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
         if isinstance(parentOrSource, _Branch):
             assert isinstance(stepOrTreeName, FlowStep)
             self.source = parentOrSource.source
             self.sourceTreeName = parentOrSource.sourceTreeName
+            self._local = parentOrSource._local
+            self.DataFrameClass = parentOrSource.DataFrameClass
+            self.DataFrameArgs = parentOrSource.DataFrameArgs
             self.parentBranch = parentOrSource
             self.hasher = parentOrSource.hasher.copy()
             self.step = stepOrTreeName
@@ -27,6 +30,9 @@ class _Branch(object):
             assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str)
             self.source = parentOrSource
             self.sourceTreeName = stepOrTreeName
+            self._local = local
+            self.DataFrameClass = DataFrameClass
+            self.DataFrameArgs = dict(**kwargs)
             self.parentBranch = None
             self.hasher = hashlib.sha256()
             self.step = None
@@ -53,7 +59,7 @@ class _Branch(object):
     def rdfAndWeights(self) -> "Tuple[Any, list[str]]":
         if self._rdfAndWeights is None:
             if self.parentBranch is None:
-                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName), [])
+                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, **self.DataFrameArgs), [])
                 self._hasUncertainties = False
             else:
                 self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
@@ -67,18 +73,32 @@ class _Branch(object):
 
     def hasUncertainties(self) -> bool:
         if self._hasUncertainties is None:
-            self._hasUncertainties = bool(self.rdf().GetVariations().AsString())
+            self._hasUncertainties = bool(self.rdf().GetVariations().AsString()) if self._local else True
         return self._hasUncertainties
 
 
 class Processor(object):
     State = Enum("State", ["Clean", "Booked", "Run"])
 
-    def __init__(self, cache=None):
+    def __init__(self, cache=None, executor=None):
         self._trees = dict()  # type: dict[Source,_Branch]
         self._lumiMap = dict()  # type: dict[MultiKey, float]
         self._cache = cache
         self._toCache = dict()
+        self._executor = executor
+        if executor is not None:
+            self._local = False
+            self.RunGraphs = ROOT.RDF.Experimental.Distributed.RunGraphs
+            self.VariationsFor = ROOT.RDF.Experimental.Distributed.VariationsFor
+            if executor[0] == "dask":
+                self.DataFrameClass = ROOT.RDF.Experimental.Distributed.Dask.RDataFrame
+                self.DataFrameArgs = dict(daskclient = executor[1], npartitions=4)
+        else:
+            self._local = True
+            self.RunGraphs = ROOT.RDF.RunGraphs
+            self.VariationsFor = ROOT.RDF.Experimental.VariationsFor
+            self.DataFrameClass = ROOT.RDataFrame
+            self.DataFrameArgs = {}
         self.clear()
 
     def clear(self):
@@ -93,8 +113,8 @@ class Processor(object):
     def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False):
         if source not in self._trees:
             if verbose:
-                print("Created new source tree for %s" % source.longId())
-            self._trees[source] = _Branch(source, treeName)
+                print("Created new source tree for %s, local %s" % (source.longId(), self._local))
+            self._trees[source] = _Branch(source, treeName, self._local, DataFrameClass=self.DataFrameClass, **self.DataFrameArgs)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())
@@ -127,6 +147,18 @@ class Processor(object):
         if logPerformance and n > 0:
             print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
 
+    def _samplesForProc(self, proc):
+        if self._local: 
+            return proc.samples
+        ret = []
+        for sample in proc.samples:
+            if isinstance(sample, MCGroup):
+                print(f"Splitting MCGroup {sample.name} since it's not supported in DistRDF")
+                ret.extend(sample.split())
+            else:
+                ret.append(sample)
+        return ret
+
     def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=False, logPerformance=True):
         if self._state == Processor.State.Run:
             raise RuntimeError("After book() and run(), call clear() before booking again")
@@ -152,7 +184,7 @@ class Processor(object):
                 self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = lumi[era]
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
-                    for sample in proc.samples:
+                    for sample in self._samplesForProc(proc):
 
                         src = sample.source(era)
                         if not src:
@@ -190,7 +222,7 @@ class Processor(object):
                                 if self._cache and k3[-1] is not None:
                                     self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            futvars = t.bookVariations(fut)
+            futvars = t.bookVariations(fut, self.VariationsFor)
             self._futures.append((plotKey, proc, sample, t, fut, futvars))
         n1 = len(self._futures)
         t1 = time.perf_counter()
@@ -217,7 +249,7 @@ class Processor(object):
             for era in eras:
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
-                    for sample in proc.samples:
+                    for sample in self._samplesForProc(proc):
                         src = sample.source(era)
                         if not src:
                             continue
@@ -251,7 +283,7 @@ class Processor(object):
                                         if self._cache and k3[-1] is not None:
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            fvars = ROOT.RDF.Experimental.VariationsFor(fut)
+            fvars = self.VariationsFor(fut)
             self._futures.append((plotKey, proc, sample, t, fut, fvars))
         t1 = time.perf_counter()
         n1 = len(self._futures)
@@ -263,16 +295,21 @@ class Processor(object):
         """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
         self._state = Processor.State.Run
         if self._rawResults is None:
+            if not self._local:
+                from CMGRDF.init import RunDistributedInitializer
+                RunDistributedInitializer(self._executor[1])
             self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
             t0 = time.perf_counter()
             n0 = len(self._futures)
             # run the graphs
             if self._futures:
-                if debug:
+                if debug and self._local:
                     for fut in self._futures:
                         name = str(fut[0]).replace(",", "_").replace(")", "").replace("(", "").replace("=", "_")
                         ROOT.RDF.SaveGraph(fut[-2], f'{name}.dot')
-                ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
+                if logPerformance and not self._local:
+                    print("Scheduling to run %d targets" % n0)
+                self.RunGraphs([fut[-2] for fut in self._futures])
                 print("")
                 t1 = time.perf_counter()
                 if logPerformance:

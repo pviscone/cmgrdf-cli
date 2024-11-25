@@ -57,7 +57,7 @@ dataSamples = [
 ]
 
 ## Common stuff
-ROOT.gInterpreter.Declare("""
+Declare("""
 ROOT::RVec<int> cleanByIndex(const ROOT::RVec<int> & Jet_sel, const ROOT::RVec<int> & Lep_forClean, const ROOT::RVec<int> & Lep_jetIdx)
 {
     auto nJets = Jet_sel.size();

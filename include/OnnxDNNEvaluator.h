@@ -1,3 +1,6 @@
+#ifndef CMGRDF_OnnxDNNEvaluator_h
+#define CMGRDF_OnnxDNNEvaluator_h
+
 #include <vector>
 #include <array>
 #include <string>
@@ -80,3 +83,5 @@ protected:
     return options;
   }
 };
+
+#endif
