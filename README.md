@@ -289,5 +289,27 @@ In the outfolder, the CLI will save:
     - All the files needed to rerun the analysis (not all the files in the repo, just the one you need)
     - `command.sh` A bash command that check if you are running with the same CMGRDF version (otherwise it will warn you) and rerun the same analysis
 
+<details>
+<summary>WEBEOS settings:</summary>
 
 > To visualize correctly `report.txt` on WEBEOS you have to add `AddDefaultCharset utf-8` to your .htaccess
+
+> To be able to use the web TBrowser on your web browser on WEBEOS you have to add the following block to yout `.htacces` 
+```
+AuthType None
+Order allow,deny
+Allow from all
+Require all granted
+Options +Indexes
+
+# Allow access from all domains for web fonts
+<IfModule mod_headers.c>
+    <FilesMatch "">
+       Header set Access-Control-Allow-Origin "*"
+       Header set Access-Control-Allow-Headers "range"
+       Header set Access-Control-Expose-Headers "content-range,content-length,content-type,accept-ranges"
+       Header set Access-Control-Allow-Methods "HEAD,GET"
+    </FilesMatch>
+</IfModule>
+```
+</details>
