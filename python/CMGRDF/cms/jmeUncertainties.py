@@ -61,7 +61,7 @@ jsonMap = {
 }
 
 
-jetVetoTags= { 
+jetVetoTags = {
     "2022"   : "Summer22_23Sep2023_RunCD_V1",
     "2022EE" : "Summer22EE_23Sep2023_RunEFG_V1",
 }
@@ -73,7 +73,7 @@ class JMEFactory(object):
     @classmethod
     def loadJME(cls, doMET, era, subera, jetAlgo, isData, splitJER, uncSources, suffix):
         configCls = calcConfigs.METVariations if doMET else calcConfigs.JetVariations
-        config = configCls(jsonMap[era]+"/jet_jerc.json.gz", jetAlgo)
+        config = configCls(jsonMap[era] + "/jet_jerc.json.gz", jetAlgo)
         config.jecTag = jecTagsDATA[era + subera] if isData else jecTags[era]
         config.jecLevel = "L1L2L3Res"
         config.splitJER = splitJER
@@ -168,7 +168,7 @@ class JMEUncertaintiesDefine(Define):
                         njer = 1 if not self.splitJER else 6
                         for ijer in range(njer):
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * ijer + 1, 2 * ijer + 2),
-                                           variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer,self.era))
+                                           variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
                         for isource, source in enumerate(self.uncSources):
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                            variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
@@ -180,7 +180,7 @@ class JMEUncertaintiesDefine(Define):
                     njer = 1 if not self.splitJER else 6
                     for ijer in range(njer):
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * ijer + 1, 2 * ijer + 2),
-                                       variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer,self.era))
+                                       variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
                     for isource, source in enumerate(self.uncSources):
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                        variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
@@ -190,23 +190,24 @@ class JMEUncertaintiesDefine(Define):
             print(f"ERROR attaching Define({self.name}, {self.expr}")
             raise
 
-class JetVetoMapCut( Cut ):
-    def __init__(self, cutName,  **options):
+
+class JetVetoMapCut(Cut):
+    def __init__(self, cutName, **options):
         if len(options['eras']) != 1:
             raise RuntimeError("You can only call JetVetoMapCut for one era")
         self.era = options['eras'][0]
 
-        super().__init__( cutName, f"passesJetVetoMap_{self.era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
+        super().__init__(cutName, f"passesJetVetoMap_{self.era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
 
         self._fname = jsonMap[self.era] + '/jetvetomaps.json.gz'
         self._corrName = jetVetoTags[self.era]
-        self._init=False
+        self._init = False
 
     def init(self):
-        vetoMapId = CorrectionlibFactory.loadCorrector( self._fname, self._corrName, check=True)[0]
-        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta, 
+        vetoMapId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
+        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
                                                                   const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
-                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF, 
+                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
                                                                   const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
         bool ret=true;
         for (int ijet=0; ijet<Jet_pt.size(); ++ijet){
@@ -226,16 +227,16 @@ class JetVetoMapCut( Cut ):
         }
         return ret;
 }'''.replace("<era>", self.era).replace("<correctionname>", vetoMapId))
-        self._init=True
+        self._init = True
+
     def _attach(self, rdf):
         if not self._init:
             self.init()
-        return super()._attach( rdf )
-                                  
+        return super()._attach(rdf)
 
 
-class JetPuIDSF( Define ):
-    def __init__(self,  WP="L", jetCol="Jet", doSyst=True, onData=False,onDataDriven=False, **options):
+class JetPuIDSF(Define):
+    def __init__(self, WP="L", jetCol="Jet", doSyst=True, onData=False, onDataDriven=False, **options):
 
         if len(options['eras']) != 1:
             raise RuntimeError("You can only call JetPuIDSF for one era")
@@ -248,8 +249,8 @@ class JetPuIDSF( Define ):
         self._fname = jsonMap[self.era] + '/jmar.json.gz'
         self._corrName = "PUJetID_eff"
         self._init = False
-        self.doSyst=doSyst
-        
+        self.doSyst = doSyst
+
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
         ROOT.gInterpreter.Declare('''
@@ -261,20 +262,19 @@ class JetPuIDSF( Define ):
         }
         return ret;
      }'''.replace("<CORRID>", corrId).replace("<ERA>", self.era))
-        self._init=True
+        self._init = True
 
-
-    def _attach( self, rdf):
+    def _attach(self, rdf):
         if not self._init:
             self.init()
 
         try:
             rdf = rdf.Define(self.name, self.expr)
             if self.doSyst:
-                up_expr=self.expr.replace(')', ', "up")')
-                dn_expr=self.expr.replace(')', ', "down")')
-                rdf = rdf.Vary( self.name, f"ROOT::RVecD( {{{up_expr}, {dn_expr}}})",
-                                variationTags=["up", "down"], variationName=f"CMS_eff_j_PUJET_id_{self.era}")
+                up_expr = self.expr.replace(')', ', "up")')
+                dn_expr = self.expr.replace(')', ', "down")')
+                rdf = rdf.Vary(self.name, f"ROOT::RVecD( {{{up_expr}, {dn_expr}}})",
+                               variationTags=["up", "down"], variationName=f"CMS_eff_j_PUJET_id_{self.era}")
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")
