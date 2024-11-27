@@ -264,6 +264,7 @@ class Processor(object):
                         name = str(fut[0]).replace(",", "_").replace(")", "").replace("(", "").replace("=", "_")
                         ROOT.RDF.SaveGraph(fut[-2], f'{name}.dot')
                 ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
+                print("")
                 t1 = time.perf_counter()
                 if logPerformance:
                     print("Filled %d sums and %d targets in %.3fs (+%.3f)" % (n0[0], n0[1], t1 - t0, t1 - t0b))

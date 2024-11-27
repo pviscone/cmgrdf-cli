@@ -6,7 +6,8 @@ import glob
 from CMGRDF.utils import recursiveHash, safeName, NormUncertainty
 
 ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
-ProgressBar=ROOT.ProgressBarManager()
+ProgressBar = ROOT.ProgressBarManager()
+
 
 class Source(object):
     """Base class that wraps a list of files from which an RDF can be created"""
@@ -33,7 +34,7 @@ class Source(object):
                 if treeName == "Events":
                     assert (self.friends is None)  # not supported
                 ret = ROOT.RDataFrame(treeName, self.files[0] + "/*.root")
-                ret._events=-1 # dont know how to do this 
+                ret._events = -1  # dont know how to do this
             else:
                 if treeName == "Events" and self.friends is not None:
                     tfile = ROOT.TFile.Open(self.files[0])
@@ -53,8 +54,8 @@ class Source(object):
                     tfile = ROOT.TFile.Open(self.files[0])
                     tree = tfile.Get(treeName)
                     ret = ROOT.RDataFrame(tree)
-                    ret._tree=tree
-                    ret._file=tfile
+                    ret._tree = tree
+                    ret._file = tfile
                     ret._events = tree.GetEntries()
 
         else:
