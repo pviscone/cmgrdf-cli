@@ -5,6 +5,8 @@ import os.path
 import glob
 from CMGRDF.utils import recursiveHash, safeName, NormUncertainty
 
+ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
+ProgressBar=ROOT.ProgressBarManager()
 
 class Source(object):
     """Base class that wraps a list of files from which an RDF can be created"""
@@ -31,6 +33,7 @@ class Source(object):
                 if treeName == "Events":
                     assert (self.friends is None)  # not supported
                 ret = ROOT.RDataFrame(treeName, self.files[0] + "/*.root")
+                ret._events=-1 # dont know how to do this 
             else:
                 if treeName == "Events" and self.friends is not None:
                     tfile = ROOT.TFile.Open(self.files[0])
@@ -45,8 +48,15 @@ class Source(object):
                     ret = ROOT.RDataFrame(tree)
                     ret._tree = tree
                     ret._tfile = tfile
+                    ret._events = tree.GetEntries()
                 else:
-                    ret = ROOT.RDataFrame(treeName, self.files[0])
+                    tfile = ROOT.TFile.Open(self.files[0])
+                    tree = tfile.Get(treeName)
+                    ret = ROOT.RDataFrame(tree)
+                    ret._tree=tree
+                    ret._file=tfile
+                    ret._events = tree.GetEntries()
+
         else:
             chain = ROOT.TChain(treeName)
             for f in self.files:
@@ -69,8 +79,10 @@ class Source(object):
             ret = ROOT.RDataFrame(chain)
             ret._chain = chain
             ret._friendChains = friendChains
+            ret._events = ret._chain.GetEntries()
             #print("RDF for %s %s: chain %s, friends %s" % (treeName, self.longId(), chain, friendChains))
         #print("RDF for %s %s: FO branches %s" % (treeName, self.longId(), [s for s in ret.GetColumnNames() if "FO" in str(s)]))
+        ProgressBar.AddDataFrame(ret, ret._events)
         return ret
 
     def __eq__(self, o : object) -> bool:
