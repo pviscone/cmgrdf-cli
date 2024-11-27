@@ -242,7 +242,7 @@ class JetPuIDSF(Define):
             raise RuntimeError("You can only call JetPuIDSF for one era")
         self.era = options['eras'][0]
 
-        super().__init__(f'weight_jetPUId',
+        super().__init__('weight_jetPUId',
                          f'weight_jetPUId_{self.era}({jetCol}_pt, {jetCol}_eta, {jetCol}_genJetIdx, "{WP}")',
                          onData=onData, onDataDriven=onDataDriven, **options)
 
