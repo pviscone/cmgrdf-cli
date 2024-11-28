@@ -73,7 +73,16 @@ class _Branch(object):
 
     def hasUncertainties(self) -> bool:
         if self._hasUncertainties is None:
-            self._hasUncertainties = bool(self.rdf().GetVariations().AsString()) if self._local else True
+            if self._local:
+                self._hasUncertainties = bool(self.rdf().GetVariations().AsString())
+            else:
+                self._hasUncertainties = False
+                node = self.rdf()
+                while node is not None:
+                    if node.operation is not None and node.operation.name == "Vary":
+                        self._hasUncertainties = True
+                        break
+                    node = node.parent
         return self._hasUncertainties
 
 

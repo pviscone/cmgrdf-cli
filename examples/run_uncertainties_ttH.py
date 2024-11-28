@@ -38,9 +38,10 @@ plots = [
 
 lumi = 59.
 
-from CMGRDF.utils import processorFromCommandLineArgs
-maker = processorFromCommandLineArgs()
-maker.book(data, lumi, cuts, plots, withUncertainties=True)
-result_plots = maker.runPlots()
-printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)" % lumi, showRatio=True)
-printer.printSet(result_plots, "plots/002/dilep-uncertainties/cmgrdf")
+if __name__ == "__main__":
+    from CMGRDF.utils import processorFromCommandLineArgs
+    maker = processorFromCommandLineArgs()
+    maker.book(data, lumi, cuts, plots, withUncertainties=True)
+    result_plots = maker.runPlots()
+    printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)" % lumi, showRatio=True)
+    printer.printSet(result_plots, "plots/002/dilep-uncertainties/cmgrdf")
