@@ -1,6 +1,6 @@
 import correctionlib
 import re
-import ROOT
+from CMGRDF.init import Declare
 
 correctionlib.register_pyroot_binding()
 
@@ -31,7 +31,7 @@ class CorrectionlibFactory(object):
             assert (fileid not in cls._files.values())
             corrSet = correctionlib.CorrectionSet.from_file(filename) if check else None
             cls._files[filename] = (fileid, corrSet)
-            ROOT.gInterpreter.Declare(f'auto {fileid} = correction::CorrectionSet::from_file("{filename}");')
+            Declare(f'auto {fileid} = correction::CorrectionSet::from_file("{filename}");')
         return cls._files[filename]
 
     _correctors = dict()  # type: dict[tuple[str,str],str]
@@ -44,7 +44,7 @@ class CorrectionlibFactory(object):
                 if corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
                     raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " + ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
             corrId = cls._strToId(corrector + filename, corrSetId + "_corr_", hint=corrHint)
-            ROOT.gInterpreter.Declare(f'auto {corrId} = {corrSetId}->{access_method}("{corrector}");')
+            Declare(f'auto {corrId} = {corrSetId}->{access_method}("{corrector}");')
             if access_method == "at":
                 corr = corrSet[corrector] if check else None
             else:

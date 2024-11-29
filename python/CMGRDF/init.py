@@ -81,6 +81,15 @@ def RunDistributedInitializer(daskClient):
     global _codelines, _includepaths, _dynpaths, _dynlibs, _hasher
     current_config = _hasher.hexdigest()
     #print(f"Requested hash is now {current_config}")
+    #check if correctionlib is loaded
+    import sys
+    if 'correctionlib' in sys.modules:
+        print("correctionlib loaded here, will try to propagate to workers")
+        maybe_corrlib = daskClient.run(eval, '"correctionlib" in sys.modules')
+        print(maybe_corrlib)
+        no_corrlib_workers = [w for (w,s) in maybe_corrlib.items() if not s]
+        daskClient.run(exec, 'import correctionlib\ncorrectionlib.register_pyroot_binding()', workers = no_corrlib_workers)
+    #Check if CMGRDF was loaded
     maybe_cmgrdf = daskClient.run(eval, '"CMGRDF" in sys.modules')
     cmgrdf_workers = [w for (w,s) in maybe_cmgrdf.items() if s]
     nocmgrdf_workers = [w for (w,s) in maybe_cmgrdf.items() if not s]
@@ -89,9 +98,9 @@ def RunDistributedInitializer(daskClient):
         # Check hash
         cmgrdf_hash = daskClient.run(eval, 'sys.modules["CMGRDF"].init.GlobalConfigHash()', workers = cmgrdf_workers)
         #print(f"Hash of CMGRDF workers {cmgrdf_hash}")
-        if any(h != current_config for (w,h) in cmgrdf_hash.items()):
-            ## Implement with daskClient.restart_workers(workers, timeout_in_s)
-            raise RuntimeError("At least one worker has CMGRDF loaded but an incompatible config hash")
+        bad_workers = [w for (w,h) in cmgrdf_hash.items() if h != current_config]
+        if bad_workers:
+            raise RuntimeError(f"WARNING: Found {len(bad_workers)} workers with CMGRDF already loaded but an incompatible config hash.")
         print(f"INFO: Found {len([h for h in cmgrdf_hash.values() if h == current_config])} workers with CMGRDF already loaded with the proper init")
     if nocmgrdf_workers:
         hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers = nocmgrdf_workers)

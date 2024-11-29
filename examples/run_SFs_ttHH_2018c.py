@@ -147,22 +147,24 @@ muIDsf = [
 cuts_corr_Zmm = cuts_Zmm.clone("Zmm_corr").prepend(MuRocCorr2018).append(muIDsf)
 
 lumi = 6.90
-cache = SimpleCache()
-ROOT.EnableImplicitMT(16)
-maker = Processor(cache=cache)
-#maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
-maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
-maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
-maker.book(procs_Zll, lumi, cuts_corr_Zmm, plots_Zmm_corr, withUncertainties=True)
-maker.book(procs_Zll, lumi, cuts_corr_Zmm, Yield("all"), withUncertainties=True)
-result_plots = maker.runPlots()
-printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0.7, 1.399), fixRatioRange=True)
-printer.printSet(result_plots, "plots/004sf/{flow}")
 
-yields = maker.runYields()
-for flow in cuts_Zmm, cuts_corr_Zmm:
-    print(f"\nYields for {flow.name}:")
-    for proc in procs_Zll:
-        y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name="all"))[-1]
-        ysyst = y.systAsymm()
-        print("   %-10s: %10.2f +- %8.1f (stat) %+9.1f/%+9.1f (syst)" % (proc.name, y.central, y.stat, ysyst[0], ysyst[1]))
+if __name__ == "__main__":
+    from CMGRDF.utils import processorFromCommandLineArgs
+    maker = processorFromCommandLineArgs()
+    #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
+    if maker._local: # can't run both in Dask
+        maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
+        maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
+    maker.book(procs_Zll, lumi, cuts_corr_Zmm, plots_Zmm_corr, withUncertainties=True)
+    maker.book(procs_Zll, lumi, cuts_corr_Zmm, Yield("all"), withUncertainties=True)
+    result_plots = maker.runPlots()
+    printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0.7, 1.399), fixRatioRange=True)
+    printer.printSet(result_plots, "plots/004sf/{flow}")
+
+    yields = maker.runYields()
+    for flow in ((cuts_Zmm, cuts_corr_Zmm) if maker._local else (cuts_corr_Zmm,)):
+        print(f"\nYields for {flow.name}:")
+        for proc in procs_Zll:
+            y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name="all"))[-1]
+            ysyst = y.systAsymm()
+            print("   %-10s: %10.2f +- %8.1f (stat) %+9.1f/%+9.1f (syst)" % (proc.name, y.central, y.stat, ysyst[0], ysyst[1]))

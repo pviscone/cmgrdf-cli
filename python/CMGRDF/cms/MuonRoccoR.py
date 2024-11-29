@@ -5,7 +5,7 @@ from CMGRDF.cms.eras import run2eras
 
 roccorPath = os.path.expandvars("${CMGRDF}/externals/RoccoR")
 
-from CMGRDF.core import AddHeader, Declare
+from CMGRDF.init import AddHeader, Declare
 AddHeader('MuRoccoR.h')
 AddHeader('RoccoR.h', roccorPath)
 
