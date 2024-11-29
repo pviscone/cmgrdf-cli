@@ -401,7 +401,7 @@ class PlotSetPrinter(object):
             #if hist.Integral() <= 0:
             #    continue
             if outputTDir:
-                print("Writing to file", hist.GetName())
+                #print("Writing to file", hist.GetName())
                 hist.writeToFile(outputTDir)
 
             if proc.isSignal and opts.noStackSignals:
