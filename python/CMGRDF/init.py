@@ -8,31 +8,35 @@ _dynpaths = set()
 _dynlibs = []
 _hasher = hashlib.sha256()
 
+
 def _makePreprocessorGuard(code):
     if code.startswith("#ifndef"):
-        return code 
+        return code
     hasher = hashlib.sha256()
     hasher.update(code.encode())
     symbol = f"_CMGRDF_auto_{hasher.hexdigest()}_"
     return f"#ifndef {symbol}\n#define {symbol}\n{code}\n#endif"
 
+
 def ProcessLine(code):
     global _codelines, _hasher
-    shortcode = code[:70]
-    code = code if code[0] == "." else _makePreprocessorGuard(code) # don't wrap CLING magic codes
+    shortcode = code.strip()[:70] # noqa: F841
+    code = code if code[0] == "." else _makePreprocessorGuard(code)  # don't wrap CLING magic codes
     ROOT.gInterpreter.ProcessLine(code)
-    _codelines.append(('ProcessLine',code))
-    _hasher.update(('ProcessLine '+code).encode())
+    _codelines.append(('ProcessLine', code))
+    _hasher.update(('ProcessLine ' + code).encode())
     #print(f"Global hash is now {_hasher.hexdigest()} after processline {shortcode!r}")
+
 
 def Declare(code):
     global _codelines, _hasher
-    shortcode = code[:70]
+    shortcode = code.strip()[:70] # noqa: F841
     code = _makePreprocessorGuard(code)
     ROOT.gInterpreter.Declare(code)
-    _codelines.append(('Declare',code))
-    _hasher.update(('Declare '+code).encode())
+    _codelines.append(('Declare', code))
+    _hasher.update(('Declare ' + code).encode())
     #print(f"Global hash is now {_hasher.hexdigest()} after declaring {shortcode!r}")
+
 
 def _hashFile(role, filename, filepath):
     global _hasher
@@ -45,37 +49,41 @@ def _hashFile(role, filename, filepath):
                 hashlib.file_digest(f, lambda : _hasher)
             else:
                 size = os.stat(filepath + "/" + filename).st_size
-                _hasher.update(f.read(size)) 
+                _hasher.update(f.read(size))
+
 
 def AddHeader(header : str, includepath="${CMGRDF}/include", extraIncludePaths=None):
     global _codelines, _includepaths, _hasher
-    paths = ([includepath] if includepath else [])+(extraIncludePaths if extraIncludePaths else [])
+    paths = ([includepath] if includepath else []) + (extraIncludePaths if extraIncludePaths else [])
     for p in paths:
         p = os.path.expandvars(p)
         ROOT.gInterpreter.AddIncludePath(p)
         _includepaths.add(p)
     ROOT.gInterpreter.Declare(f'#include "{header}"')
-    _codelines.append(('Declare',f'#include "{header}"'))
-    _hasher.update(('Include '+header).encode())    
+    _codelines.append(('Declare', f'#include "{header}"'))
+    _hasher.update(('Include ' + header).encode())
     _hashFile('header', header, includepath)
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {header}")
 
+
 def LoadLibrary(library : str, filepath="${CMGRDF}/lib", extraPaths=None):
     global _dynpaths, _dynlibs, _hasher
-    paths = ([filepath] if filepath else [])+(extraPaths if extraPaths else [])
+    paths = ([filepath] if filepath else []) + (extraPaths if extraPaths else [])
     for p in paths:
         p = os.path.expandvars(p)
         ROOT.gSystem.AddDynamicPath(p)
         _dynpaths.add(p)
     ROOT.gSystem.Load(library)
     _dynlibs.append(library)
-    _hasher.update(('Load '+library).encode())    
+    _hasher.update(('Load ' + library).encode())
     _hashFile('Library', library, filepath)
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {library}")
+
 
 def GlobalConfigHash():
     global _hasher
     return _hasher.hexdigest()
+
 
 def RunDistributedInitializer(daskClient):
     global _codelines, _includepaths, _dynpaths, _dynlibs, _hasher
@@ -87,23 +95,23 @@ def RunDistributedInitializer(daskClient):
         print("correctionlib loaded here, will try to propagate to workers")
         maybe_corrlib = daskClient.run(eval, '"correctionlib" in sys.modules')
         print(maybe_corrlib)
-        no_corrlib_workers = [w for (w,s) in maybe_corrlib.items() if not s]
-        daskClient.run(exec, 'import correctionlib\ncorrectionlib.register_pyroot_binding()', workers = no_corrlib_workers)
+        no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
+        daskClient.run(exec, 'import correctionlib\ncorrectionlib.register_pyroot_binding()', workers=no_corrlib_workers)
     #Check if CMGRDF was loaded
     maybe_cmgrdf = daskClient.run(eval, '"CMGRDF" in sys.modules')
-    cmgrdf_workers = [w for (w,s) in maybe_cmgrdf.items() if s]
-    nocmgrdf_workers = [w for (w,s) in maybe_cmgrdf.items() if not s]
+    cmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if s]
+    nocmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if not s]
     #print(f"Clients have CMGRDF loaded ? {maybe_cmgrdf}")
     if cmgrdf_workers:
         # Check hash
-        cmgrdf_hash = daskClient.run(eval, 'sys.modules["CMGRDF"].init.GlobalConfigHash()', workers = cmgrdf_workers)
+        cmgrdf_hash = daskClient.run(eval, 'sys.modules["CMGRDF"].init.GlobalConfigHash()', workers=cmgrdf_workers)
         #print(f"Hash of CMGRDF workers {cmgrdf_hash}")
-        bad_workers = [w for (w,h) in cmgrdf_hash.items() if h != current_config]
+        bad_workers = [w for (w, h) in cmgrdf_hash.items() if h != current_config]
         if bad_workers:
             raise RuntimeError(f"WARNING: Found {len(bad_workers)} workers with CMGRDF already loaded but an incompatible config hash.")
         print(f"INFO: Found {len([h for h in cmgrdf_hash.values() if h == current_config])} workers with CMGRDF already loaded with the proper init")
     if nocmgrdf_workers:
-        hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers = nocmgrdf_workers)
+        hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
         #print(f"Worker hashes: {hashes}")
         all_workers = list(hashes.keys())
         done_workers = [w for w in all_workers if hashes[w] == current_config]
@@ -126,12 +134,12 @@ def RunDistributedInitializer(daskClient):
             code += "import os, sys\n"
             code += 'os.environ["CMGRDF"] = %r\n' % os.environ["CMGRDF"]
             #code += 'sys.path.append(os.environ["CMGRDF"]+"/python")\n'
-            code += "".join(f"ROOT.gInterpreter.AddIncludePath({p!r})\n" for p in _includepaths) 
-            code += "".join(f"ROOT.gSystem.AddDynamicPath({p!r})\n" for p in _dynpaths) 
+            code += "".join(f"ROOT.gInterpreter.AddIncludePath({p!r})\n" for p in _includepaths)
+            code += "".join(f"ROOT.gSystem.AddDynamicPath({p!r})\n" for p in _dynpaths)
             #code += "savErrorLevel = ROOT.gErrorIgnoreLevel\nROOT.gErrorIgnoreLevel = ROOT.kWarning\n"
             code += "".join(f"ROOT.gSystem.Load({p!r})\n" for p in _dynlibs)
             #code += "ROOT.gErrorIgnoreLevel = savErrorLevel\n"
-            code += "".join(f"ROOT.gInterpreter.{op}({line!r})\n" for (op,line) in _codelines)
+            code += "".join(f"ROOT.gInterpreter.{op}({line!r})\n" for (op, line) in _codelines)
             #code += "print('Initialization done for config %s')\n" % current_config
             code += "globals()['_CMGRDF_global_hash'] = %r\n" % current_config
-            daskClient.run(exec, code, workers = todo_workers)
+            daskClient.run(exec, code, workers=todo_workers)

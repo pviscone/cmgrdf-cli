@@ -101,7 +101,7 @@ class Processor(object):
             self.VariationsFor = ROOT.RDF.Experimental.Distributed.VariationsFor
             if executor[0] == "dask":
                 self.DataFrameClass = ROOT.RDF.Experimental.Distributed.Dask.RDataFrame
-                self.DataFrameArgs = dict(daskclient = executor[1], npartitions=4)
+                self.DataFrameArgs = dict(daskclient=executor[1], npartitions=4)
         else:
             self._local = True
             self.RunGraphs = ROOT.RDF.RunGraphs
@@ -157,7 +157,7 @@ class Processor(object):
             print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
 
     def _samplesForProc(self, proc):
-        if self._local: 
+        if self._local:
             return proc.samples
         ret = []
         for sample in proc.samples:

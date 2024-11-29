@@ -32,6 +32,7 @@ workflow:
 stages:
   - build
   - test
+  - test2
   - deploy
 
 .compile:
@@ -123,7 +124,7 @@ code-checks-dev3:
     - python3 run_friends_sos.py
     - echo
     - echo ---------------------------------
-    - python3 run_uncertainties_ttH.py
+    - python3 run_uncertainties_ttH.py -j 4
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -134,20 +135,20 @@ code-checks-dev3:
     when: always
   timeout: 2h
 
-run-tests-base-el8-106a:
+.run-tests-base-el8-106a:
   extends: [.run-tests, .el8-106a]
   needs: [compile-el8-106a]
 
-run-tests-base-el9-106a:
+.run-tests-base-el9-106a:
   extends: [.run-tests, .el9-106a]
   needs: [compile-el9-106a]
 
-run-tests-base-el9-dev3:
+.run-tests-base-el9-dev3:
   extends: [.run-tests, .el9-dev3]
   needs: [compile-el9-dev3]
 
-run-tests-cards-el8-106a:
-  extends: run-tests-base-el8-106a
+.run-tests-cards:
+  extends: .run-tests
   script:
     - python3 run_datacards_ttV_ttHH_2018c.py
     - echo
@@ -157,37 +158,42 @@ run-tests-cards-el8-106a:
     - "sha256sum -c ref/refs-cards-cards.txt --quiet && echo 'datacards match'"
     - "sha256sum -c ref/refs-cards-postfit.txt --quiet && echo 'postfit outputs match' || true"
 
-run-tests-cards-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-    - !reference [run-tests-cards-el8-106a, script]
+.run-tests-cards-el8-106a:
+  extends: [.run-tests-cards, .el8-106a]
+  needs: [compile-el8-106a]
 
-run-tests-cards-el9-dev3:
-  extends: run-tests-base-el9-dev3
-  script:
-    - !reference [run-tests-cards-el8-106a, script]
+.run-tests-cards-el9-106a:
+  extends: [.run-tests-cards, .el9-106a]
+  needs: [compile-el9-106a]
 
-run-tests-SFs-el8-106a:
-  extends: run-tests-base-el8-106a
+.run-tests-cards-el9-dev3:
+  extends: [.run-tests-cards, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+.run-tests-SFs:
+  extends: .run-tests
   script:
-    - python3 run_SFs_ttHH_2018c.py
+    - python3 run_SFs_ttHH_2018c.py -j 8
     - echo
     - echo --------------------
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
 
-run-tests-SFs-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-    - !reference [run-tests-SFs-el8-106a, script]
-  
-run-tests-SFs-el9-dev3:
-  extends: run-tests-base-el9-dev3
-  script:
-   - !reference [run-tests-SFs-el8-106a, script]
+.run-tests-SFs-el8-106a:
+  extends: [.run-tests-SFs, .el8-106a]
+  needs: [compile-el8-106a]
 
-run-tests-snapshot-el8-106a:
-  extends: run-tests-base-el8-106a
+.run-tests-SFs-el9-106a:
+  extends: [.run-tests-SFs, .el9-106a]
+  needs: [compile-el9-106a]
+
+.run-tests-SFs-el9-dev3:
+  extends: [.run-tests-SFs, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+
+.run-tests-snapshot:
+  extends: .run-tests
   script:
     - echo ---------------------------------
     - python3 run_snapshots_ttHH_2018c.py
@@ -199,12 +205,84 @@ run-tests-snapshot-el8-106a:
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
 
-run-tests-snapshot-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-   - !reference [run-tests-snapshot-el8-106a, script]
+.run-tests-snapshot-el8-106a:
+  extends: [.run-tests-snapshot, .el8-106a]
+  needs: [compile-el8-106a]
 
-run-tests-snapshot-el9-dev3:
-  extends: run-tests-base-el9-dev3
+.run-tests-snapshot-el9-106a:
+  extends: [.run-tests-snapshot, .el9-106a]
+  needs: [compile-el9-106a]
+
+.run-tests-snapshot-el9-dev3:
+  extends: [.run-tests-snapshot, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+.run-tests-dask-base:
+  extends: [.run-tests]
+  stage: test
+  variables:
+    SCRIPT: run_distributed_ttHH_2018c.py
+    REF: ref/refs-dist.txt
+    CHECKOPTS: ""
+    JOBS: 4
+    LOCAL: false
+    DASKLOCAL: true
+    DASK: true
   script:
-   - !reference [run-tests-snapshot-el8-106a, script]
+    - >
+      if $LOCAL; then
+        echo "--------------------";
+        echo "Local";
+        python3 $SCRIPT -n -j $JOBS local || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+    - >
+      if $DASKLOCAL; then
+        echo "--------------------";
+        echo "On internal dask";
+        python3 $SCRIPT -n -j $JOBS dask | grep -v '% Completed' || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+    - >
+      if $DASK; then
+        echo "--------------------";
+        echo "On external dask";
+        ( dask scheduler --port 11111 --no-dashboard --idle-timeout 30s > dasklog.txt 2>&1  & );
+        sleep 3s
+        ( dask worker tcp://localhost:11111 --nworkers $JOBS --nthreads 1 --memory-limit 2GB > workerlog.txt 2>&1 & );
+        python3 $SCRIPT -n -j $JOBS dask -c tcp://localhost:11111 | grep -v '% Completed' || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+  timeout: 20m
+  artifacts:
+    paths:
+      - examples/plots
+      - examples/dasklog.txt
+      - examples/workerlog.txt
+    when: always
+
+run-tests-dask-base-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_distributed_ttHH_2018c.py
+    REF: ref/refs-dist.txt
+    LOCAL: true
+
+run-tests-dask-vary-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_uncertainties_ttH.py
+    REF: ref/refs-base.txt
+    CHECKOPTS: "--ignore-missing"
+
+run-tests-dask-corrlib-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_SFs_ttHH_2018c.py
+    REF: ref/refs-FS.txt
+    CHECKOPTS: "--ignore-missing"
+    DASKLOCAL: false
+

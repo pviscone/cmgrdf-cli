@@ -13,7 +13,6 @@
 # E501: line too long (only on comments after black run)
 # ---
 # E741: ambiguous variable name 'l' (too pedantic! get a good font)
-### E711: sometimes needed for comparison to ROOT nullptr (better to cast to bool) 
-### F401: unused import (some may have side effects, need to clean by hand)
-ignore = F403,F405,E402,W504,E203,W503,E262,E265,E266,E501,E741
+# B007: Loop control variable ... not used within the loop body. If this is intended, start the name with an underscore
+ignore = F403,F405,E402,W504,E203,W503,E262,E265,E266,E501,E741,B007
 max-line-length = 160

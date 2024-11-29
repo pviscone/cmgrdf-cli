@@ -48,7 +48,7 @@ class Source(object):
             if treeName == "Events":
                 raise RuntimeError("Cannot support friend trees when provinding a directory as input")
             files = list(glob.glob(files[0] + '/*.root'))
-        files = [ eosToUrl(f) for f in files ]
+        files = [eosToUrl(f) for f in files]
         return ROOT.RDF.Experimental.RSample(self.name, treeName, files, metaInfo)
 
     def _addGlobalFriends(self, spec):
@@ -353,7 +353,7 @@ class MCSample(Sample):
                 continue
             if cache and cache.hasSum(src, self.genSumWeightName):
                 sumw = cache.getSum(src, self.genSumWeightName)
-                self._genWeightSum[era] = sumw 
+                self._genWeightSum[era] = sumw
                 src.addMeta("genWeightSum", sumw)
                 continue
             chain = ROOT.TChain("Runs")
@@ -370,7 +370,7 @@ class MCSample(Sample):
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
             hist = ROOT.gROOT.FindObject("htemp")
             sumw = hist.GetBinContent(1)
-            self._genWeightSum[era] = sumw 
+            self._genWeightSum[era] = sumw
             src.addMeta("genWeightSum", sumw)
             if cache:
                 cache.writeSum(src, self.genSumWeightName, sumw)
@@ -444,7 +444,7 @@ class MCGroup(Sample):
     def bookSumWeight(self, eras, **kwargs):
         """Compute the sum of weights for these samples, and return the number of computations actually done"""
         return sum(s.bookSumWeight(eras, **kwargs) for s in self.samples)
-    
+
     def split(self):
         """Split back into individual samples, potentially adding the extra weight and hooks"""
         if self.extraWeight is None and len(self.moreHooks) == 0:
@@ -460,7 +460,6 @@ class MCGroup(Sample):
                 scopy.weight = "(%s)*(%s)" % (getattr(sample, 'weight', 1), self.extraWeight)
             ret.append(scopy)
         return ret
-
 
 
 class DataDrivenSample(Sample):

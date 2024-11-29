@@ -1,5 +1,4 @@
 import os
-import ROOT
 
 from CMGRDF.init import Declare
 from CMGRDF.flow import Define

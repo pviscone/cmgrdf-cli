@@ -152,7 +152,7 @@ if __name__ == "__main__":
     from CMGRDF.utils import processorFromCommandLineArgs
     maker = processorFromCommandLineArgs()
     #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
-    if maker._local: # can't run both in Dask
+    if maker._local:  # can't run both in Dask
         maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
         maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
     maker.book(procs_Zll, lumi, cuts_corr_Zmm, plots_Zmm_corr, withUncertainties=True)

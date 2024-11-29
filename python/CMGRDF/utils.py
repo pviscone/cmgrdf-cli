@@ -246,6 +246,7 @@ def recursiveHash(*objs):
         _recursiveAddToHash(obj, hasher)
     return hasher.hexdigest()
 
+
 def eosToUrl(path):
     if path.startswith("/eos/cms"):
         return "root://eoscms.cern.ch/" + path
@@ -253,6 +254,7 @@ def eosToUrl(path):
         return "root://eosuser.cern.ch/" + path
     else:
         return path
+
 
 def localOrEOS(path, localroot, eosroot):
     localPath = os.path.join(localroot, path)
@@ -368,30 +370,31 @@ class FilteringList(list):
         ret += other
         return ret
 
+
 def processorFromCommandLineArgs():
     import argparse
     import ROOT
     from CMGRDF.cache import SimpleCache
     from CMGRDF.processor import Processor
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", help="how to run", nargs='?', default="local", choices=("local","dask"))
+    parser.add_argument("mode", help="how to run", nargs='?', default="local", choices=("local", "dask"))
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
     parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
     parser.add_argument("-v", "--verbose", action='count', default=0)
     args = parser.parse_args()
-    if args.mode ==  "local":
+    if args.mode == "local":
         if args.njobs:
             ROOT.EnableImplicitMT(args.njobs if args.njobs > 0 else 0)
         executor = None
-    elif args.mode ==  "dask":
+    elif args.mode == "dask":
         from dask.distributed import Client
         if args.cluster:
             client = Client(args.cluster)
         else:
             print(f"Spawning local cluster with {args.njobs if args.njobs else 'default number'} nodes")
             from dask.distributed import LocalCluster
-            cluster = LocalCluster(n_workers=args.njobs, threads_per_worker=1, processes=True)            
+            cluster = LocalCluster(n_workers=args.njobs, threads_per_worker=1, processes=True)
             client = Client(cluster)
         faulthandler = "import faulthandler\nfaulthandler.enable()"
         client.run(exec, faulthandler)
@@ -400,6 +403,6 @@ def processorFromCommandLineArgs():
     cache = None if args.nocache else SimpleCache()
     maker = Processor(cache=cache, executor=executor)
     if args.verbose:
-        level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug+20][min(args.verbose,2)]
+        level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
         maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)
     return maker

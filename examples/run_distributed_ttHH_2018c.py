@@ -1,4 +1,4 @@
-from CMGRDF import * 
+from CMGRDF import *
 from CMGRDF.collectionUtils import *
 
 LOCAL = "/scratch/gpetrucc" if os.path.exists("/scratch/gpetrucc") else "/data/shared"

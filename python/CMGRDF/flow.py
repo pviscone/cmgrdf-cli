@@ -4,6 +4,7 @@ import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
 
+
 class FlowStep(object):
     """A generic step to the processing flow.
 
