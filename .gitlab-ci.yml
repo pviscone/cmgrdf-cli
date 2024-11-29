@@ -2,17 +2,23 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
 
-.el8-dev4:
-  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cs8
+.el8-106a:
+  image: gitlab-registry.cern.ch/sft/docker/alma8
   variables:
-    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-el8-gcc11-opt
-    LIBS_EXTRA: libSM mesa-libGL-devel mesa-libGLU-devel libX11-devel libXpm-devel openssl-devel ncurses-compat-libs libjpeg-turbo-devel
+    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el8-gcc11-opt
+    LIBS_EXTRA: ""
 
-.el9-106:
+.el9-106a:
   image: gitlab-registry.cern.ch/sft/docker/alma9
   variables:
-    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
+    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el9-gcc11-opt
     LIBS_EXTRA: ""
+
+.el9-dev3:
+  image: gitlab-registry.cern.ch/sft/docker/alma9
+  variables:
+    LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc13-opt
+    LIBS_EXTRA: ""    
 
 workflow:
   rules:
@@ -38,25 +44,28 @@ stages:
   script:
     - make -j 4
     - pushd externals/HiggsAnalysis/CombinedLimit
-    - export CONDA=1 CONDA_PREFIX=$LCG_REL_PATH
+    - export LCG=1
     - make -j 8; make
     - popd
-    #- pushd externals
-    #- curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.16.0/onnxruntime-linux-x64-1.15.1.tgz | tar xzv
-    #- popd
+    - pushd externals
+    - curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.18.1/onnxruntime-linux-x64-1.18.1.tgz
+    - popd
   artifacts:
     paths:
       - lib
       - python/**/*.pyc
       - externals/HiggsAnalysis/CombinedLimit/build/bin
       - externals/HiggsAnalysis/CombinedLimit/build/lib
-      #- externals/onnxruntime-linux-x64-1.16.0
+      - externals/onnxruntime-linux-x64-1.18.1
 
-compile-el8-dev4:
-  extends: [.compile, .el8-dev4]
+compile-el8-106a:
+  extends: [.compile, .el8-106a]
 
-compile-el9-106:
-  extends: [.compile, .el9-106]
+compile-el9-106a:
+  extends: [.compile, .el9-106a]
+
+compile-el9-dev3:
+  extends: [.compile, .el9-dev3]
 
 code-checks:
   tags: [ k8s-cvmfs ]
@@ -75,6 +84,18 @@ code-checks:
     expose_as: 'code-format patch'
     paths:
       - code-format.patch
+    when: always
+
+code-checks-dev3:
+  extends: code-checks
+  image: gitlab-registry.cern.ch/sft/docker/alma9
+  before_script:
+    - source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc13-opt/setup.sh || true
+    - source /cvmfs/cms.cern.ch/el9_amd64_gcc13/external/llvm/17.0.3-668a2da8722f50b3ef72a74c2282af69/etc/profile.d/init.sh
+  artifacts:
+    expose_as: 'code-format patch dev3'
+    paths:
+      - code-format-dev3.patch
     when: always
 
 .run-tests:
@@ -103,54 +124,87 @@ code-checks:
     - echo
     - echo ---------------------------------
     - python3 run_uncertainties_ttH.py
+    - echo
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-base.txt --quiet && echo 'All outputs match references'"
   artifacts:
     paths:
       - examples/plots
     when: always
   timeout: 2h
 
-run-tests-base-el8-dev4:
-  extends: [.run-tests, .el8-dev4]
-  needs: [compile-el8-dev4]
+run-tests-base-el8-106a:
+  extends: [.run-tests, .el8-106a]
+  needs: [compile-el8-106a]
 
-run-tests-base-el9-106:
-  extends: [.run-tests, .el9-106]
-  needs: [compile-el9-106]
+run-tests-base-el9-106a:
+  extends: [.run-tests, .el9-106a]
+  needs: [compile-el9-106a]
 
-run-tests-cards-el8-dev4:
-  extends: run-tests-base-el8-dev4
+run-tests-base-el9-dev3:
+  extends: [.run-tests, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+run-tests-cards-el8-106a:
+  extends: run-tests-base-el8-106a
   script:
     - python3 run_datacards_ttV_ttHH_2018c.py
+    - echo
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-cards-prefit.txt --quiet && echo 'prefit outputs match'"
+    - "sha256sum -c ref/refs-cards-cards.txt --quiet && echo 'datacards match'"
+    - "sha256sum -c ref/refs-cards-postfit.txt --quiet && echo 'postfit outputs match' || true"
 
-run-tests-cards-el9-106:
-  extends: run-tests-base-el9-106
+run-tests-cards-el9-106a:
+  extends: run-tests-base-el9-106a
   script:
-    - python3 run_datacards_ttV_ttHH_2018c.py
+    - !reference [run-tests-cards-el8-106a, script]
 
-run-tests-SFs-el8-dev4:
-  extends: run-tests-base-el8-dev4
+run-tests-cards-el9-dev3:
+  extends: run-tests-base-el9-dev3
+  script:
+    - !reference [run-tests-cards-el8-106a, script]
+
+run-tests-SFs-el8-106a:
+  extends: run-tests-base-el8-106a
   script:
     - python3 run_SFs_ttHH_2018c.py
+    - echo
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
 
-run-tests-snapshot-el8-dev4:
-  extends: run-tests-base-el8-dev4
+run-tests-SFs-el9-106a:
+  extends: run-tests-base-el9-106a
+  script:
+    - !reference [run-tests-SFs-el8-106a, script]
+  
+run-tests-SFs-el9-dev3:
+  extends: run-tests-base-el9-dev3
+  script:
+   - !reference [run-tests-SFs-el8-106a, script]
+
+run-tests-snapshot-el8-106a:
+  extends: run-tests-base-el8-106a
   script:
     - echo ---------------------------------
     - python3 run_snapshots_ttHH_2018c.py
     - echo
     - echo ---------------------------------
     - python3 run_snapshots_ttHH_2018c.py
-
-run-tests-SFs-el9-106:
-  extends: run-tests-base-el9-106
-  script:
-    - python3 run_SFs_ttHH_2018c.py
-
-run-tests-snapshot-el9-106:
-  extends: run-tests-base-el9-106
-  script:
-    - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
     - echo
-    - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
+
+run-tests-snapshot-el9-106a:
+  extends: run-tests-base-el9-106a
+  script:
+   - !reference [run-tests-snapshot-el8-106a, script]
+
+run-tests-snapshot-el9-dev3:
+  extends: run-tests-base-el9-dev3
+  script:
+   - !reference [run-tests-snapshot-el8-106a, script]
