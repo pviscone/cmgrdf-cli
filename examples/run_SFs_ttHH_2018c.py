@@ -1,6 +1,6 @@
 from CMGRDF import *
 from CMGRDF.cms.eras import *
-from CMGRDF.cms.MuonRoccoR import MuRocCorrMC2018
+from CMGRDF.cms.MuonRoccoR import MuRocCorr2018
 from CMGRDF.cms.MuonSFs import MuonSFs
 import ROOT
 
@@ -144,7 +144,7 @@ muIDsf = [
     MuonSFs[("MediumPromptId_LooseIso", "2018")],  # these puts them as variables
     AddWeight("MuonIDIsoSF", "Muon_SF_MediumPromptId_LooseIso[0]*Muon_SF_MediumPromptId_LooseIso[1]")
 ]
-cuts_corr_Zmm = cuts_Zmm.clone("Zmm_corr").prepend(MuRocCorrMC2018).append(muIDsf)
+cuts_corr_Zmm = cuts_Zmm.clone("Zmm_corr").prepend(MuRocCorr2018).append(muIDsf)
 
 lumi = 6.90
 cache = SimpleCache()

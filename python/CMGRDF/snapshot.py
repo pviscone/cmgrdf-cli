@@ -64,7 +64,10 @@ class Snapshot(Target):
             pass
 
     def attach(self, rdf, sample, era):
-        comprAlgo = getattr(ROOT, "k" + self.compression[0].upper())
+        if ROOT.gROOT.GetVersionInt() >= 63400:
+            comprAlgo = getattr(ROOT.RCompressionSetting.EAlgorithm, "k" + self.compression[0].upper())
+        else:
+            comprAlgo = getattr(ROOT, "k" + self.compression[0].upper())
         opts = ROOT.RDF.RSnapshotOptions("RECREATE", comprAlgo, self.compression[1], 0, 99, True)
         columns = selectColumns(rdf, self.columnSel, self.columnVeto)
         outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
