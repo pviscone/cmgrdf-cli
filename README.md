@@ -6,20 +6,22 @@ We can install the dependencies either with `cvmfs` or `conda`
 
 ## Setup recipe - `cvmfs`
 
-On an **EL9** machine with CVMFS and most stuff installed, like *lxplus9.cern.ch*, you can get all dependencies with
+On an **EL9** or **EL8** machine with CVMFS and most stuff installed, like *lxplus9.cern.ch*, you can get all dependencies using the [LCG 106a release](https://lcginfo.cern.ch/release_packages/106a/x86_64-el9-gcc13-opt/)
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el9-gcc11-opt/setup.sh # EL9 (preferred)
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el8-gcc11-opt/setup.sh # EL8
 ```
-If you are on an **EL8** machine or with some base package missing, the best option is to first enter an apptainer alma9 container
+If you are on an machine or with some base package missing, you can either first enter an apptainer alma9 container
 ```bash
 apptainer shell -B /eos -B /afs -B /cvmfs /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/sft/docker/alma9:latest
 ```
 and then inside source the LCG environment as above.
 
-If you have to remain in an EL8 environment, the only other option with a recent-enough ROOT is the dev4 nightly build, but that implies
+If you want to run with the master branch of ROOT, you can use the [dev3](https://lcginfo.cern.ch/release/dev3/) or [dev3cuda](https://lcginfo.cern.ch/release/dev3cuda/) nightly builds
 that every day you have to `make clean` and recompile CMGRDF and Combine.
 ````bash
-source /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-el8-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc13-opt/setup.sh # EL9 (preferred)
+source /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-el8-gcc11-opt/setup.sh # EL8, not recommended
 ````
 
 To install the package, from outside `CMSSW` and with `python3` you can run
@@ -36,7 +38,7 @@ make -j 3
 
 ```bash
 pushd externals/HiggsAnalysis/CombinedLimit 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el9-gcc11-opt/setup.sh
 export PATH=${PATH}:${PWD}/build/bin
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD}/build/lib
 export PYTHONPATH=${PYTHONPATH}:${PWD}/build/lib/python:${PWD}/build/lib
