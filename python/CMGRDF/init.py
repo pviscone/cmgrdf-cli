@@ -1,5 +1,6 @@
 import hashlib
 import os.path
+import sys
 import ROOT
 
 _codelines = []
@@ -20,7 +21,7 @@ def _makePreprocessorGuard(code):
 
 def ProcessLine(code):
     global _codelines, _hasher
-    shortcode = code.strip()[:70] # noqa: F841
+    shortcode = code.strip()[:70]  # noqa: F841
     code = code if code[0] == "." else _makePreprocessorGuard(code)  # don't wrap CLING magic codes
     ROOT.gInterpreter.ProcessLine(code)
     _codelines.append(('ProcessLine', code))
@@ -30,7 +31,7 @@ def ProcessLine(code):
 
 def Declare(code):
     global _codelines, _hasher
-    shortcode = code.strip()[:70] # noqa: F841
+    shortcode = code.strip()[:70]  # noqa: F841
     code = _makePreprocessorGuard(code)
     ROOT.gInterpreter.Declare(code)
     _codelines.append(('Declare', code))
@@ -86,7 +87,6 @@ def GlobalConfigHash():
 
 
 def RunDistributedInitializer(daskClient):
-    global _codelines, _includepaths, _dynpaths, _dynlibs, _hasher
     current_config = _hasher.hexdigest()
     #print(f"Requested hash is now {current_config}")
     #check if correctionlib is loaded
@@ -94,7 +94,7 @@ def RunDistributedInitializer(daskClient):
     if 'correctionlib' in sys.modules:
         print("correctionlib loaded here, will try to propagate to workers")
         maybe_corrlib = daskClient.run(eval, '"correctionlib" in sys.modules')
-        print(maybe_corrlib)
+        #print(maybe_corrlib)
         no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
         daskClient.run(exec, 'import correctionlib\ncorrectionlib.register_pyroot_binding()', workers=no_corrlib_workers)
     #Check if CMGRDF was loaded
@@ -111,35 +111,52 @@ def RunDistributedInitializer(daskClient):
             raise RuntimeError(f"WARNING: Found {len(bad_workers)} workers with CMGRDF already loaded but an incompatible config hash.")
         print(f"INFO: Found {len([h for h in cmgrdf_hash.values() if h == current_config])} workers with CMGRDF already loaded with the proper init")
     if nocmgrdf_workers:
-        hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
-        #print(f"Worker hashes: {hashes}")
-        all_workers = list(hashes.keys())
-        done_workers = [w for w in all_workers if hashes[w] == current_config]
-        todo_workers = [w for w in all_workers if hashes[w] is None]
-        other_workers = [w for w in all_workers if hashes[w] not in (current_config, None)]
-        if any(h not in (current_config, None) for h in hashes.values()):
-            raise RuntimeError(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...)")
-            ## Implement with daskClient.restart_workers(workers, timeout_in_s)
+        for attempt in "first", "second", "failed":
+            hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
+            #print(f"Worker hashes: {hashes}")
+            all_workers = [w for w in hashes.keys() if w not in cmgrdf_workers]
+            done_workers = [w for w in all_workers if hashes[w] == current_config]
+            todo_workers = [w for w in all_workers if hashes[w] is None]
+            other_workers = [w for w in all_workers if hashes[w] not in (current_config, None)]
+            if other_workers:
+                if attempt == "failed":
+                    raise RuntimeError(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...)")
+                else:
+                    print(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...), {attempt} attempt to restart them.")
+                    restart_result = daskClient.restart_workers(other_workers, 30)
+                    print(restart_result)
+                    continue
+            break
         if len(done_workers):
             print(f"INFO: {len(done_workers)} workers in the Dask cluster were already initialized with the right config.")
         if len(todo_workers):
             print(f"INFO: {len(todo_workers)} workers in the Dask cluster need to be initialized.")
-            code = ""
-            #code += "print('Initializing worker for config %s')\n" % current_config
-            code += "import ROOT\n"
-            code += "ROOT.gROOT.SetBatch(True)\n"
-            code += "ROOT.PyConfig.IgnoreCommandLineOptions = True\n"
-            code += "ROOT.EnableThreadSafety()\n"
-            ##code += "verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug)\n"
-            code += "import os, sys\n"
-            code += 'os.environ["CMGRDF"] = %r\n' % os.environ["CMGRDF"]
-            #code += 'sys.path.append(os.environ["CMGRDF"]+"/python")\n'
-            code += "".join(f"ROOT.gInterpreter.AddIncludePath({p!r})\n" for p in _includepaths)
-            code += "".join(f"ROOT.gSystem.AddDynamicPath({p!r})\n" for p in _dynpaths)
-            #code += "savErrorLevel = ROOT.gErrorIgnoreLevel\nROOT.gErrorIgnoreLevel = ROOT.kWarning\n"
-            code += "".join(f"ROOT.gSystem.Load({p!r})\n" for p in _dynlibs)
-            #code += "ROOT.gErrorIgnoreLevel = savErrorLevel\n"
-            code += "".join(f"ROOT.gInterpreter.{op}({line!r})\n" for (op, line) in _codelines)
-            #code += "print('Initialization done for config %s')\n" % current_config
-            code += "globals()['_CMGRDF_global_hash'] = %r\n" % current_config
-            daskClient.run(exec, code, workers=todo_workers)
+            daskClient.run(exec, DistributedInitializerCode(), workers=todo_workers)
+
+
+def DistributedInitializerCode():
+    global _codelines, _includepaths, _dynpaths, _dynlibs, _hasher
+    current_config = _hasher.hexdigest()
+    code = "import os, sys\n"
+    if 'correctionlib' in sys.modules:
+        code += 'if "correctionlib" not in sys.modules:\n'
+        code += '  import correctionlib\n'
+        code += '  correctionlib.register_pyroot_binding()\n'
+    code += f"if (\"CMGRDF\" not in sys.modules) and (globals().get(\"_CMGRDF_global_hash\", None) != \"{current_config}\"):\n"
+    #code += "  print('Initializing worker for config %s')\n" % current_config
+    code += "  import ROOT\n"
+    code += "  ROOT.gROOT.SetBatch(True)\n"
+    code += "  ROOT.PyConfig.IgnoreCommandLineOptions = True\n"
+    code += "  ROOT.EnableThreadSafety()\n"
+    ##code += "  verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug)\n"
+    code += '  os.environ["CMGRDF"] = %r\n' % os.environ["CMGRDF"]
+    #code += '  sys.path.append(os.environ["CMGRDF"]+"/python")\n'
+    code += "".join(f"  ROOT.gInterpreter.AddIncludePath({p!r})\n" for p in _includepaths)
+    code += "".join(f"  ROOT.gSystem.AddDynamicPath({p!r})\n" for p in _dynpaths)
+    #code += "  savErrorLevel = ROOT.gErrorIgnoreLevel\nROOT.gErrorIgnoreLevel = ROOT.kWarning\n"
+    code += "".join(f"  ROOT.gSystem.Load({p!r})\n" for p in _dynlibs)
+    #code += "ROOT.gErrorIgnoreLevel = savErrorLevel\n"
+    code += "".join(f"  ROOT.gInterpreter.{op}({line!r})\n" for (op, line) in _codelines)
+    #code += "print('Initialization done for config %s')\n" % current_config
+    code += "  globals()['_CMGRDF_global_hash'] = %r\n" % current_config
+    return code

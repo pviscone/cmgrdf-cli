@@ -282,7 +282,7 @@ run-tests-dask-corrlib-el9-dev3:
   needs: [compile-el9-dev3]
   variables:
     SCRIPT: run_SFs_ttHH_2018c.py
-    REF: ref/refs-FS.txt
+    REF: ref/refs-SF.txt
     CHECKOPTS: "--ignore-missing"
     DASKLOCAL: false
 
