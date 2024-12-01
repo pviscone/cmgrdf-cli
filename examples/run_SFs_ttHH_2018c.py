@@ -152,9 +152,8 @@ if __name__ == "__main__":
     from CMGRDF.utils import processorFromCommandLineArgs
     maker = processorFromCommandLineArgs()
     #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
-    if maker._local:  # can't run both in Dask
-        maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
-        maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
+    maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
+    maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
     maker.book(procs_Zll, lumi, cuts_corr_Zmm, plots_Zmm_corr, withUncertainties=True)
     maker.book(procs_Zll, lumi, cuts_corr_Zmm, Yield("all"), withUncertainties=True)
     result_plots = maker.runPlots()
@@ -162,7 +161,7 @@ if __name__ == "__main__":
     printer.printSet(result_plots, "plots/004sf/{flow}")
 
     yields = maker.runYields()
-    for flow in ((cuts_Zmm, cuts_corr_Zmm) if maker._local else (cuts_corr_Zmm,)):
+    for flow in cuts_Zmm, cuts_corr_Zmm:
         print(f"\nYields for {flow.name}:")
         for proc in procs_Zll:
             y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name="all"))[-1]
