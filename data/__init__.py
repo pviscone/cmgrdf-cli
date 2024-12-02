@@ -144,12 +144,13 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                         **group_kwargs,
                         )
                     )
+            process_list.append(MCGroup(group_name, mcgroup_samples))
+  
         MCtable.add_section()
-        process_list.append(MCGroup(group_name, mcgroup_samples))
-    process_kwargs = {
-        key: value
-        for key, value in process_dict.items()
-        if key not in ["groups", "eras", "label", "color"]
-    }
-    if len(process_list) > 0:
-        all_data.append(Process(process, process_list, label=label, fillColor=color, **process_kwargs))
+        process_kwargs = {
+            key: value
+            for key, value in process_dict.items()
+            if key not in ["groups", "eras", "label", "color"]
+        }
+        if len(process_list) > 0:
+            all_data.append(Process(process, process_list, label=label, fillColor=color, **process_kwargs))
