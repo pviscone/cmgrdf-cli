@@ -5,6 +5,7 @@ from typing import Any, List, Sequence, Tuple, Union
 from enum import Enum
 
 import ROOT
+from CMGRDF.init import HasherFromGlobalConfig
 from CMGRDF.histoWithNuisances import HistoWithNuisances, YieldWithNuisances, mergePlots
 from CMGRDF.utils import MultiKey, MultiReport, safeName
 from CMGRDF.data import Source, MCGroup, Process
@@ -34,7 +35,7 @@ class _Branch(object):
             self.DataFrameClass = DataFrameClass
             self.DataFrameArgs = dict(**kwargs)
             self.parentBranch = None
-            self.hasher = hashlib.sha256()
+            self.hasher = HasherFromGlobalConfig()
             self.step = None
         self.branches = []  # type: List["_Branch"]
         self.leaves = dict()  # type: dict[Target, Any]

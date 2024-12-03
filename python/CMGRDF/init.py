@@ -81,6 +81,11 @@ def LoadLibrary(library : str, filepath="${CMGRDF}/lib", extraPaths=None):
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {library}")
 
 
+def HasherFromGlobalConfig():
+    global _hasher
+    return _hasher.copy()
+
+
 def GlobalConfigHash():
     global _hasher
     return _hasher.hexdigest()
