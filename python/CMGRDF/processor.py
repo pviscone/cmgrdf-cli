@@ -319,8 +319,8 @@ class Processor(object):
                     for fut in self._futures:
                         name = str(fut[0]).replace(",", "_").replace(")", "").replace("(", "").replace("=", "_")
                         ROOT.RDF.SaveGraph(fut[-2], f'{name}.dot')
-                if logPerformance and not self._local:
-                    print("Scheduling to run %d targets" % n0)
+                if logPerformance:
+                    print(f"Scheduling to run {n0} targets from {len(self._trees)} sources")
                 self.RunGraphs([fut[-2] for fut in self._futures])
                 print("")
                 t1 = time.perf_counter()

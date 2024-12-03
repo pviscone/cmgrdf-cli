@@ -133,17 +133,17 @@ code-checks-dev3:
     paths:
       - examples/plots
     when: always
-  timeout: 2h
+  timeout: 30m
 
-.run-tests-base-el8-106a:
+run-tests-base-el8-106a:
   extends: [.run-tests, .el8-106a]
   needs: [compile-el8-106a]
 
-.run-tests-base-el9-106a:
+run-tests-base-el9-106a:
   extends: [.run-tests, .el9-106a]
   needs: [compile-el9-106a]
 
-.run-tests-base-el9-dev3:
+run-tests-base-el9-dev3:
   extends: [.run-tests, .el9-dev3]
   needs: [compile-el9-dev3]
 
@@ -157,16 +157,17 @@ code-checks-dev3:
     - "sha256sum -c ref/refs-cards-prefit.txt --quiet && echo 'prefit outputs match'"
     - "sha256sum -c ref/refs-cards-cards.txt --quiet && echo 'datacards match'"
     - "sha256sum -c ref/refs-cards-postfit.txt --quiet && echo 'postfit outputs match' || true"
+  timeout: 1h
 
-.run-tests-cards-el8-106a:
+run-tests-cards-el8-106a:
   extends: [.run-tests-cards, .el8-106a]
   needs: [compile-el8-106a]
 
-.run-tests-cards-el9-106a:
+run-tests-cards-el9-106a:
   extends: [.run-tests-cards, .el9-106a]
   needs: [compile-el9-106a]
 
-.run-tests-cards-el9-dev3:
+run-tests-cards-el9-dev3:
   extends: [.run-tests-cards, .el9-dev3]
   needs: [compile-el9-dev3]
 
@@ -179,15 +180,15 @@ code-checks-dev3:
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
 
-.run-tests-SFs-el8-106a:
+run-tests-SFs-el8-106a:
   extends: [.run-tests-SFs, .el8-106a]
   needs: [compile-el8-106a]
 
-.run-tests-SFs-el9-106a:
+run-tests-SFs-el9-106a:
   extends: [.run-tests-SFs, .el9-106a]
   needs: [compile-el9-106a]
 
-.run-tests-SFs-el9-dev3:
+run-tests-SFs-el9-dev3:
   extends: [.run-tests-SFs, .el9-dev3]
   needs: [compile-el9-dev3]
 
@@ -204,16 +205,17 @@ code-checks-dev3:
     - echo --------------------
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
+  timeout: 1h
 
-.run-tests-snapshot-el8-106a:
+run-tests-snapshot-el8-106a:
   extends: [.run-tests-snapshot, .el8-106a]
   needs: [compile-el8-106a]
 
-.run-tests-snapshot-el9-106a:
+run-tests-snapshot-el9-106a:
   extends: [.run-tests-snapshot, .el9-106a]
   needs: [compile-el9-106a]
 
-.run-tests-snapshot-el9-dev3:
+run-tests-snapshot-el9-dev3:
   extends: [.run-tests-snapshot, .el9-dev3]
   needs: [compile-el9-dev3]
 
