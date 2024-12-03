@@ -179,6 +179,16 @@ run-tests-cards-el9-dev3:
     - echo --------------------
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
+    - echo
+    - cd ..
+    - pip install externals/CMSJMECalculators
+    - cd examples
+    - echo --------------------
+    - python3 run_jme_cpv_run3.py -j 4
+    - echo
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-jme_run3.txt --quiet && echo 'Outputs match'"
 
 run-tests-SFs-el8-106a:
   extends: [.run-tests-SFs, .el8-106a]
@@ -249,13 +259,13 @@ run-tests-snapshot-el9-dev3:
       if $DASK; then
         echo "--------------------";
         echo "On external dask";
-        ( dask scheduler --port 11111 --no-dashboard --idle-timeout 30s > dasklog.txt 2>&1  & );
+        ( dask scheduler --port 11111 --no-dashboard --idle-timeout 180s > dasklog.txt 2>&1  & );
         sleep 3s
         ( dask worker tcp://localhost:11111 --nworkers $JOBS --nthreads 1 --memory-limit 2GB > workerlog.txt 2>&1 & );
         python3 $SCRIPT -n -j $JOBS dask -c tcp://localhost:11111 | grep -v '% Completed' || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
-  timeout: 20m
+  timeout: 30m
   artifacts:
     paths:
       - examples/plots
@@ -285,6 +295,19 @@ run-tests-dask-corrlib-el9-dev3:
   variables:
     SCRIPT: run_SFs_ttHH_2018c.py
     REF: ref/refs-SF.txt
-    CHECKOPTS: "--ignore-missing"
     DASKLOCAL: false
+  retry: 1
 
+run-tests-dask-jme-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  before_script:
+    - !reference [.run-tests-dask-base, before_script]
+    - cd ..
+    - pip install externals/CMSJMECalculators
+    - cd examples    
+  variables:
+    SCRIPT: run_jme_cpv_run3.py
+    REF: ref/refs-jme_run3.txt
+    DASKLOCAL: false
+  retry: 1

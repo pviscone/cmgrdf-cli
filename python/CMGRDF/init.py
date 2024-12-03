@@ -91,17 +91,24 @@ def GlobalConfigHash():
     return _hasher.hexdigest()
 
 
+_modules_and_inits = [
+    ("correctionlib", "correctionlib.register_pyroot_binding()"),
+    ("CMSJMECalculators", "CMSJMECalculators.loadJMESystematicsCalculators()")
+]
+
+
 def RunDistributedInitializer(daskClient):
+    global _modules_and_inits
     current_config = _hasher.hexdigest()
     #print(f"Requested hash is now {current_config}")
-    #check if correctionlib is loaded
+    #check if used modules are loaded
     import sys
-    if 'correctionlib' in sys.modules:
-        print("correctionlib loaded here, will try to propagate to workers")
-        maybe_corrlib = daskClient.run(eval, '"correctionlib" in sys.modules')
-        #print(maybe_corrlib)
-        no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
-        daskClient.run(exec, 'import correctionlib\ncorrectionlib.register_pyroot_binding()', workers=no_corrlib_workers)
+    for mod, initstr in _modules_and_inits:
+        if mod in sys.modules:
+            print(f"{mod} loaded here, will try to propagate to workers")
+            maybe_corrlib = daskClient.run(eval, f'"{mod}" in sys.modules')
+            no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
+            daskClient.run(exec, f'import {mod}\n{initstr}', workers=no_corrlib_workers)
     #Check if CMGRDF was loaded
     maybe_cmgrdf = daskClient.run(eval, '"CMGRDF" in sys.modules')
     cmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if s]
@@ -140,13 +147,14 @@ def RunDistributedInitializer(daskClient):
 
 
 def DistributedInitializerCode():
-    global _codelines, _includepaths, _dynpaths, _dynlibs, _hasher
+    global _codelines, _includepaths, _dynpaths, _dynlibs, _modules_and_inits, _hasher
     current_config = _hasher.hexdigest()
     code = "import os, sys\n"
-    if 'correctionlib' in sys.modules:
-        code += 'if "correctionlib" not in sys.modules:\n'
-        code += '  import correctionlib\n'
-        code += '  correctionlib.register_pyroot_binding()\n'
+    for mod, initstr in _modules_and_inits:
+        if mod in sys.modules:
+            code += f'if "{mod}" not in sys.modules:\n'
+            code += f'  import {mod}\n'
+            code += f'  {initstr}\n'
     code += f"if (\"CMGRDF\" not in sys.modules) and (globals().get(\"_CMGRDF_global_hash\", None) != \"{current_config}\"):\n"
     #code += "  print('Initializing worker for config %s')\n" % current_config
     code += "  import ROOT\n"
