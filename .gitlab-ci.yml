@@ -1,6 +1,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
+  THISROOT_PATH: ""
 
 .el8-106a:
   image: gitlab-registry.cern.ch/sft/docker/alma8
@@ -19,6 +20,13 @@ variables:
   variables:
     LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc13-opt
     LIBS_EXTRA: ""    
+
+.el9-docker:
+  image: gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el9-root-custom-base:latest
+  variables:
+    LCG_REL_PATH: ""
+    LIBS_EXTRA: ""
+    THISROOT_PATH: "/usr/local/bin"
 
 workflow:
   rules:
@@ -40,12 +48,18 @@ stages:
   stage: build
   before_script:
     - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
-    - source $LCG_REL_PATH/setup.sh || true
+    - '[[ "$LCG_REL_PATH" != "" ]] && source $LCG_REL_PATH/setup.sh || true'
+    - '[[ "$THISROOT_PATH" != "" ]] && source $THISROOT_PATH/thisroot.sh || true'
     - eval $(make env)
   script:
     - make -j 4
     - pushd externals/HiggsAnalysis/CombinedLimit
-    - export LCG=1
+    - >
+      if [[ "$ROOTSYS" != "" && "${ROOTSYS#/cvmfs*/lcg/}" != "${ROOTSYS}" ]]; then
+         export LCG=1
+      else
+         export CONDA=1 CONDA_PREFIX=/usr
+      fi;
     - make -j 8; make
     - popd
     - pushd externals
@@ -67,6 +81,9 @@ compile-el9-106a:
 
 compile-el9-dev3:
   extends: [.compile, .el9-dev3]
+
+compile-el9-docker:
+  extends: [.compile, .el9-docker]
 
 code-checks:
   tags: [ k8s-cvmfs ]
@@ -104,7 +121,8 @@ code-checks-dev3:
   stage: test
   before_script:
     - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
-    - source $LCG_REL_PATH/setup.sh || true
+    - '[[ "$LCG_REL_PATH" != "" ]] && source $LCG_REL_PATH/setup.sh || true'
+    - '[[ "$THISROOT_PATH" != "" ]] && source $THISROOT_PATH/thisroot.sh || true'
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
     - cd examples
@@ -147,6 +165,10 @@ run-tests-base-el9-dev3:
   extends: [.run-tests, .el9-dev3]
   needs: [compile-el9-dev3]
 
+run-tests-base-el9-docker:
+  extends: [.run-tests, .el9-docker]
+  needs: [compile-el9-docker]
+
 .run-tests-cards:
   extends: .run-tests
   script:
@@ -170,6 +192,10 @@ run-tests-cards-el9-106a:
 run-tests-cards-el9-dev3:
   extends: [.run-tests-cards, .el9-dev3]
   needs: [compile-el9-dev3]
+
+run-tests-cards-el9-docker:
+  extends: [.run-tests-cards, .el9-docker]
+  needs: [compile-el9-docker]
 
 .run-tests-SFs:
   extends: .run-tests
@@ -201,7 +227,6 @@ run-tests-SFs-el9-106a:
 run-tests-SFs-el9-dev3:
   extends: [.run-tests-SFs, .el9-dev3]
   needs: [compile-el9-dev3]
-
 
 .run-tests-snapshot:
   extends: .run-tests
