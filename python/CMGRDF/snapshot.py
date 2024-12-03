@@ -47,7 +47,8 @@ class Snapshot(Target):
                                 ret.sample = sample.name
                                 ret.era = era
                                 return ret
-                except BaseException:
+                except BaseException:  # noqa: B036
+                    # if the cache is not readable or corrupted we just ignore it
                     pass
         return None
 
@@ -60,7 +61,9 @@ class Snapshot(Target):
             if verbose:
                 print(f"Saving metadata in {metafile} for {k3}")
             json.dump(meta, open(metafile, 'w'))
-        except BaseException:
+        except BaseException as e:  # noqa: B036
+            # don't throw if we fail to write the metadata
+            print(f"Error when saiving metadata in {metafile} for {k3}: {e}")
             pass
 
     def attach(self, rdf, sample, era):

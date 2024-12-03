@@ -23,7 +23,8 @@ class DASEngine(object):
         if os.path.exists(self._cacheDir + "/" + fname):
             try:
                 data = json.load(open(self._cacheDir + "/" + fname))
-            except BaseException:
+            except BaseException:  # noqa: B036
+                # if the cache is not readable or corrupted we just ignore it
                 pass
         if not data:
             ret = subprocess.run([self.dasgoclient, "-json", "-query", f"file dataset={dataset}"], stdout=subprocess.PIPE)

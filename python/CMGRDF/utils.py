@@ -378,6 +378,7 @@ def processorFromCommandLineArgs():
     from CMGRDF.processor import Processor
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="how to run", nargs='?', default="local", choices=("local", "dask"))
+    parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job", action="store_true")
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
     parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
@@ -400,7 +401,7 @@ def processorFromCommandLineArgs():
         client.run(exec, faulthandler)
         client.run_on_scheduler(exec, faulthandler)
         executor = (args.mode, client)
-    cache = None if args.nocache else SimpleCache()
+    cache = None if args.nocache else SimpleCache(flush=args.flushCache)
     maker = Processor(cache=cache, executor=executor)
     if args.verbose:
         level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
