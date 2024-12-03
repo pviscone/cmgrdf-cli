@@ -5,6 +5,9 @@ import os.path
 import glob
 from CMGRDF.utils import recursiveHash, safeName, NormUncertainty
 
+ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
+ProgressBar = ROOT.ProgressBarManager()
+
 
 class Source(object):
     """Base class that wraps a list of files from which an RDF can be created"""
@@ -27,6 +30,14 @@ class Source(object):
         self._filesForHash = None
         self._friendsForHash = None
         self._metas = []
+
+    def _getEntriesFromSample(self, sample):
+        nevents=0
+        for fil, tree in zip( sample.GetFileNameGlobs(), sample.GetTreeNames()):
+            tf=ROOT.TFile.Open( str(fil) )
+            nevents+=tf.Get("Events").GetEntries()
+            tf.Close()
+        return nevents
 
     def _createRSample(self, treeName="Events"):
         metaInfo = ROOT.RDF.Experimental.RMetaData()
@@ -66,11 +77,13 @@ class Source(object):
 
     def createRDF(self, treeName="Events"):
         sample = self._createRSample(treeName)
+        nevents=self._getEntriesFromSample(sample)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
         if treeName == "Events":
             self._addGlobalFriends(spec)
         ret = ROOT.RDataFrame(spec)
+        ProgressBar.AddDataFrame( ret, nevents)
         ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret
 
