@@ -32,10 +32,10 @@ class Source(object):
         self._metas = []
 
     def _getEntriesFromSample(self, sample):
-        nevents=0
-        for fil,tree in zip(sample.GetFileNameGlobs(), sample.GetTreeNames()):
-            tf=ROOT.TFile.Open( str(fil) )
-            nevents+=tf.Get(tree).GetEntries()
+        nevents = 0
+        for fil, tree in zip(sample.GetFileNameGlobs(), sample.GetTreeNames()):
+            tf = ROOT.TFile.Open(str(fil))
+            nevents += tf.Get(str(tree)).GetEntries()
             tf.Close()
         return nevents
 
@@ -72,13 +72,13 @@ class Source(object):
 
     def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):
         sample = self._createRSample(treeName)
-        nevents=self._getEntriesFromSample(sample)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
         if treeName == "Events":
             self._addGlobalFriends(spec)
         ret = DataFrameClass(spec, **kwargs)
         if DataFrameClass == ROOT.RDataFrame:
+            nevents = self._getEntriesFromSample(sample)
             ProgressBar.AddDataFrame(ret, nevents)
         #ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret

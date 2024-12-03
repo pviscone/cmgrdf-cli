@@ -305,7 +305,7 @@ class Processor(object):
         self._state = Processor.State.Run
         if self._rawResults is None:
             if not self._local:
-                from CMGRDF.init import RunDistributedInitializer, DistributedInitializerCode
+                from CMGRDF.init import RunDistributedInitializer
                 RunDistributedInitializer(self._executor[1])
                 #from CMGRDF.init import DistributedInitializerCode
                 #ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
