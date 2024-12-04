@@ -2,6 +2,7 @@ from CMGRDF import *
 from CMGRDF.collectionUtils import *
 from CMGRDF.cms.jmeUncertainties import JMEUncertaintiesDefine, JetVetoMapCut
 from CMGRDF.cms.eras import run3eras, suberas_perera, lumis, lumiUncertainties
+from CMGRDF.stat import DatacardWriter
 
 P = "root://eoscms.cern.ch//eos/cms/store/cmst3/group/tthlep/sesanche/NanoTrees_forCMGRDF_100524_summerstudent/{era}/{name}.root"
 
@@ -84,3 +85,6 @@ if __name__ == "__main__":
     maker.book(processes_MC + processes_Data, lumis, cuts, plots, eras=eras, withUncertainties=True)
     result_plots = maker.runPlots()
     printer.printSet(result_plots, "plots/jme_run3/{flow}")
+
+    cardMaker = DatacardWriter(regularize=True, autoMCStats=False)
+    cardMaker.makeCards(result_plots, MultiKey(name="minMll"), "plots/jme_run3/datacards/run3_{era}")
