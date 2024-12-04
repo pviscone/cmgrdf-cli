@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Union
+from typing import Any, Mapping, Optional, Union
 from CMGRDF.data import DataSample, MCSample, Source
 from CMGRDF.skimFilters import JsonFilter
 from CMGRDF.modifiers import Prepend
@@ -62,10 +62,10 @@ class DASEngine(object):
 
 
 class DASSource(Source):
-    def __init__(self, name : str, dataset : str, era=None, engine : DASEngine = DASEngine(), maxFiles=None):
+    def __init__(self, name : str, dataset : str, era=None, engine : Optional[DASEngine] = None, maxFiles=None):
         Source.__init__(self, name, dataset, era=era)
         self.dataset = dataset
-        self._engine = engine
+        self._engine = engine if engine else DASEngine()
         dasData = engine.query(dataset)
         if maxFiles:
             dasData = dasData[:maxFiles]
@@ -140,7 +140,7 @@ class _DASMixin:
 
 
 class DASMCSample(MCSample, _DASMixin):
-    def __init__(self, name : str, dataset, engine : DASEngine = DASEngine(), maxFiles=None, **kwargs):
+    def __init__(self, name : str, dataset, engine : Optional[DASEngine] = None, maxFiles=None, **kwargs):
         src = _DASMixin._makeSource(name, dataset, kwargs, engine=engine, maxFiles=maxFiles)
         super().__init__(name, src, **kwargs)
 
@@ -164,7 +164,7 @@ class DASMCSample(MCSample, _DASMixin):
 
 
 class DASDataSample(DataSample, _DASMixin):
-    def __init__(self, name : str, dataset, engine : DASEngine = DASEngine(), maxFiles=None, json=None, **kwargs):
+    def __init__(self, name : str, dataset, engine : Optional[DASEngine] = None, maxFiles=None, json=None, **kwargs):
         src = _DASMixin._makeSource(name, dataset, kwargs, engine=engine, maxFiles=maxFiles)
         super().__init__(name, src, **kwargs)
         if json:
