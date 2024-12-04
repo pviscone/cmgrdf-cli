@@ -111,7 +111,7 @@ class DASSource(Source):
 
 class _DASMixin:
     @staticmethod
-    def _makeSource(name, dataset, kwargs, engine : DASEngine = DASEngine(), maxFiles=None):
+    def _makeSource(name, dataset, kwargs, engine : Optional[DASEngine] = None, maxFiles=None):
         if "eras" in kwargs:
             assert ("era" not in kwargs)
             if len(kwargs['eras']) == 1 and isinstance(dataset, str):

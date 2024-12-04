@@ -142,7 +142,7 @@ code-checks-dev3:
     - python3 run_friends_sos.py
     - echo
     - echo ---------------------------------
-    - python3 run_uncertainties_ttH.py -j 4
+    - python3 run_uncertainties_ttH.py -j 4 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -200,7 +200,7 @@ run-tests-cards-el9-docker:
 .run-tests-SFs:
   extends: .run-tests
   script:
-    - python3 run_SFs_ttHH_2018c.py -j 8
+    - python3 run_SFs_ttHH_2018c.py -j 8 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -210,7 +210,7 @@ run-tests-cards-el9-docker:
     - pip install externals/CMSJMECalculators
     - cd examples
     - echo --------------------
-    - python3 run_jme_cpv_run3.py -j 4
+    - python3 run_jme_cpv_run3.py -j 4 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -232,10 +232,11 @@ run-tests-SFs-el9-dev3:
   extends: .run-tests
   script:
     - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
+    - python3 run_snapshots_ttHH_2018c.py -j 4 --batch
     - echo
+    - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
     - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
+    - python3 run_snapshots_ttHH_2018c.py -j 4 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -258,8 +259,6 @@ run-tests-snapshot-el9-dev3:
   extends: [.run-tests]
   stage: test
   variables:
-    SCRIPT: run_distributed_ttHH_2018c.py
-    REF: ref/refs-dist.txt
     CHECKOPTS: ""
     JOBS: 4
     LOCAL: false
@@ -270,14 +269,14 @@ run-tests-snapshot-el9-dev3:
       if $LOCAL; then
         echo "--------------------";
         echo "Local";
-        python3 $SCRIPT -n -j $JOBS local || exit 1;
+        python3 $SCRIPT -n -j $JOBS  --batch || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
     - >
       if $DASKLOCAL; then
         echo "--------------------";
         echo "On internal dask";
-        python3 $SCRIPT -n -j $JOBS dask | grep -v '% Completed' || exit 1;
+        python3 $SCRIPT -n -j $JOBS --dask --batch | grep -v '% Completed' || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
     - >
@@ -287,7 +286,7 @@ run-tests-snapshot-el9-dev3:
         ( dask scheduler --port 11111 --no-dashboard --idle-timeout 180s > dasklog.txt 2>&1  & );
         sleep 3s
         ( dask worker tcp://localhost:11111 --nworkers $JOBS --nthreads 1 --memory-limit 2GB > workerlog.txt 2>&1 & );
-        python3 $SCRIPT -n -j $JOBS dask -c tcp://localhost:11111 | grep -v '% Completed' || exit 1;
+        python3 $SCRIPT -n -j $JOBS --dask -c tcp://localhost:11111 --batch | grep -v '% Completed' || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
   timeout: 30m
@@ -298,13 +297,12 @@ run-tests-snapshot-el9-dev3:
       - examples/workerlog.txt
     when: always
 
-run-tests-dask-base-el9-dev3:
+run-tests-dask-snapshot-el9-dev3:
   extends: [.run-tests-dask-base, .el9-dev3]
   needs: [compile-el9-dev3]
   variables:
-    SCRIPT: run_distributed_ttHH_2018c.py
-    REF: ref/refs-dist.txt
-    LOCAL: true
+    SCRIPT: run_snapshots_ttHH_2018c.py
+    REF: ref/refs-snapshot.txt
 
 run-tests-dask-vary-el9-dev3:
   extends: [.run-tests-dask-base, .el9-dev3]

@@ -232,7 +232,8 @@ public:
 
 class ProgressBarManager {
 public:
-  ProgressBarManager() : fProgress(std::make_shared<ProgressHelper>(1000, 0)), fAction(fProgress) {}
+  ProgressBarManager() : fProgress(std::make_shared<ProgressHelper>(1000, 0)), fAction(fProgress), fEnabled(true) {}
+
   void AddDataFrame(ROOT::RDataFrame dataframe, unsigned int nentries = 0) {
     auto node = ROOT::RDF::AsRNode(dataframe);
     auto r = node.Book<>(fAction);
@@ -241,9 +242,14 @@ public:
     return;
   }
 
+  bool Enabled() const { return fEnabled; }
+  void Enable() { fEnabled = true; }
+  void Disable() { fEnabled = false; }
+
 protected:
   std::shared_ptr<ProgressHelper> fProgress;
   ProgressBarAction fAction;
   std::vector<ROOT::RDataFrame> fDataframes;
   std::vector<int> fNentries;
+  bool fEnabled;
 };

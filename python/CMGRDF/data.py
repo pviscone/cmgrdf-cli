@@ -77,7 +77,7 @@ class Source(object):
         if treeName == "Events":
             self._addGlobalFriends(spec)
         ret = DataFrameClass(spec, **kwargs)
-        if DataFrameClass == ROOT.RDataFrame:
+        if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
             nevents = self._getEntriesFromSample(sample)
             ProgressBar.AddDataFrame(ret, nevents)
         #ret = Source._addDefinesFromMetas(ret, self._metas)
@@ -259,6 +259,9 @@ class Sample(object):
         elif isinstance(source, Source):
             assert (friends is None)  # should have been put in the Source object
             self._source = source
+        elif isinstance(source, list) and isinstance(source[0], str):
+            assert (friends is None)  # not supported for the moment, could be added but it's tricky (just use Source instead)
+            self._source = Source('', source, friends=None)
         else:
             friendFiles = [f.format(name=name) for f in friends] if friends else None
             self._source = Source('', source.format(name=name), friends=friendFiles)

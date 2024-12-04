@@ -10,7 +10,7 @@ from CMGRDF.utils import MultiKey, MultiReport, safeName
 from CMGRDF.data import Source, MCGroup, Process
 from CMGRDF.flow import ComputeTotalWeight, Alias, Define, ReDefine, DefineDefault, Vary, FlowStep, Flow, Target, Yield
 from CMGRDF.plots import Plot, PlotResult
-from CMGRDF.snapshot import Snapshot
+from CMGRDF.snapshot import Snapshot, mergeSnapshot
 
 
 class _Branch(object):
@@ -438,11 +438,20 @@ class Processor(object):
             print("Merged %d yields in %.3fs" % (len(merged), time.perf_counter() - t0))
         return merged
 
-    def runSnapshots(self, logPerformance=True):
+    def runSnapshots(self, logPerformance=True, hadd=True):
         rawReport = self._runAllRaw(logPerformance=logPerformance)
         plots = MultiReport()
         for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:
             if not isinstance(plot, Snapshot):
                 continue  # there may be other stuff depending on book
             plots.append(plotKey, hraw)
+        if hadd and not self._local:
+            tomerge = [h for (k, h) in plots if len(h.fnames) > 1]
+            if logPerformance:
+                print(f"I have {len(tomerge)} snapshots to merge")
+            t0 = time.perf_counter()
+            for s in tomerge:
+                mergeSnapshot(s)
+            if logPerformance:
+                print(f"Merged {len(tomerge)} snapshots in {time.perf_counter() - t0:.3f}s")
         return plots
