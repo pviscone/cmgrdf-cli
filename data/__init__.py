@@ -73,8 +73,8 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
         mcc_steps = mccFlow.steps
 
     #! Loop over all processes
-    process_list = []
     for (process, process_dict) in all_processes.items():
+        process_list = []
         groups_list = process_dict["groups"]
         label = process_dict["label"]
         color = process_dict["color"]
