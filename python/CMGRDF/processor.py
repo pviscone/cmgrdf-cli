@@ -307,8 +307,8 @@ class Processor(object):
             if not self._local:
                 from CMGRDF.init import RunDistributedInitializer
                 RunDistributedInitializer(self._executor[1])
-                #from CMGRDF.init import DistributedInitializerCode
-                #ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
+                from CMGRDF.init import DistributedInitializerCode
+                ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
             self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
             t0 = time.perf_counter()
             n0 = len(self._futures)

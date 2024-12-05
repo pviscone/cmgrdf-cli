@@ -103,28 +103,28 @@ def RunDistributedInitializer(daskClient):
     #print(f"Requested hash is now {current_config}")
     #check if used modules are loaded
     import sys
-    for mod, initstr in _modules_and_inits:
-        if mod in sys.modules:
-            print(f"{mod} loaded here, will try to propagate to workers")
-            maybe_corrlib = daskClient.run(eval, f'"{mod}" in sys.modules')
-            no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
-            daskClient.run(exec, f'import {mod}\n{initstr}', workers=no_corrlib_workers)
-    #Check if CMGRDF was loaded
-    maybe_cmgrdf = daskClient.run(eval, '"CMGRDF" in sys.modules')
-    cmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if s]
-    nocmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if not s]
-    #print(f"Clients have CMGRDF loaded ? {maybe_cmgrdf}")
-    if cmgrdf_workers:
-        # Check hash
-        cmgrdf_hash = daskClient.run(eval, 'sys.modules["CMGRDF"].init.GlobalConfigHash()', workers=cmgrdf_workers)
-        #print(f"Hash of CMGRDF workers {cmgrdf_hash}")
-        bad_workers = [w for (w, h) in cmgrdf_hash.items() if h != current_config]
-        if bad_workers:
-            raise RuntimeError(f"WARNING: Found {len(bad_workers)} workers with CMGRDF already loaded but an incompatible config hash.")
-        print(f"INFO: Found {len([h for h in cmgrdf_hash.values() if h == current_config])} workers with CMGRDF already loaded with the proper init")
-    if nocmgrdf_workers:
-        for attempt in "first", "second", "failed":
-            hashes = daskClient.run(eval, 'globals().get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
+    for attempt in "first", "second", "failed":
+        for mod, initstr in _modules_and_inits:
+            if mod in sys.modules:
+                print(f"{mod} loaded here, will try to propagate to workers")
+                maybe_corrlib = daskClient.run(eval, f'"{mod}" in sys.modules')
+                no_corrlib_workers = [w for (w, s) in maybe_corrlib.items() if not s]
+                daskClient.run(exec, f'import {mod}\n{initstr}', workers=no_corrlib_workers)
+        #Check if CMGRDF was loaded
+        maybe_cmgrdf = daskClient.run(eval, '"CMGRDF" in sys.modules')
+        cmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if s]
+        nocmgrdf_workers = [w for (w, s) in maybe_cmgrdf.items() if not s]
+        #print(f"Clients have CMGRDF loaded ? {maybe_cmgrdf}")
+        if cmgrdf_workers:
+            # Check hash
+            cmgrdf_hash = daskClient.run(eval, 'sys.modules["CMGRDF"].init.GlobalConfigHash()', workers=cmgrdf_workers)
+            #print(f"Hash of CMGRDF workers {cmgrdf_hash}")
+            bad_workers = [w for (w, h) in cmgrdf_hash.items() if h != current_config]
+            if bad_workers:
+                raise RuntimeError(f"WARNING: Found {len(bad_workers)} workers with CMGRDF already loaded but an incompatible config hash.")
+            print(f"INFO: Found {len([h for h in cmgrdf_hash.values() if h == current_config])} workers with CMGRDF already loaded with the proper init")
+        if nocmgrdf_workers:
+            hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
             #print(f"Worker hashes: {hashes}")
             all_workers = [w for w in hashes.keys() if w not in cmgrdf_workers]
             done_workers = [w for w in all_workers if hashes[w] == current_config]
@@ -135,15 +135,17 @@ def RunDistributedInitializer(daskClient):
                     raise RuntimeError(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...)")
                 else:
                     print(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...), {attempt} attempt to restart them.")
-                    restart_result = daskClient.restart_workers(other_workers, 30)
-                    print(restart_result)
+                    restart_result = daskClient.restart_workers(other_workers, 300)
+                    print("Restart result:", restart_result)
                     continue
-            break
         if len(done_workers):
             print(f"INFO: {len(done_workers)} workers in the Dask cluster were already initialized with the right config.")
         if len(todo_workers):
             print(f"INFO: {len(todo_workers)} workers in the Dask cluster need to be initialized.")
             daskClient.run(exec, DistributedInitializerCode(), workers=todo_workers)
+            #hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)')
+            #print(f"Worker hashes: {hashes}")
+        break
 
 
 def DistributedInitializerCode():
@@ -155,21 +157,19 @@ def DistributedInitializerCode():
             code += f'if "{mod}" not in sys.modules:\n'
             code += f'  import {mod}\n'
             code += f'  {initstr}\n'
-    code += f"if (\"CMGRDF\" not in sys.modules) and (globals().get(\"_CMGRDF_global_hash\", None) != \"{current_config}\"):\n"
-    #code += "  print('Initializing worker for config %s')\n" % current_config
+    code += f"if (\"CMGRDF\" not in sys.modules) and (sys._xoptions.get(\"_CMGRDF_global_hash\", None) != \"{current_config}\"):\n"
+    code += "  print('Initializing worker for config %s, existing was', sys._xoptions.get(\"_CMGRDF_global_hash\", None), flush=True)\n" % current_config
     code += "  import ROOT\n"
     code += "  ROOT.gROOT.SetBatch(True)\n"
     code += "  ROOT.PyConfig.IgnoreCommandLineOptions = True\n"
     code += "  ROOT.EnableThreadSafety()\n"
-    ##code += "  verbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug)\n"
     code += '  os.environ["CMGRDF"] = %r\n' % os.environ["CMGRDF"]
-    #code += '  sys.path.append(os.environ["CMGRDF"]+"/python")\n'
     code += "".join(f"  ROOT.gInterpreter.AddIncludePath({p!r})\n" for p in _includepaths)
     code += "".join(f"  ROOT.gSystem.AddDynamicPath({p!r})\n" for p in _dynpaths)
-    #code += "  savErrorLevel = ROOT.gErrorIgnoreLevel\nROOT.gErrorIgnoreLevel = ROOT.kWarning\n"
-    code += "".join(f"  ROOT.gSystem.Load({p!r})\n" for p in _dynlibs)
-    #code += "ROOT.gErrorIgnoreLevel = savErrorLevel\n"
+    code += "".join(f"  ROOT.gSystem.Load({p!r}, \"\", True)\n" for p in _dynlibs)
     code += "".join(f"  ROOT.gInterpreter.{op}({line!r})\n" for (op, line) in _codelines)
-    #code += "print('Initialization done for config %s')\n" % current_config
-    code += "  globals()['_CMGRDF_global_hash'] = %r\n" % current_config
+    code += "  print('Initialization done for config %s', flush=True)\n" % current_config
+    code += "  sys._xoptions['_CMGRDF_global_hash'] = %r\n" % current_config
+    #code += "else:\n"
+    #code += "  print('Not re-initializing worker, CMGRDF %s, hash %s' % (\"CMGRDF\" in sys.modules, sys._xoptions.get(\"_CMGRDF_global_hash\", None)))\n"
     return code
