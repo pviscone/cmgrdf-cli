@@ -14,7 +14,7 @@ from CMGRDF.snapshot import Snapshot, mergeSnapshot
 
 
 class _Branch(object):
-    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", local=None, cache=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
+    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", withUncertainties=None, local=None, cache=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
         if isinstance(parentOrSource, _Branch):
             assert isinstance(stepOrTreeName, FlowStep)
             self.source = parentOrSource.source
@@ -24,6 +24,7 @@ class _Branch(object):
             self.DataFrameArgs = parentOrSource.DataFrameArgs
             self.parentBranch = parentOrSource
             self.hasher = parentOrSource.hasher.copy()
+            self.withUncertainties = parentOrSource.withUncertainties
             self.step = stepOrTreeName
             stepOrTreeName._addToHash(self.hasher)
         else:
@@ -35,6 +36,7 @@ class _Branch(object):
             self.DataFrameArgs = dict(**kwargs)
             self.parentBranch = None
             self.hasher = HasherFromGlobalConfig()
+            self.withUncertainties = withUncertainties
             self.step = None
         self.branches = []  # type: List["_Branch"]
         self.leaves = dict()  # type: dict[Target, Any]
@@ -63,7 +65,7 @@ class _Branch(object):
                 self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, cache=self._cache, **self.DataFrameArgs), [])
                 self._hasUncertainties = False
             else:
-                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
+                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights(), self.withUncertainties)
         return self._rdfAndWeights
 
     def rdf(self):
@@ -73,6 +75,8 @@ class _Branch(object):
         return self.rdfAndWeights()[1]
 
     def hasUncertainties(self) -> bool:
+        if not self.withUncertainties:
+            return False
         if self._hasUncertainties is None:
             if self._local:
                 self._hasUncertainties = bool(self.rdf().GetVariations().AsString())
@@ -121,11 +125,11 @@ class Processor(object):
         self._state = Processor.State.Clean
         return self
 
-    def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False):
+    def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False, withUncertainties=False):
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s, local %s" % (source.longId(), self._local))
-            self._trees[source] = _Branch(source, treeName, self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
+            self._trees[source] = _Branch(source, treeName, withUncertainties=withUncertainties, local=self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())
@@ -207,7 +211,7 @@ class Processor(object):
                             sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
-                        branch = self._growBranch(src, sflow)
+                        branch = self._growBranch(src, sflow, withUncertainties=withUncertainties)
                         for t in targets:
                             if t.mcOnly and not sample.isMC:
                                 continue
@@ -223,7 +227,7 @@ class Processor(object):
                                 self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                             else:
                                 if t not in branch.leaves:
-                                    branch.leaves[t] = t.attach(branch.rdf(), sample, era)
+                                    branch.leaves[t] = t.attach(branch.rdf(), sample, era, withUncertainties)
                                 fut = branch.leaves[t]
                                 if withUncertainties and branch.hasUncertainties():
                                     # postpone to all at the end, to avoid multiple JITs
@@ -274,7 +278,7 @@ class Processor(object):
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         ## now we have to go cut by cut
-                        branch = self._growBranch(src, None, verbose=verbose)
+                        branch = self._growBranch(src, None, verbose=verbose, withUncertainties=withUncertainties)
                         for step in sflow.steps:
                             branch = branch.maybeBranch(step, verbose=verbose)
                             if type(step) not in (Alias, Define, ReDefine, DefineDefault, Vary):
@@ -288,7 +292,7 @@ class Processor(object):
                                         self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     else:
                                         if t not in wbranch.leaves:
-                                            wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era)
+                                            wbranch.leaves[t] = t.attach(wbranch.rdf(), sample, era, withUncertainties)
                                         fut = wbranch.leaves[t]
                                         if withUncertainties and branch.hasUncertainties():
                                             # postpone to all at the end, to avoid multiple JITs

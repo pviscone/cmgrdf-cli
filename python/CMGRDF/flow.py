@@ -9,8 +9,9 @@ class FlowStep(object):
     """A generic step to the processing flow.
 
        Subclasses should implement the following methods:
-          * _attach(self, rdf):
+          * _attach(self, rdf, withUncertainties):
                 add any RDF processing instructions and return the tip of the new graph
+                includes a flag to override the computation of uncertainties
           * _getAdditionalWeights: (optional, the default returns None)
                 returns a list of column names of weights that are to be
                 multiplied together in the final event weight
@@ -70,14 +71,14 @@ class FlowStep(object):
             return False
         return True
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties):
         return None
 
-    def attach(self, rdf, weights):
-        rdf2 = self._attach(rdf)
+    def attach(self, rdf, weights, withUncertainties):
+        rdf2 = self._attach(rdf, withUncertainties)
         if rdf2 != rdf and not hasattr(rdf2, '_from'):
             rdf2._from = rdf
-        w = self._getAdditionalWeights()
+        w = self._getAdditionalWeights(withUncertainties)
         if w:
             weights = weights[:] + w
         return (rdf2, weights)
@@ -110,7 +111,7 @@ class FlowStep(object):
 class SimpleExprFlowStep(FlowStep):
     """ A Flow step which is fully defined by a single expression.
         This base class implements the equality and hash tests, while it's
-        up to the subclass to implement _attach(self, rdf)"""
+        up to the subclass to implement _attach(self, rdf, withUncertainties)"""
 
     def __init__(self, name, expr, **options):
         super().__init__(name, **options)
@@ -139,7 +140,7 @@ class Cut(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             return rdf.Filter(self.expr, self.name)
         except BaseException:
@@ -151,7 +152,7 @@ class Range(SimpleExprFlowStep):
     def __init__(self, expr, **options):
         super().__init__("Range", expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             if isinstance(self.expr, int):
                 return rdf.Range(self.expr)
@@ -166,7 +167,7 @@ class Define(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             return rdf.Define(self.name, self.expr)
         except BaseException:
@@ -178,7 +179,7 @@ class Alias(SimpleExprFlowStep):
     def __init__(self, name, column, **options):
         super().__init__(name, column, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             return rdf.Alias(self.name, self.expr)
         except BaseException:
@@ -191,7 +192,7 @@ class ReDefine(SimpleExprFlowStep):
         super().__init__(name, expr, **options)
         self.defineIfMissing = defineIfMissing
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             if self.defineIfMissing:
                 if self.name not in rdf.GetColumnNames():
@@ -206,7 +207,7 @@ class DeDefinePerSamplefine(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             return rdf.DefinePerSample(self.name, self.expr)
         except BaseException:
@@ -220,7 +221,7 @@ class DefineDefault(SimpleExprFlowStep):
     def __init__(self, name, expr, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         expr = self.expr
         if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):
             if isinstance(expr, str):
@@ -261,12 +262,15 @@ class Vary(SimpleExprFlowStep):
         self.variationTags = variationTags
         self.nuisName = nuisName if nuisName else name
 
-    def _attach(self, rdf):
-        try:
-            return rdf.Vary(self.name, self.expr, variationTags=self.variationTags, variationName=self.nuisName)
-        except BaseException:
-            print(f"ERROR attaching Vary({self.name}, {self.expr}, variationTags={self.variationTags}, variationName={self.nuisName}")
-            raise
+    def _attach(self, rdf, withUncertainties):
+        if withUncertainties:
+            try:
+                return rdf.Vary(self.name, self.expr, variationTags=self.variationTags, variationName=self.nuisName)
+            except BaseException:
+                print(f"ERROR attaching Vary({self.name}, {self.expr}, variationTags={self.variationTags}, variationName={self.nuisName}")
+                raise
+        else:
+            return rdf
 
 
 class AddWeight(SimpleExprFlowStep):
@@ -281,7 +285,7 @@ class AddWeight(SimpleExprFlowStep):
     def __init__(self, name, expr="", onData=False, onDataDriven=False, **options):
         super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if self.expr and (self.expr != self.name):
             try:
                 return rdf.Define(self.name, self.expr)
@@ -290,7 +294,7 @@ class AddWeight(SimpleExprFlowStep):
                 raise
         return rdf
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties):
         return [self.name]
 
 
@@ -312,12 +316,16 @@ class AddWeightUncertainty(FlowStep):
             self.vars = ("({0})*({0})/({1})".format(nominal, exprUp), exprUp)
         self.nuisName = nuisName if nuisName else name
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
+        if not withUncertainties:
+            return rdf.Define(self.name, str(self.nominal)) if self.nominal != "1.0" else rdf
         rdf2 = rdf.Define(self.name, str(self.nominal))
         rdf2._from = rdf
         return rdf2.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down", "up"], variationName=self.nuisName)
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties):
+        if self.nominal == "1.0" and not withUncertainties:
+            return None
         return [self.name]
 
     def __eq__(self, other) -> bool:
@@ -338,14 +346,14 @@ class ComputeTotalWeight(SimpleExprFlowStep):
         super().__init__(name, "__auto__" if weights is None else "*".join(weights))
         self.weights = weights
 
-    def attach(self, rdf, weights):
+    def attach(self, rdf, weights, withUncertainties):
         operands = self.weights if self.weights is not None else weights
-        rdf2 = self._attach(rdf, operands)
+        rdf2 = self._attach(rdf, operands, withUncertainties)
         if rdf2 != rdf:
             rdf2._from = rdf
         return (rdf2, weights)
 
-    def _attach(self, rdf, weights):
+    def _attach(self, rdf, weights, withUncertainties):
         existing = self.name in rdf.GetColumnNames()
         expr = "*".join(weights)
         if len(weights) == 0:
@@ -389,7 +397,7 @@ class Marker(FlowStep):
     def _addToHash(self, hasher):
         super()._addToHash(hasher)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         return rdf
 
 
@@ -506,7 +514,7 @@ class Target(object):
         self.name = name
         self.mcOnly = mcOnly
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf, sample, era, withUncertainties):
         raise RuntimeError("Must be implemented by subclass")
 
     def bookVariations(self, future, VariationsFor):
@@ -541,7 +549,7 @@ class Yield(Target):
         super(Yield, self).__init__(name, mcOnly=mcOnly)
         self.weight = weight
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf, sample, era, withUncertainties):
         fut = rdf.Sum(self.weight)
         fut._rdf = rdf
         return fut

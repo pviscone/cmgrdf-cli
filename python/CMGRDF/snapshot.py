@@ -67,7 +67,7 @@ class Snapshot(Target):
             print(f"Error when saiving metadata in {metafile} for {k3}: {e}")
             pass
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf, sample, era, withUncertainties):
         if ROOT.gROOT.GetVersionInt() >= 63400:
             comprAlgo = getattr(ROOT.RCompressionSetting.EAlgorithm, "k" + self.compression[0].upper())
         else:

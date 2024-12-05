@@ -91,13 +91,13 @@ class Plot(Target):
     def hasOpt(self, name):
         return hasattr(self, name)
 
-    def bookHisto1D(self, rdf, sample : Sample, era) -> Any:
+    def bookHisto1D(self, rdf, sample : Sample, era, withUncertainties) -> Any:
         rdf, expr = self._prepareExpr(rdf, self._expr, self.name + "__plot_expr_")
         ret = rdf.Histo1D(self._model, expr, "weight")
         ret._from = rdf
         return ret
 
-    def bookHisto2D(self, rdf, sample : Sample, era) -> Any:
+    def bookHisto2D(self, rdf, sample : Sample, era, withUncertainties) -> Any:
         rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
         rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
         ret = rdf.Histo2D(self._model, expr_x, expr_y, "weight")

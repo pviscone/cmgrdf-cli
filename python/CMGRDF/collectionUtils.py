@@ -19,7 +19,7 @@ class DefineFromCollection(FlowStep):
         if index is None:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if self.members is None:
             members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
                        if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
@@ -80,7 +80,7 @@ class DefineSkimmedCollection(FlowStep):
                 self.members, self.optMembers,
                 self.cut, self.mask, self.indices)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if self.members is None:
             members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
                        if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]

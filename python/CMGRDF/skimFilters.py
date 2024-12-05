@@ -17,7 +17,7 @@ class JsonFilter(FlowStep):
         super()._addToHash(hasher)
         _recursiveAddToHash(self.filename, hasher)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             return rdf.Filter(f'JsonFilter::load("{self.filename}")(run,luminosityBlock)', self.name)
         except BaseException:
@@ -46,7 +46,7 @@ class TriggerBitFilter(FlowStep):
         super()._addToHash(hasher)
         _recursiveAddToHash(self.selectBits, self.vetoBits, self.defineDefaults, hasher)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         try:
             if self.defineDefaults:
                 colnames = rdf.GetColumnNames()

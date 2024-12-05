@@ -152,7 +152,7 @@ class JMEUncertaintiesDefine(Define):
         JMEFactory.loadJME(self.doMET, self.era, self.subera, self.jetAlgo, self.onData, self.splitJER, self.uncSources, self.suffix)
         self._init = True
 
-    def _attach(self, rdf) :
+    def _attach(self, rdf, withUncertainties) :
         if not self._init:
             self.init()
 
@@ -168,7 +168,7 @@ class JMEUncertaintiesDefine(Define):
                 rdf = rdf.Redefine(f"{self.metcollection}_phi", f"{self.metcollection}_T1.phi(0)")
                 rdf._from = src
 
-                if self.doSyst:
+                if self.doSyst and withUncertainties:
                     for obs in ["pt", "phi"]:
                         njer = 1 if not self.splitJER else 6
                         for ijer in range(njer):
@@ -189,7 +189,7 @@ class JMEUncertaintiesDefine(Define):
                 src = rdf
                 rdf = rdf.Redefine("Jet_pt", "ak4JetVars.pt(0)")
                 rdf._from = src
-                if self.doSyst:
+                if self.doSyst and withUncertainties:
                     njer = 1 if not self.splitJER else 6
                     for ijer in range(njer):
                         src = rdf
@@ -246,10 +246,10 @@ class JetVetoMapCut(Cut):
 }'''.replace("<era>", self.era).replace("<correctionname>", vetoMapId))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
-        return super()._attach(rdf)
+        return super()._attach(rdf, withUncertainties)
 
 
 class JetPuIDSF(Define):
@@ -281,7 +281,7 @@ class JetPuIDSF(Define):
      }'''.replace("<CORRID>", corrId).replace("<ERA>", self.era))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
 
@@ -289,7 +289,7 @@ class JetPuIDSF(Define):
             src = rdf
             rdf = rdf.Define(self.name, self.expr)
             rdf._from = src
-            if self.doSyst:
+            if self.doSyst and withUncertainties:
                 up_expr = self.expr.replace(')', ', "up")')
                 dn_expr = self.expr.replace(')', ', "down")')
                 src = rdf

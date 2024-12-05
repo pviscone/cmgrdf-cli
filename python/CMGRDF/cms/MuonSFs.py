@@ -51,14 +51,14 @@ class MuonIDSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
         try:
             src = rdf
             rdf = rdf.Define(self.name, self.expr)
             rdf._from = src
-            if self.nuisName:
+            if self.nuisName and withUncertainties:
                 src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
                 rdf._from = src
@@ -112,14 +112,14 @@ class MuonIDIsoSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ISO>", self.isoName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<CORRISO>", corrIso).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
         try:
             src = rdf
             rdf = rdf.Define(self.name, self.expr)
             rdf._from = src
-            if self.nuisName:
+            if self.nuisName and withUncertainties:
                 src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
                 rdf._from = src
