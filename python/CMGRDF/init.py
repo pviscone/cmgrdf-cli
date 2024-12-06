@@ -138,13 +138,13 @@ def RunDistributedInitializer(daskClient):
                     restart_result = daskClient.restart_workers(other_workers, timeout=300, raise_for_error=False)
                     print("Restart result:", restart_result)
                     continue
-        if len(done_workers):
-            print(f"INFO: {len(done_workers)} workers in the Dask cluster were already initialized with the right config.")
-        if len(todo_workers):
-            print(f"INFO: {len(todo_workers)} workers in the Dask cluster need to be initialized.")
-            daskClient.run(exec, DistributedInitializerCode(), workers=todo_workers)
-            #hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)')
-            #print(f"Worker hashes: {hashes}")
+            if len(done_workers):
+                print(f"INFO: {len(done_workers)} workers in the Dask cluster were already initialized with the right config.")
+            if len(todo_workers):
+                print(f"INFO: {len(todo_workers)} workers in the Dask cluster need to be initialized.")
+                daskClient.run(exec, DistributedInitializerCode(), workers=todo_workers)
+                #hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)')
+                #print(f"Worker hashes: {hashes}")
         break
 
 

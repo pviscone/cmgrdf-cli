@@ -4,19 +4,22 @@ import tempfile
 import subprocess
 import os
 
+
 def defaultSchedulerUrl(port=8786):
     addrs = socket.getaddrinfo(socket.gethostname(), port)
-    (ip,port) = [s for s in addrs if s[0] == socket.AF_INET][0][-1]
+    (ip, port) = [s for s in addrs if s[0] == socket.AF_INET][0][-1]
     return f"tcp://{ip}:{port}"
 
+
 def guessEnvFile():
-    path = subprocess.check_output(["which","root"],text=True).rstrip()
+    path = subprocess.check_output(["which", "root"], text=True).rstrip()
     if not path.endswith("/bin/root") or not path.startswith("/cvmfs"):
         raise RuntimeError(f"Bad root path {path}")
-    setup = path[:-len("/bin/root")]+"/setup.sh"
+    setup = path[:-len("/bin/root")] + "/setup.sh"
     if not os.path.isfile(setup):
         raise RuntimeError(f"Guessed env setup file {setup} which doesn't exist")
     return setup
+
 
 if __name__ == '__main__':
     import argparse
@@ -32,12 +35,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     scheduler = args.scheduler if args.scheduler else defaultSchedulerUrl()
     envscript = args.envfile if args.envfile else guessEnvFile()
-    logdir = args.logdir if args.logdir else os.getcwd()+"/logs"
+    logdir = args.logdir if args.logdir else os.getcwd() + "/logs"
     os.makedirs(logdir, exist_ok=True)
     if not re.match(r"\d+[hmsd]?", args.time):
         raise RuntimeError(f"Time should be <number> or <number><unit>, with <uint> = s, m, h, d; got {args.time}")
     (num, unit) = (args.time, 's') if args.time[-1].isdigit() else (args.time[:-1], args.time[-1])
-    runtime_secs = int(num) * ({'s':1, 'm':60, 'h':3600, 'd':24*3600}[unit])
+    runtime_secs = int(num) * ({'s': 1, 'm': 60, 'h': 3600, 'd': 24 * 3600}[unit])
     with tempfile.NamedTemporaryFile(mode="w", suffix=".sub") as fp:
         CMGRDF = os.environ['CMGRDF']
         fp.write(f"""
@@ -51,7 +54,7 @@ transfer_output_files = ""
 RequestCpus = {args.ncpu}
 +MaxRuntime = {runtime_secs}
 
-Executable = $(CMGRDF)/examples/condor_runner.sh 
+Executable = $(CMGRDF)/examples/condor_runner.sh
 Arguments = {envscript} {scheduler} --nworkers {args.ncpu} --nthreads 1 --memory-limit {args.mem:.1f}GiB --worker-port 10000:10100
 
 Queue {args.nworkers}\n""".lstrip())
