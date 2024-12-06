@@ -135,7 +135,7 @@ def RunDistributedInitializer(daskClient):
                     raise RuntimeError(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...)")
                 else:
                     print(f"DANGER: {len(other_workers)} workers in the Dask cluster were already initialized with different inits (includes, libs, declares, ...), {attempt} attempt to restart them.")
-                    restart_result = daskClient.restart_workers(other_workers, 300)
+                    restart_result = daskClient.restart_workers(other_workers, timeout=300, raise_for_error=False)
                     print("Restart result:", restart_result)
                     continue
         if len(done_workers):
