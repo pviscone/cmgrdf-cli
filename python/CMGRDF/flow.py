@@ -1,6 +1,5 @@
 import copy
 import re
-import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
 
