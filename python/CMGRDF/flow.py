@@ -180,11 +180,7 @@ class Alias(SimpleExprFlowStep):
 
     def _attach(self, rdf):
         try:
-            if "DistRDF" in rdf.__module__:
-                #print(f"Using Define({self.name}, {self.expr}) instead of Alias since it's not supported in DistRDF")
-                return rdf.Define(self.name, self.expr)
-            else:
-                return rdf.Alias(self.name, self.expr)
+            return rdf.Alias(self.name, self.expr)
         except BaseException:
             print(f"ERROR attaching Alias({self.name}, {self.expr}")
             raise
@@ -206,32 +202,16 @@ class ReDefine(SimpleExprFlowStep):
             raise
 
 
-class DefinePerSample(FlowStep):
-    """Attaches a DefinePerSample node.
-
-       This currently needs to be implemented by defining a C++ class with a method
-            `ROOT::RDF::RNode attachAsDefinePerSample(ROOT::RDF::RNode &rdf, const std::string &colName)`
-       since Python callbacks don't work (as of ROOT 6.26.04)
-    """
-
-    def __init__(self, name, provider, *args, **options):
-        super().__init__(name, **options)
-        self.provider = provider
-        self.args = tuple(args)
-        for k, v in options.items():
-            setattr(self, k, v)
-
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.provider == other.provider and self.args == other.args
-        return id(self) == id(other)
-
-    def _addToHash(self, hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.args, hasher)
+class DeDefinePerSamplefine(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
 
     def _attach(self, rdf):
-        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name, *self.args)
+        try:
+            return rdf.DefinePerSample(self.name, self.expr)
+        except BaseException:
+            print(f"ERROR attaching DefinePerSample({self.name}, {self.expr}")
+            raise
 
 
 class DefineDefault(SimpleExprFlowStep):
@@ -364,12 +344,8 @@ class ComputeTotalWeight(SimpleExprFlowStep):
                     #print(f"Using Redefine[1]({self.name}, {expr})")
                     return rdf.Redefine(self.name, expr)
             else:
-                if "DistRDF" in rdf.__module__:
-                    #print(f"Using Define({self.name}, {expr}) instead of Alias since it's not supported in DistRDF")
-                    return rdf.Define(self.name, expr)
-                else:
-                    #print(f"Using Alias({self.name}, {expr})")
-                    return rdf.Alias(self.name, expr)
+                #print(f"Using Alias({self.name}, {expr})")
+                return rdf.Alias(self.name, expr)
         else:
             if existing:
                 #print(f"Using Redefine({self.name}, {expr})")
