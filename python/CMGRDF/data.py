@@ -3,7 +3,7 @@ import ROOT
 import os
 import os.path
 import glob
-from CMGRDF.utils import recursiveHash, safeName, NormUncertainty
+from CMGRDF.utils import recursiveHash, safeName, NormUncertainty, eosToUrl
 
 ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
 ProgressBar = ROOT.ProgressBarManager()
@@ -32,10 +32,10 @@ class Source(object):
         self._metas = []
 
     def _getEntriesFromSample(self, sample):
-        nevents=0
-        for fil, tree in zip( sample.GetFileNameGlobs(), sample.GetTreeNames()):
-            tf=ROOT.TFile.Open( str(fil) )
-            nevents+=tf.Get("Events").GetEntries()
+        nevents = 0
+        for fil, tree in zip(sample.GetFileNameGlobs(), sample.GetTreeNames()):
+            tf = ROOT.TFile.Open(str(fil))
+            nevents += tf.Get(str(tree)).GetEntries()
             tf.Close()
         return nevents
 
@@ -43,21 +43,16 @@ class Source(object):
         metaInfo = ROOT.RDF.Experimental.RMetaData()
         for meta in self._metas:
             metaInfo.Add(meta[0], meta[1])
-        if len(self.files) == 1:
-            if os.path.isdir(self.files[0]):
-                if treeName == "Events":
-                    assert (self.friends is None)  # not supported
-                sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0] + '/*.root', metaInfo)
-            else:
-                sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files[0], metaInfo)
-        else:
-            sample = ROOT.RDF.Experimental.RSample(self.name, treeName, self.files, metaInfo)
-        return sample
+        files = self.files
+        if len(files) == 1 and os.path.isdir(files[0]):
+            if treeName == "Events":
+                raise RuntimeError("Cannot support friend trees when provinding a directory as input")
+            files = list(glob.glob(files[0] + '/*.root'))
+        files = [eosToUrl(f) for f in files]
+        return ROOT.RDF.Experimental.RSample(self.name, treeName, files, metaInfo)
 
     def _addGlobalFriends(self, spec):
         if self.friends is not None:
-            if os.path.isdir(self.files[0]):
-                raise RuntimeError("Cannot support friend trees when provinding a directory as input")
             for f in self.friends:
                 if isinstance(f, tuple):
                     spec.WithGlobalFriends(f[0], f[1])
@@ -75,16 +70,17 @@ class Source(object):
                 rdf = rdf.DefinePerSample(meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")')  # could implement other types
         return rdf
 
-    def createRDF(self, treeName="Events"):
+    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):
         sample = self._createRSample(treeName)
-        nevents=self._getEntriesFromSample(sample)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
         if treeName == "Events":
             self._addGlobalFriends(spec)
-        ret = ROOT.RDataFrame(spec)
-        ProgressBar.AddDataFrame( ret, nevents)
-        ret = Source._addDefinesFromMetas(ret, self._metas)
+        ret = DataFrameClass(spec, **kwargs)
+        if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
+            nevents = self._getEntriesFromSample(sample)
+            ProgressBar.AddDataFrame(ret, nevents)
+        #ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret
 
     def __eq__(self, o : object) -> bool:
@@ -181,7 +177,9 @@ class MergedSource(Source):
         self._bigHash = None
         self._bigHashNoFriends = None
 
-    def createRDF(self, treeName="Events"):
+    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):
+        if DataFrameClass != ROOT.RDataFrame:
+            raise RuntimeError("MergedSource only supported in plain non-distributed RDataFrame for now")
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         for src in self.sources:
             sample = src._createRSample(treeName)
@@ -189,7 +187,7 @@ class MergedSource(Source):
         if treeName == "Events":
             for src in self.sources:
                 src._addGlobalFriends(spec)
-        ret = ROOT.RDataFrame(spec)
+        ret = DataFrameClass(spec, **kwargs)
         if len(self.sources) > 1 and not any(self.sources[0].hasCompatibleMeta(s2) for s2 in self.sources[1:]):
             metadumps = "\n".join((s.name + ':' + ', '.join(m[0] + "=" + repr(m[1]) for m in s._metas)) for s in self.sources)
             raise RuntimeError(f"Incompatible metadata in components of merged source {self}: {metadumps}")
@@ -261,6 +259,9 @@ class Sample(object):
         elif isinstance(source, Source):
             assert (friends is None)  # should have been put in the Source object
             self._source = source
+        elif isinstance(source, list) and isinstance(source[0], str):
+            assert (friends is None)  # not supported for the moment, could be added but it's tricky (just use Source instead)
+            self._source = Source('', source, friends=None)
         else:
             friendFiles = [f.format(name=name) for f in friends] if friends else None
             self._source = Source('', source.format(name=name), friends=friendFiles)
@@ -337,7 +338,8 @@ class MCSample(Sample):
         from CMGRDF.flow import AddWeight
         if self.genWeightName:
             return flow2.prepend(
-                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
+                #AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
+                AddWeight("mcSampleWeight", "{0}*({1})*({2})*({3})".format(self.genWeightName, self.xsec, luminosity * 1000 / self._genWeightSum[era], getattr(self, "weight", 1))))
         else:
             return flow2.prepend(AddWeight("weight", self.weight))
 
@@ -353,7 +355,9 @@ class MCSample(Sample):
             if src is None or src.hasMeta("genWeightSum"):
                 continue
             if cache and cache.hasSum(src, self.genSumWeightName):
-                src.addMeta("genWeightSum", cache.getSum(src, self.genSumWeightName))
+                sumw = cache.getSum(src, self.genSumWeightName)
+                self._genWeightSum[era] = sumw
+                src.addMeta("genWeightSum", sumw)
                 continue
             chain = ROOT.TChain("Runs")
             for f in src.files:
@@ -369,6 +373,7 @@ class MCSample(Sample):
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
             hist = ROOT.gROOT.FindObject("htemp")
             sumw = hist.GetBinContent(1)
+            self._genWeightSum[era] = sumw
             src.addMeta("genWeightSum", sumw)
             if cache:
                 cache.writeSum(src, self.genSumWeightName, sumw)
@@ -412,6 +417,8 @@ class MCGroup(Sample):
     def __init__(self, name : str, samples : "list[MCSample]", moreHooks=[], extraWeight=None):
         super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
         self.samples = samples
+        self.moreHooks = moreHooks[:]
+        self.extraWeight = extraWeight
         self._hooks = samples[0]._hooks[:]
         for s in samples[1:]:
             assert (s._hooks == self._hooks)
@@ -440,6 +447,22 @@ class MCGroup(Sample):
     def bookSumWeight(self, eras, **kwargs):
         """Compute the sum of weights for these samples, and return the number of computations actually done"""
         return sum(s.bookSumWeight(eras, **kwargs) for s in self.samples)
+
+    def split(self):
+        """Split back into individual samples, potentially adding the extra weight and hooks"""
+        if self.extraWeight is None and len(self.moreHooks) == 0:
+            return self.samples[:]
+        ret = []
+        import copy
+        for sample in self.samples:
+            scopy = copy.copy(sample)
+            scopy.name = sample.name + f"_for{self.name}"
+            if self.moreHooks:
+                scopy._hooks = sample._hooks + self.moreHooks
+            if self.extraWeight:
+                scopy.weight = "(%s)*(%s)" % (getattr(sample, 'weight', 1), self.extraWeight)
+            ret.append(scopy)
+        return ret
 
 
 class DataDrivenSample(Sample):

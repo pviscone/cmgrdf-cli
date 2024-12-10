@@ -42,7 +42,7 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_106a_cuda/x86_64-el9-gcc11-opt/setup.sh
 export PATH=${PATH}:${PWD}/build/bin
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD}/build/lib
 export PYTHONPATH=${PYTHONPATH}:${PWD}/build/lib/python:${PWD}/build/lib
-export CONDA=1 CONDA_PREFIX=/cvmfs/sft.cern.ch/lcg/views/LCG_106_cuda/x86_64-el9-gcc11-opt
+export LCG=1
 make -j 8; make
 popd
 ```
@@ -209,15 +209,22 @@ from CMGRDF import *
  ``` 
  * Configure the PlotSetPrinter to display the png files inline in the jupyter by passing `, plotFormats="png,jupyter"` in the constructor.
 
+## Running distributed on Dask (experimental)
+
+Distributed processing is possible using the underlying distributed processing support of RDataFrame. This is currently only possible in the ROOT master branch, e.g. from dev3 LCG builds. Running within SWAN's distributed processing is not working yet, but it is possible to set up a dask cluster on lxplus9 using worker nodes on htcondor:
+ * ssh one **lxplus9** node, and set up the LCG environment
+ * start a dask scheduler on that machine with the `dask scheduler` command using the default 8786 port (the only one that is open in the firewall)
+ * then sumbit condor jobs to create workers that connect to that scheduler, using `examples/lxdask_worker_submit.py <number-of-workers>` 
+ * once they appear in the scheduler, you can run create a dask client with `from distributed import Client; client = Client('url-of-the-scheduler')` and then cmgrdf processing by passing to the `Processor` constructor an additional argument `executor = ('dask', client))`
+ * This is very similar to what the dask_lxplus python module would do, but in this manual submission it's easier to add more workers to the same scheduler later and especially the workers can be reloaded by CMGRDF (e.g. if you change your c++ code) without having to submit more jobs
+
 ### To Do (in random order)
 
- * MCGroup support for different xsection values per sample
  * Pretty printout of yield tables with uncertainties
  * Using snapshots as friend trees
  * Cache events with snapshots
  * Additional generator weights, e.g. for normalized scale variations
  * Test a fake rate method
  * Test roo-fit related stuff
- * Test distributed processing
  * Batch processing for skimming or friend production?
  * More CI & building reference documentation

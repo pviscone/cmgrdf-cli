@@ -1,5 +1,4 @@
-import ROOT
-
+from CMGRDF.init import Declare
 from CMGRDF.flow import Define, Cut
 from CMSJMECalculators import loadJMESystematicsCalculators
 loadJMESystematicsCalculators()
@@ -90,7 +89,7 @@ class JMEFactory(object):
             if cls._ids[f'cmgJMECalc{suffix}'] != declareexpr:
                 raise RuntimeError(f"You have tried to declare two different objects with same cmgJMECalc{suffix}. You have to change the code logic")
         else:
-            ROOT.gInterpreter.Declare(declareexpr)
+            Declare(declareexpr)
             cls._ids[f'cmgJMECalc{suffix}'] = declareexpr
 
 
@@ -205,7 +204,7 @@ class JetVetoMapCut(Cut):
 
     def init(self):
         vetoMapId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
-        ROOT.gInterpreter.Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
+        Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
                                                                   const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
                                                                   const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
                                                                   const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
@@ -253,7 +252,7 @@ class JetPuIDSF(Define):
 
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
-        ROOT.gInterpreter.Declare('''
+        Declare('''
         double weight_jetPUId_<ERA>(const ROOT::RVec<float> & pt, const ROOT::RVec<float> & eta, const ROOT::RVec<int> & idx, const std::string & wp, const std::string & choice = "nom") {
         double ret=1.;
         for (unsigned int i = 0, n = pt.size(); i < n; ++i) {

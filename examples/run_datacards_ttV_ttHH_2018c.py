@@ -56,7 +56,7 @@ dataSamples = [
 ]
 
 ## Common stuff
-ROOT.gInterpreter.Declare("""
+Declare("""
 #include "Math/GenVector/LorentzVector.h"
 #include "Math/GenVector/PtEtaPhiM4D.h"
 

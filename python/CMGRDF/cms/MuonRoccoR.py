@@ -4,16 +4,13 @@ from CMGRDF.flow import Define, ReDefine, Vary
 from CMGRDF.cms.eras import run2eras
 
 roccorPath = os.path.expandvars("${CMGRDF}/externals/RoccoR")
-if not os.path.exists(roccorPath):
-    raise RuntimeError(f"RoccoR external package is not installed under {roccorPath}")
 
-import ROOT
-ROOT.gInterpreter.AddIncludePath(roccorPath)
-ROOT.gInterpreter.ProcessLine('#include <MuRoccoR.h>')
-ROOT.gInterpreter.ProcessLine('#include <RoccoR.h>')
+from CMGRDF.init import AddHeader, Declare
+AddHeader('MuRoccoR.h')
+AddHeader('RoccoR.h', roccorPath)
 
 for _era in "2016aUL 2016bUL 2017UL 2018UL".split():
-    ROOT.gInterpreter.Declare("""
+    Declare("""
         const RoccoR & muRoccoR_<ERA>() {
            static RoccoR rc("<PATH>/RoccoR<ERA>.txt");
            return rc;

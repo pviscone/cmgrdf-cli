@@ -55,7 +55,7 @@ dataSamples = [
 ]
 
 ## Common stuff
-ROOT.gInterpreter.Declare("""
+Declare("""
 int findWlv(const ROOT::RVec<float> & Lep_pt, const std::pair<size_t, size_t> & LepZ) {
     int ret = -1;
     for (unsigned int i = 0, n = Lep_pt.size(); i < n; ++i) {
@@ -129,63 +129,73 @@ plots_3l_tight = [
 ]
 
 lumi = 6.90
-ROOT.EnableImplicitMT(16)
-printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
-maker = Processor(cache=SimpleCache())
-cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
-maker.bookCutFlow(procs_3l_tight, lumi, cuts_tight, cutNames=cutflowCuts)
-maker.book(procs_3l_tight, lumi, cuts_tight, plots_3l_tight, withUncertainties=True)
-result_plots = maker.runPlots()
-#printer.printSet(result_plots, "plots/008s/{flow}")
 
-yields = maker.runYields()
-for proc in procs_3l_tight:
-    print(f"{proc.name}: ")
-    for cut in cutflowCuts:
-        y = yields.getByKey(MultiKey(flow=cuts_tight.name, process=proc.name, name=cut))[-1]
-        print("   %-10s: %12.2f +- %8.1f (stat)" % (cut, y.central, y.stat))
-    print("")
-print("")
+if __name__ == "__main__":
+    from CMGRDF.utils import processorFromCommandLineArgs
+    maker = processorFromCommandLineArgs()
+    printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
+    cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
+    maker.bookCutFlow(procs_3l_tight, lumi, cuts_tight, cutNames=cutflowCuts)
+    maker.book(procs_3l_tight, lumi, cuts_tight, plots_3l_tight, withUncertainties=True)
+    result_plots = maker.runPlots()
+    printer.printSet(result_plots, "plots/008s/initial/{flow}")
 
-skim3l = cuts_tight.clone("skim3l").upToStep("3l")
-skimpath = "skim3l/{name}.root"
-if os.path.exists("/tmp"):
-    skimpath = "/tmp/" + skimpath
-print(f"Making skim {skim3l.name} at {skimpath}")
-maker.clear().book(procs_3l_tight, lumi, skim3l, Snapshot(skimpath, columnSel=["#new", "run", "lumi", "event", "weight", "nJet", "Jet_.*", "MET_.*"], columnVeto=["genWeightSum", "mcSampleWeight", "LepTight_p4"], compression=None))
+    yields = maker.runYields()
+    yieldReport = []
+    for proc in procs_3l_tight:
+        yieldReport.append(f"{proc.name}: ")
+        for cut in cutflowCuts:
+            y = yields.getByKey(MultiKey(flow=cuts_tight.name, process=proc.name, name=cut))[-1]
+            yieldReport.append("   %-10s: %12.2f +- %8.1f (stat) +- %8.1f (syst)" % (cut, y.central, y.stat, y.syst()))
+        yieldReport.append("")
+    print("\n".join(yieldReport))
+    with open("plots/008s/cutflow.txt", "w") as yieldReportFile:
+        yieldReportFile.write("\n".join(yieldReport))
 
-report = maker.runSnapshots()
-print(f"Snapshoted at {skim3l.name}")
-for key, snap in report:
-    print("%-10s  %-20s : %10u entries  %9.3f GB   %s" % (key.process, key.sample, snap.entries, snap.size / (1024.**3), snap.fname))
+    skim3l = cuts_tight.clone("skim3l").upToStep("3l")
+    skimpath = "skim3l/{name}.root"
+    if os.path.exists("/tmp"):
+        skimpath = "/tmp/" + skimpath
+    print(f"Making skim {skim3l.name} at {skimpath}")
+    maker.clear().book(procs_3l_tight, lumi, skim3l, Snapshot(skimpath, columnSel=["#new", "run", "lumi", "event", "weight", "nJet", "Jet_.*", "MET_.*"], columnVeto=["genWeightSum", "mcSampleWeight", "LepTight_p4"], compression=None))
 
-## Next try to run from a snapshot
+    report = maker.runSnapshots()
+    snapshotReport = [f"Snapshoted at {skim3l.name}"]
+    for key, snap in report:
+        snapshotReport.append("%-10s  %-20s : %10u entries  %9.3f GB   %s" % (key.process, key.sample, snap.entries, snap.size / (1024.**3), snap.fname))
+    print("\n".join(snapshotReport))
+    with open("plots/008s/snapReport.txt", "w") as snapshotReportFile:
+        snapshotReportFile.write("\n".join(snapshotReport))
 
+    ## Next try to run from a snapshot
+    def sampleFromSnap(sample : Sample, skimpath):
+        if sample.isMC:
+            # May need to remake mc groups if they were split for distributed processing
+            if isinstance(sample, MCGroup) and not os.path.isfile(skimpath.format(name=sample.name)):
+                files = [skimpath.format(name=sub.name) for sub in sample.samples]
+                if all(os.path.isfile(f) for f in files):
+                    print(f"MC sample {sample.name} is split in {', '.join(sub.name for sub in sample.samples)}")
+                    return MCSample(sample.name, files, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+            return MCSample(sample.name, skimpath, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+        elif sample.isDataDriven:
+            return DataDrivenSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+        elif sample.isData:
+            return DataSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
 
-def sampleFromSnap(sample : Sample, skimpath):
-    if sample.isMC:
-        return MCSample(sample.name, skimpath, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
-    elif sample.isDataDriven:
-        return DataDrivenSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
-    elif sample.isData:
-        return DataSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    def samplesFromSnap(skimpath, *names):
+        return [sampleFromSnap(mcSamples[n], skimpath) for n in names]
 
-
-def samplesFromSnap(skimpath, *names):
-    return [sampleFromSnap(mcSamples[n], skimpath) for n in names]
-
-
-procs_3l_tight_snap = [
-    Process("TopZ", samplesFromSnap(skimpath, "TTZ", "TZQ", "TWZ"), label="t#bar{t}Z+tZ", fillColor=ROOT.kGreen + 1, signal=True),
-    Process("TTW", samplesFromSnap(skimpath, "TTW"), label="t#bar{t}W", fillColor=ROOT.kGreen + 3),
-    Process("VZ", samplesFromSnap(skimpath, "WZ3l", "ZZ4l"), label="WZ+ZZ", fillColor=ROOT.kRed - 7, normUncertainty=1.3),
-    Process("DY", samplesFromSnap(skimpath, "DY"), label="DY", fillColor=ROOT.kAzure + 10, normUncertainty=2.0),
-    Process("WW", samplesFromSnap(skimpath, "WW2l"), label="WW", fillColor=ROOT.kAzure + 2, normUncertainty=2.0),
-    Process("TT", samplesFromSnap(skimpath, "TT2l", "TW"), label="t#bar{t}+tW", fillColor=ROOT.kViolet - 4, normUncertainty=1.5),
-    Data([sampleFromSnap(d, skimpath) for d in dataSamples])
-]
-cutsOnSkim = cuts_tight.clone("tight_on_skim").fromStep("3l", included=False)
-maker2 = Processor()
-maker2.book(procs_3l_tight_snap, lumi, cutsOnSkim, plots_3l_tight, withUncertainties=True)
-result_plots2 = maker2.runPlots()
-printer.printSet(result_plots2, "plots/008s/{flow}")
+    procs_3l_tight_snap = [
+        Process("TopZ", samplesFromSnap(skimpath, "TTZ", "TZQ", "TWZ"), label="t#bar{t}Z+tZ", fillColor=ROOT.kGreen + 1, signal=True),
+        Process("TTW", samplesFromSnap(skimpath, "TTW"), label="t#bar{t}W", fillColor=ROOT.kGreen + 3),
+        Process("VZ", samplesFromSnap(skimpath, "WZ3l", "ZZ4l"), label="WZ+ZZ", fillColor=ROOT.kRed - 7, normUncertainty=1.3),
+        Process("DY", samplesFromSnap(skimpath, "DY"), label="DY", fillColor=ROOT.kAzure + 10, normUncertainty=2.0),
+        Process("WW", samplesFromSnap(skimpath, "WW2l"), label="WW", fillColor=ROOT.kAzure + 2, normUncertainty=2.0),
+        Process("TT", samplesFromSnap(skimpath, "TT2l", "TW"), label="t#bar{t}+tW", fillColor=ROOT.kViolet - 4, normUncertainty=1.5),
+        Data([sampleFromSnap(d, skimpath) for d in dataSamples])
+    ]
+    cutsOnSkim = cuts_tight.clone("tight_on_skim").fromStep("3l", included=False)
+    maker2 = Processor()
+    maker2.book(procs_3l_tight_snap, lumi, cutsOnSkim, plots_3l_tight, withUncertainties=True)
+    result_plots2 = maker2.runPlots()
+    printer.printSet(result_plots2, "plots/008s/{flow}")

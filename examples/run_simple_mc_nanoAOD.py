@@ -17,8 +17,6 @@ plots = [
 ]
 
 lumi = 138.
-
-ROOT.ROOT.EnableImplicitMT(4)
 plots = Processor().book(mca, lumi, cuts, plots).runPlots()
 printer = PlotSetPrinter(topRightText="L = %s fb^{-1} (13 TeV)" % lumi)
 printer.printSet(plots, "plots/001/mc/cmgrdf")

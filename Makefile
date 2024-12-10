@@ -1,7 +1,7 @@
 CC = c++
 ROOTINC = $(shell root-config --incdir)
 CCFLAGS = $(shell root-config --cflags) -O3 -msse3 -mavx -g -fPIC -W -Wall
-LIBS = $(shell root-config --libs --glibs)  -lMathMore -lMinuit -lGenVector -lROOTVecOps #  -lRooFitCore -lRooFit -lRooStats
+LIBS = $(shell root-config --libs --glibs)  -lMinuit -lGenVector -lROOTVecOps #  -lRooFitCore -lRooFit -lRooStats -lMathMore
 
 MAIN_DIR = $(shell pwd)
 SRC_DIR = src

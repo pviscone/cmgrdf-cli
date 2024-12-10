@@ -1,6 +1,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   PYTHONIOENCODING: "utf-8"
+  THISROOT_PATH: ""
 
 .el8-106a:
   image: gitlab-registry.cern.ch/sft/docker/alma8
@@ -20,6 +21,13 @@ variables:
     LCG_REL_PATH: /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc13-opt
     LIBS_EXTRA: ""    
 
+.el9-docker:
+  image: gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el9-root-custom-base:latest
+  variables:
+    LCG_REL_PATH: ""
+    LIBS_EXTRA: ""
+    THISROOT_PATH: "/usr/local/bin"
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -32,6 +40,7 @@ workflow:
 stages:
   - build
   - test
+  - test2
   - deploy
 
 .compile:
@@ -39,12 +48,18 @@ stages:
   stage: build
   before_script:
     - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
-    - source $LCG_REL_PATH/setup.sh || true
+    - '[[ "$LCG_REL_PATH" != "" ]] && source $LCG_REL_PATH/setup.sh || true'
+    - '[[ "$THISROOT_PATH" != "" ]] && source $THISROOT_PATH/thisroot.sh || true'
     - eval $(make env)
   script:
     - make -j 4
     - pushd externals/HiggsAnalysis/CombinedLimit
-    - export LCG=1
+    - >
+      if [[ "$ROOTSYS" != "" && "${ROOTSYS#/cvmfs*/lcg/}" != "${ROOTSYS}" ]]; then
+         export LCG=1
+      else
+         export CONDA=1 CONDA_PREFIX=/usr
+      fi;
     - make -j 8; make
     - popd
     - pushd externals
@@ -66,6 +81,9 @@ compile-el9-106a:
 
 compile-el9-dev3:
   extends: [.compile, .el9-dev3]
+
+compile-el9-docker:
+  extends: [.compile, .el9-docker]
 
 code-checks:
   tags: [ k8s-cvmfs ]
@@ -103,7 +121,8 @@ code-checks-dev3:
   stage: test
   before_script:
     - '[[ "$LIBS_EXTRA" != "" ]] && yum install -y $LIBS_EXTRA'
-    - source $LCG_REL_PATH/setup.sh || true
+    - '[[ "$LCG_REL_PATH" != "" ]] && source $LCG_REL_PATH/setup.sh || true'
+    - '[[ "$THISROOT_PATH" != "" ]] && source $THISROOT_PATH/thisroot.sh || true'
     - eval $(make env)
     - ./gitlab-ci/do_kinit.sh
     - cd examples
@@ -123,7 +142,7 @@ code-checks-dev3:
     - python3 run_friends_sos.py
     - echo
     - echo ---------------------------------
-    - python3 run_uncertainties_ttH.py
+    - python3 run_uncertainties_ttH.py -j 4 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
@@ -132,7 +151,7 @@ code-checks-dev3:
     paths:
       - examples/plots
     when: always
-  timeout: 2h
+  timeout: 30m
 
 run-tests-base-el8-106a:
   extends: [.run-tests, .el8-106a]
@@ -146,8 +165,12 @@ run-tests-base-el9-dev3:
   extends: [.run-tests, .el9-dev3]
   needs: [compile-el9-dev3]
 
-run-tests-cards-el8-106a:
-  extends: run-tests-base-el8-106a
+run-tests-base-el9-docker:
+  extends: [.run-tests, .el9-docker]
+  needs: [compile-el9-docker]
+
+.run-tests-cards:
+  extends: .run-tests
   script:
     - python3 run_datacards_ttV_ttHH_2018c.py
     - echo
@@ -156,55 +179,158 @@ run-tests-cards-el8-106a:
     - "sha256sum -c ref/refs-cards-prefit.txt --quiet && echo 'prefit outputs match'"
     - "sha256sum -c ref/refs-cards-cards.txt --quiet && echo 'datacards match'"
     - "sha256sum -c ref/refs-cards-postfit.txt --quiet && echo 'postfit outputs match' || true"
+  timeout: 1h
+
+run-tests-cards-el8-106a:
+  extends: [.run-tests-cards, .el8-106a]
+  needs: [compile-el8-106a]
 
 run-tests-cards-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-    - !reference [run-tests-cards-el8-106a, script]
+  extends: [.run-tests-cards, .el9-106a]
+  needs: [compile-el9-106a]
 
 run-tests-cards-el9-dev3:
-  extends: run-tests-base-el9-dev3
-  script:
-    - !reference [run-tests-cards-el8-106a, script]
+  extends: [.run-tests-cards, .el9-dev3]
+  needs: [compile-el9-dev3]
 
-run-tests-SFs-el8-106a:
-  extends: run-tests-base-el8-106a
+run-tests-cards-el9-docker:
+  extends: [.run-tests-cards, .el9-docker]
+  needs: [compile-el9-docker]
+
+.run-tests-SFs:
+  extends: .run-tests
   script:
-    - python3 run_SFs_ttHH_2018c.py
+    - python3 run_SFs_ttHH_2018c.py -j 8 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
+    - echo
+    - cd ..
+    - pip install externals/CMSJMECalculators
+    - cd examples
+    - echo --------------------
+    - python3 run_jme_cpv_run3.py -j 4 --batch
+    - echo
+    - echo --------------------
+    - echo "Comparing to references"
+    - "sha256sum -c ref/refs-jme_run3.txt --quiet && echo 'Outputs match'"
+
+run-tests-SFs-el8-106a:
+  extends: [.run-tests-SFs, .el8-106a]
+  needs: [compile-el8-106a]
 
 run-tests-SFs-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-    - !reference [run-tests-SFs-el8-106a, script]
-  
-run-tests-SFs-el9-dev3:
-  extends: run-tests-base-el9-dev3
-  script:
-   - !reference [run-tests-SFs-el8-106a, script]
+  extends: [.run-tests-SFs, .el9-106a]
+  needs: [compile-el9-106a]
 
-run-tests-snapshot-el8-106a:
-  extends: run-tests-base-el8-106a
+run-tests-SFs-el9-dev3:
+  extends: [.run-tests-SFs, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+.run-tests-snapshot:
+  extends: .run-tests
   script:
     - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
+    - python3 run_snapshots_ttHH_2018c.py -j 4 --batch
     - echo
+    - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
     - echo ---------------------------------
-    - python3 run_snapshots_ttHH_2018c.py
+    - python3 run_snapshots_ttHH_2018c.py -j 4 --batch
     - echo
     - echo --------------------
     - echo "Comparing to references"
     - "sha256sum -c ref/refs-snapshot.txt --quiet && echo 'Outputs match'"
+  timeout: 1h
+
+run-tests-snapshot-el8-106a:
+  extends: [.run-tests-snapshot, .el8-106a]
+  needs: [compile-el8-106a]
 
 run-tests-snapshot-el9-106a:
-  extends: run-tests-base-el9-106a
-  script:
-   - !reference [run-tests-snapshot-el8-106a, script]
+  extends: [.run-tests-snapshot, .el9-106a]
+  needs: [compile-el9-106a]
 
 run-tests-snapshot-el9-dev3:
-  extends: run-tests-base-el9-dev3
+  extends: [.run-tests-snapshot, .el9-dev3]
+  needs: [compile-el9-dev3]
+
+.run-tests-dask-base:
+  extends: [.run-tests]
+  stage: test
+  variables:
+    CHECKOPTS: ""
+    JOBS: 4
+    LOCAL: false
+    DASKLOCAL: true
+    DASK: true
   script:
-   - !reference [run-tests-snapshot-el8-106a, script]
+    - >
+      if $LOCAL; then
+        echo "--------------------";
+        echo "Local";
+        python3 $SCRIPT -n -j $JOBS  --batch || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+    - >
+      if $DASKLOCAL; then
+        echo "--------------------";
+        echo "On internal dask";
+        python3 $SCRIPT -n -j $JOBS --dask --batch | grep -v '% Completed' || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+    - >
+      if $DASK; then
+        echo "--------------------";
+        echo "On external dask";
+        ( dask scheduler --port 11111 --no-dashboard --idle-timeout 180s > dasklog.txt 2>&1  & );
+        sleep 3s
+        ( dask worker tcp://localhost:11111 --nworkers $JOBS --nthreads 1 --memory-limit 2GB > workerlog.txt 2>&1 & );
+        python3 $SCRIPT -n -j $JOBS --dask -c tcp://localhost:11111 --batch | grep -v '% Completed' || exit 1;
+        sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
+      fi
+  timeout: 30m
+  artifacts:
+    paths:
+      - examples/plots
+      - examples/dasklog.txt
+      - examples/workerlog.txt
+    when: always
+
+run-tests-dask-snapshot-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_snapshots_ttHH_2018c.py
+    REF: ref/refs-snapshot.txt
+
+run-tests-dask-vary-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_uncertainties_ttH.py
+    REF: ref/refs-base.txt
+    CHECKOPTS: "--ignore-missing"
+
+run-tests-dask-corrlib-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  variables:
+    SCRIPT: run_SFs_ttHH_2018c.py
+    REF: ref/refs-SF.txt
+    DASKLOCAL: false
+  retry: 1
+
+run-tests-dask-jme-el9-dev3:
+  extends: [.run-tests-dask-base, .el9-dev3]
+  needs: [compile-el9-dev3]
+  before_script:
+    - !reference [.run-tests-dask-base, before_script]
+    - cd ..
+    - pip install externals/CMSJMECalculators
+    - cd examples    
+  variables:
+    SCRIPT: run_jme_cpv_run3.py
+    REF: ref/refs-jme_run3.txt
+    DASKLOCAL: false
+  retry: 1

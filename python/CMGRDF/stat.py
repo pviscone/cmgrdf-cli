@@ -1,3 +1,5 @@
+# flake8: noqa: A005
+# don't complain it's shadowing the builtin stat module
 import os
 import os.path
 

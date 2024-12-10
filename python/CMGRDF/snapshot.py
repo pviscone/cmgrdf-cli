@@ -26,6 +26,7 @@ class Snapshot(Target):
         self.columnVeto = ([] if columnVeto is None else ([columnVeto] if isinstance(columnVeto, str) else list(columnVeto)))
         self.compression = ("ZLIB", 0) if compression is None else compression
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
+        self.hadd = False
 
     def fromCache(self, sample, era, k3, verbose=False):
         outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
@@ -47,7 +48,8 @@ class Snapshot(Target):
                                 ret.sample = sample.name
                                 ret.era = era
                                 return ret
-                except BaseException:
+                except BaseException:  # noqa: B036
+                    # if the cache is not readable or corrupted we just ignore it
                     pass
         return None
 
@@ -60,7 +62,9 @@ class Snapshot(Target):
             if verbose:
                 print(f"Saving metadata in {metafile} for {k3}")
             json.dump(meta, open(metafile, 'w'))
-        except BaseException:
+        except BaseException as e:  # noqa: B036
+            # don't throw if we fail to write the metadata
+            print(f"Error when saiving metadata in {metafile} for {k3}: {e}")
             pass
 
     def attach(self, rdf, sample, era):
@@ -83,7 +87,11 @@ class Snapshot(Target):
         rdf = future.GetValue()
         rdf.fname = future._fname
         rdf.entries = future._entries.GetValue()
-        rdf.size = os.path.getsize(future._fname)
+        if "DistRDF" in rdf.__module__:
+            rdf.fnames = rdf._headnode.inputfiles
+            rdf.size = sum(os.path.getsize(f) for f in rdf.fnames)
+        else:
+            rdf.size = os.path.getsize(future._fname)
         rdf.sample = sample.name
         rdf.era = era
         return rdf
@@ -99,3 +107,23 @@ class Snapshot(Target):
 
     def longId(self):
         return "Snapshot-" + self._hash
+
+
+def mergeSnapshot(snap, verbose=False):
+    import subprocess
+    try:
+        out = subprocess.check_output(["hadd", "-ff", snap.fname] + snap.fnames, stderr=subprocess.STDOUT, encoding="utf-8")
+        outsize = os.path.getsize(snap.fname)
+        safetyFactor = 0.5 if snap.entries > 1000 or outsize > 1024 * 1024 else 0.2
+        if outsize > 1024 and outsize > safetyFactor * snap.size:  # safety margin if it recompresses better
+            for f in snap.fnames:
+                os.unlink(f)
+            #print(f"merged {snap.fnames} (total: {snap.size} bytes) into {snap.fname} ({outsize} bytes)")
+        else:
+            print(f"WARNING: merged {snap.fnames} (total: {snap.size} bytes) into {snap.fname} ({outsize} bytes): BAD SIZE")
+        if verbose:
+            quoted_output = out.replace('\n', '\n>> ')
+            print(f"merged {snap.fnames} (total: {snap.size} bytes) into {snap.fname} ({outsize} bytes)\n>> {quoted_output}\n")
+    except subprocess.CalledProcessError as e:
+        quoted_output = e.stdout.replace('\n', '\n>> ')
+        print(f"ERROR when merging {snap.fnames} into {snap.fname}: {e}\n>> {quoted_output}\n")

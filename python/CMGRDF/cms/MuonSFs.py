@@ -1,6 +1,6 @@
 import os
-import ROOT
 
+from CMGRDF.init import Declare
 from CMGRDF.flow import Define
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 from CMGRDF.cms.eras import run2eras
@@ -25,7 +25,7 @@ class MuonIDSFDefine(Define):
 
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
-        ROOT.gInterpreter.Declare('''
+        Declare('''
         ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
@@ -82,7 +82,7 @@ class MuonIDIsoSFDefine(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._idCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         corrIso = CorrectionlibFactory.loadCorrector(self._fname, self._isoCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.isoName, check=True)[0]
-        ROOT.gInterpreter.Declare('''
+        Declare('''
         ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {

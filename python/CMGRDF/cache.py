@@ -3,6 +3,7 @@ import time
 import json
 import pickle
 import sys
+import shutil
 import ROOT
 
 from CMGRDF.data import Source
@@ -32,11 +33,15 @@ class SumCache(object):
         #print("Writing to %r: %s" % (self._fileName, self._cache))
         json.dump(self._cache, open(self._fileName, 'w'))
 
+    def flush(self):
+        self._cache.clear()
+
     def _maybeRead(self):
         if os.path.isfile(self._fileName):
             try:
                 return json.load(open(self._fileName))
-            except BaseException:
+            except BaseException:  # noqa: B036
+                # if the cache is not readable or corrupted we just ignore it
                 pass
         return dict()
 
@@ -83,15 +88,22 @@ class CacheLayer(object):
             os.makedirs(pathdir)
         pickle.dump(obj, open(fullpath, 'wb'))
 
+    def flush(self):
+        if os.path.isdir(self._root):
+            for f in os.listdir(self._root):
+                shutil.rmtree(os.path.join(self._root, f))
+
 
 class SimpleCache(object):
-    def __init__(self, root="__auto__", cacheSums=True, cachePlots=True, cacheDatasets=False, **kwargs):
+    def __init__(self, root="__auto__", cacheSums=True, cachePlots=True, cacheDatasets=False, flush=False, **kwargs):
         if root == "__auto__":
             root = sys.argv[0].rsplit(".py", 1)[0] + "_cache.dir"
-            print("Using cache dir %s" % root)
+        print("Using cache dir %s%s" % (root, ", and flushing it" if flush else ""))
         self._sums = SumCache(os.path.join(root, "sums.json")) if cacheSums else None
         self._data = CacheLayer(os.path.join(root, "data"), **kwargs) if cacheDatasets else None
         self._plots = CacheLayer(os.path.join(root, "plots"), **kwargs) if cachePlots else None
+        if flush:
+            self.flush()
 
     def hasSum(self, source : Source, genSumName : str):
         return self._sums.has(source, genSumName) if self._sums else False
@@ -117,6 +129,11 @@ class SimpleCache(object):
     def writePlot(self, k3, plot, plotvars):
         key = os.path.join(*k3)
         self._plots.write(key, (plot, plotvars))
+
+    def flush(self):
+        for c in (self._sums, self._data, self._plots):
+            if c is not None:
+                c.flush()
 
     def commitSums(self):
         if self._sums:

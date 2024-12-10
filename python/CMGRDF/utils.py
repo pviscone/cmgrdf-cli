@@ -247,20 +247,40 @@ def recursiveHash(*objs):
     return hasher.hexdigest()
 
 
-def localOrEOS(path, localroot, eosroot, eosurl="root://eoscms.cern.ch/"):
+def eosToUrl(path):
+    if path.startswith("/eos/cms"):
+        return "root://eoscms.cern.ch/" + path
+    elif path.startswith("/eos/user"):
+        return "root://eosuser.cern.ch/" + path
+    else:
+        return path
+
+
+def localOrEOS(path, localroot, eosroot):
     localPath = os.path.join(localroot, path)
     if os.path.isdir(localPath):
         return localPath
-    if not eosroot.startswith("root://"):
-        eosroot = eosurl + eosroot
-    return os.path.join(eosroot, path)
+    return eosToUrl(os.path.join(eosroot, path))
+
+
+def _getDefinedColumnNames(rdf) -> 'set[str]':
+    if "DistRDF" in rdf.__module__:
+        ret = set()  # type: set[str]
+        node = rdf
+        while node is not None:
+            if node.operation is not None and node.operation.name.startswith("Define"):
+                ret.add(node.operation.args[0])
+            node = node.parent
+        return ret
+    else:
+        return set(map(str, rdf.GetDefinedColumnNames()))
 
 
 def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]):
     import ROOT
     import re
     cols = list(map(str, rdf.GetColumnNames()))
-    newcols = list(map(str, rdf.GetDefinedColumnNames()))
+    newcols = _getDefinedColumnNames(rdf)
     oldcols = list(set(cols).difference(newcols))
     sel = set(cols) if columnSel == [] else set()  # type: set[str]
     for pat in columnSel:
@@ -285,9 +305,6 @@ def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]
                     sel.discard(c)
     ret = ROOT.std.vector(ROOT.std.string)()
     ret.reserve(len(sel))
-    if ROOT.gROOT.GetVersionInt() < 62606:
-        ## Hack for NanoAOD until https://github.com/root-project/root/pull/11032
-        cols.sort(key=lambda c : c[0] != "n")  # put columns starting with "n" first
     for c in cols:
         if c in sel:
             ret.push_back(c)
@@ -362,3 +379,46 @@ class FilteringList(list):
         ret = FilteringList(self)
         ret += other
         return ret
+
+
+def processorFromCommandLineArgs():
+    import argparse
+    import ROOT
+    from CMGRDF.cache import SimpleCache
+    from CMGRDF.processor import Processor
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", help="how to run", default="local", choices=("local", "dask"))
+    parser.add_argument("--dask", help="shortcut for --mode dask", dest="mode", action="store_const", const="dask")
+    parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job", action="store_true")
+    parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
+    parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
+    parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
+    parser.add_argument("-v", "--verbose", action='count', default=0)
+    parser.add_argument("-b", "--batch", help="batch mode (don't show progress bars)", default=False, action="store_true")
+    args = parser.parse_args()
+    if args.mode == "local":
+        if args.njobs:
+            ROOT.EnableImplicitMT(args.njobs if args.njobs > 0 else 0)
+        executor = None
+    elif args.mode == "dask":
+        from dask.distributed import Client
+        if args.cluster:
+            client = Client(args.cluster)
+        else:
+            print(f"Spawning local cluster with {args.njobs if args.njobs else 'default number'} nodes")
+            from dask.distributed import LocalCluster
+            cluster = LocalCluster(n_workers=args.njobs, threads_per_worker=1, processes=True)
+            client = Client(cluster)
+        faulthandler = "import faulthandler\nfaulthandler.enable()"
+        client.run(exec, faulthandler)
+        client.run_on_scheduler(exec, faulthandler)
+        executor = (args.mode, client)
+    cache = None if args.nocache else SimpleCache(flush=args.flushCache)
+    maker = Processor(cache=cache, executor=executor)
+    if args.verbose:
+        level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
+        maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)
+    if args.batch:
+        from CMGRDF.data import ProgressBar
+        ProgressBar.Disable()
+    return maker

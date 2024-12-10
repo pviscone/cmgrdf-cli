@@ -1,6 +1,5 @@
 import copy
 import re
-import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
 
@@ -202,32 +201,16 @@ class ReDefine(SimpleExprFlowStep):
             raise
 
 
-class DefinePerSample(FlowStep):
-    """Attaches a DefinePerSample node.
-
-       This currently needs to be implemented by defining a C++ class with a method
-            `ROOT::RDF::RNode attachAsDefinePerSample(ROOT::RDF::RNode &rdf, const std::string &colName)`
-       since Python callbacks don't work (as of ROOT 6.26.04)
-    """
-
-    def __init__(self, name, provider, *args, **options):
-        super().__init__(name, **options)
-        self.provider = provider
-        self.args = tuple(args)
-        for k, v in options.items():
-            setattr(self, k, v)
-
-    def __eq__(self, other) -> bool:
-        if other.__class__ == self.__class__:
-            return FlowStep._equals(self, other) and self.provider == other.provider and self.args == other.args
-        return id(self) == id(other)
-
-    def _addToHash(self, hasher):
-        super()._addToHash(hasher)
-        _recursiveAddToHash(self.args, hasher)
+class DeDefinePerSamplefine(SimpleExprFlowStep):
+    def __init__(self, name, expr, **options):
+        super().__init__(name, expr, **options)
 
     def _attach(self, rdf):
-        return self.provider.attachAsDefinePerSample(ROOT.RDF.AsRNode(rdf), self.name, *self.args)
+        try:
+            return rdf.DefinePerSample(self.name, self.expr)
+        except BaseException:
+            print(f"ERROR attaching DefinePerSample({self.name}, {self.expr}")
+            raise
 
 
 class DefineDefault(SimpleExprFlowStep):
@@ -506,9 +489,9 @@ class Target(object):
     def attach(self, rdf, sample, era):
         raise RuntimeError("Must be implemented by subclass")
 
-    def bookVariations(self, future):
+    def bookVariations(self, future, VariationsFor):
         """Calls RDF.Experimental.VariationsFor or any customization of it"""
-        return ROOT.RDF.Experimental.VariationsFor(future)
+        return VariationsFor(future)
 
     def finish(self, value, sample, era):
         """Performs any post-processing of the nominal value returned by the RDF future.
@@ -546,9 +529,9 @@ class Yield(Target):
     def attachSumw2(self, rdf):
         return rdf.Define(self.weight + "2", self.weight + "*" + self.weight).Sum(self.weight + "2")
 
-    def bookVariations(self, future):
+    def bookVariations(self, future, VariationsFor):
         sum2 = self.attachSumw2(future._rdf)
-        return (sum2, ROOT.RDF.Experimental.VariationsFor(future))
+        return (sum2, VariationsFor(future))
 
     def finishVarFuture(self, varfuture, sample, era):
         ret = dict()

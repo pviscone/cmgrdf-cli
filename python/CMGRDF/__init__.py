@@ -3,14 +3,15 @@ import os
 import ROOT
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
-ROOT.gSystem.Load("libCMGRDF.so")
-ROOT.gInterpreter.ProcessLine(".O3")
-ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${CMGRDF}/include"))
-ROOT.gInterpreter.ProcessLine('#include "functions.h"')
-ROOT.gInterpreter.ProcessLine('#include "jsonFilter.h"')
+
+from CMGRDF.init import Declare, ProcessLine, AddHeader, LoadLibrary, GlobalConfigHash
+LoadLibrary("libCMGRDF.so")
+ProcessLine(".O3")
+AddHeader("functions.h")
+AddHeader("jsonFilter.h")
 if "ONNXRUNTIME" in os.environ:
-    ROOT.gInterpreter.AddIncludePath(os.path.expandvars("${ONNXRUNTIME}/include"))
-    ROOT.gInterpreter.ProcessLine('#include "OnnxDNNEvaluator.h"')
+    LoadLibrary("libonnxruntime.so", "${ONNXRUNTIME}/lib")
+    AddHeader("OnnxDNNEvaluator.h", extraIncludePaths=["${ONNXRUNTIME}/include"])
 
 from CMGRDF.utils import MultiKey, MultiReport, localOrEOS, NormUncertainty
 from CMGRDF.data import Source, MCSample, MCGroup, DataDrivenSample, DataSample, Process, Data
@@ -20,3 +21,6 @@ from CMGRDF.plots import Plot, PlotResult, PlotSetPrinter
 from CMGRDF.processor import Processor
 from CMGRDF.modifiers import Append, Insert
 from CMGRDF.cache import SimpleCache
+
+# Record the state after initialization, for further study
+_initialConfigHash = GlobalConfigHash()
