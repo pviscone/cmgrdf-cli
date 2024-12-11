@@ -157,32 +157,50 @@ class JMEUncertaintiesDefine(Define):
             self.init()
 
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
+            rdf._from = src
             if self.doMET:
+                src = rdf
                 rdf = rdf.Redefine(f"{self.metcollection}_pt", f"{self.metcollection}_T1.pt(0)")
+                rdf._from = src
+                src = rdf
                 rdf = rdf.Redefine(f"{self.metcollection}_phi", f"{self.metcollection}_T1.phi(0)")
+                rdf._from = src
 
                 if self.doSyst:
                     for obs in ["pt", "phi"]:
                         njer = 1 if not self.splitJER else 6
                         for ijer in range(njer):
+                            src = rdf
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * ijer + 1, 2 * ijer + 2),
                                            variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
+                            rdf._from = src
                         for isource, source in enumerate(self.uncSources):
+                            src = rdf
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                            variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
+                            rdf._from = src
+                        src = rdf
                         rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (1 + 2 * njer + 2 * len(self.uncSources), 2 + 2 * njer + 2 * len(self.uncSources)),
                                        variationTags=["up", "down"], variationName="Uncl")
+                        rdf._from = src
             else:
+                src = rdf
                 rdf = rdf.Redefine("Jet_pt", "ak4JetVars.pt(0)")
+                rdf._from = src
                 if self.doSyst:
                     njer = 1 if not self.splitJER else 6
                     for ijer in range(njer):
+                        src = rdf
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * ijer + 1, 2 * ijer + 2),
                                        variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
+                        rdf._from = src
                     for isource, source in enumerate(self.uncSources):
+                        src = rdf
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                        variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
+                        rdf._from = src
             return rdf
 
         except BaseException:
@@ -268,12 +286,16 @@ class JetPuIDSF(Define):
             self.init()
 
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
+            rdf._from = src
             if self.doSyst:
                 up_expr = self.expr.replace(')', ', "up")')
                 dn_expr = self.expr.replace(')', ', "down")')
+                src = rdf
                 rdf = rdf.Vary(self.name, f"ROOT::RVecD( {{{up_expr}, {dn_expr}}})",
                                variationTags=["up", "down"], variationName=f"CMS_eff_j_PUJET_id_{self.era}")
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")

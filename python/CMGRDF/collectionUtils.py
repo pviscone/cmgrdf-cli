@@ -92,20 +92,30 @@ class DefineSkimmedCollection(FlowStep):
         rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
 
         if self.cut:
+            src = rdf
             rdf = getattr(rdf, rdf_func)(self.mask, self.cut)
+            rdf._from = src
         if self.mask:
+            src = rdf
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum({self.mask})")
+            rdf._from = src
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
         elif self.indices:
+            src = rdf
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.indices}.size()")
+            rdf._from = src
             copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
         for m in members:
             rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
+            src = rdf
             rdf = getattr(rdf, rdf_func)(f"{self.name}_{m}", copyexpr.format(m=m))
+            rdf._from = src
 
         for m in self.optMembers:
             if f"{self.srcColl}_{m}" in cols:
+                src = rdf
                 rdf = rdf.Define(f"{self.name}_{m}", copyexpr.format(m=m))
+                rdf._from = src
         return rdf
 
     def __eq__(self, other) -> bool:

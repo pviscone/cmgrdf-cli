@@ -64,10 +64,12 @@ class Source(object):
     @staticmethod
     def _addDefinesFromMetas(rdf, metas):
         for meta in metas:
+            src = rdf
             if isinstance(meta[1], str):
                 rdf = rdf.Define(meta[0], meta[1])
             else:
                 rdf = rdf.DefinePerSample(meta[0], f'rdfsampleinfo_.GetD("{meta[0]}")')  # could implement other types
+            rdf._from = src
         return rdf
 
     def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):

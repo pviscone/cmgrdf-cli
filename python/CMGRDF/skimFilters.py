@@ -52,15 +52,21 @@ class TriggerBitFilter(FlowStep):
                 colnames = rdf.GetColumnNames()
                 for b in self.selectBits + self.vetoBits:
                     if b not in colnames:
+                        src = rdf
                         rdf = rdf.Define(b, "false")
+                        rdf._from = src
             sel = " || ".join(self.selectBits)
             veto = " || ".join(self.vetoBits)
+            src = rdf
             if self.selectBits and self.vetoBits:
                 rdf = rdf.Filter(f"({sel}) && !({veto})", self.name)
+                rdf._from = src
             elif self.selectBits:
                 rdf = rdf.Filter(sel, self.name)
+                rdf._from = src
             elif self.vetoBits:
                 rdf = rdf.Filter(f"!({veto})", self.name)
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching TriggerBitFilter({self.name}, {self.selectBits}, {self.vetoBits}, {self.defineDefaults}")

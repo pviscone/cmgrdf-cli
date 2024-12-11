@@ -55,9 +55,13 @@ class MuonIDSFDefine(Define):
         if not self._init:
             self.init()
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
+            rdf._from = src
             if self.nuisName:
+                src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")
@@ -112,9 +116,13 @@ class MuonIDIsoSFDefine(Define):
         if not self._init:
             self.init()
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
+            rdf._from = src
             if self.nuisName:
+                src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")

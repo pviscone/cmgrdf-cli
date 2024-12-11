@@ -74,7 +74,7 @@ class FlowStep(object):
 
     def attach(self, rdf, weights):
         rdf2 = self._attach(rdf)
-        if rdf2 != rdf:
+        if rdf2 != rdf and not hasattr(rdf2, '_from'):
             rdf2._from = rdf
         w = self._getAdditionalWeights()
         if w:
@@ -293,9 +293,9 @@ class AddWeightUncertainty(FlowStep):
         self.nuisName = nuisName if nuisName else name
 
     def _attach(self, rdf):
-        rdf = rdf.Define(self.name, str(self.nominal))
-        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down", "up"], variationName=self.nuisName)
-        return rdf
+        rdf2 = rdf.Define(self.name, str(self.nominal))
+        rdf2._from = rdf
+        return rdf2.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down", "up"], variationName=self.nuisName)
 
     def _getAdditionalWeights(self):
         return [self.name]
