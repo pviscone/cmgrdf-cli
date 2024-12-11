@@ -53,15 +53,7 @@ stages:
     - eval $(make env)
   script:
     - make -j 4
-    - pushd externals/HiggsAnalysis/CombinedLimit
-    - >
-      if [[ "$ROOTSYS" != "" && "${ROOTSYS#/cvmfs*/lcg/}" != "${ROOTSYS}" ]]; then
-         export LCG=1
-      else
-         export CONDA=1 CONDA_PREFIX=/usr
-      fi;
-    - make -j 8; make
-    - popd
+
     - pushd externals
     - curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.18.1/onnxruntime-linux-x64-1.18.1.tgz
     - popd
@@ -69,8 +61,6 @@ stages:
     paths:
       - lib
       - python/**/*.pyc
-      - externals/HiggsAnalysis/CombinedLimit/build/bin
-      - externals/HiggsAnalysis/CombinedLimit/build/lib
       - externals/onnxruntime-linux-x64-1.18.1
 
 compile-el8-106a:
@@ -171,6 +161,17 @@ run-tests-base-el9-docker:
 
 .run-tests-cards:
   extends: .run-tests
+  before_script:
+    - !reference [.run-tests, before_script]
+    - pushd ../externals/HiggsAnalysis/CombinedLimit
+    - >
+      if [[ "$ROOTSYS" != "" && "${ROOTSYS#/cvmfs*/lcg/}" != "${ROOTSYS}" ]]; then
+         export LCG=1
+      else
+         export CONDA=1 CONDA_PREFIX=/usr
+      fi;
+    - make -j 8; make
+    - popd    
   script:
     - python3 run_datacards_ttV_ttHH_2018c.py
     - echo
@@ -192,6 +193,12 @@ run-tests-cards-el9-106a:
 run-tests-cards-el9-dev3:
   extends: [.run-tests-cards, .el9-dev3]
   needs: [compile-el9-dev3]
+  before_script:
+    - echo "Fixing Combine compilation issue in ROOT master until https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033 is merged"
+    - pushd externals/HiggsAnalysis/CombinedLimit
+    - curl -L -s -o- https://patch-diff.githubusercontent.com/raw/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033.patch | patch -p1
+    - popd
+    - !reference [.run-tests-cards, before_script]
 
 run-tests-cards-el9-docker:
   extends: [.run-tests-cards, .el9-docker]
@@ -207,7 +214,7 @@ run-tests-cards-el9-docker:
     - "sha256sum -c ref/refs-SF.txt --quiet && echo 'Outputs match'"
     - echo
     - cd ..
-    - pip install externals/CMSJMECalculators
+    - "python3 -c 'import CMSJMECalculators' || pip install externals/CMSJMECalculators"
     - cd examples
     - echo --------------------
     - python3 run_jme_cpv_run3.py -j 4 --batch
@@ -227,6 +234,10 @@ run-tests-SFs-el9-106a:
 run-tests-SFs-el9-dev3:
   extends: [.run-tests-SFs, .el9-dev3]
   needs: [compile-el9-dev3]
+
+run-tests-SFs-el9-docker:
+  extends: [.run-tests-SFs, .el9-docker]
+  needs: [compile-el9-docker]
 
 .run-tests-snapshot:
   extends: .run-tests
