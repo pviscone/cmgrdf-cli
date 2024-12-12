@@ -216,6 +216,7 @@ Distributed processing is possible using the underlying distributed processing s
  * start a dask scheduler on that machine with the `dask scheduler` command using the default 8786 port (the only one that is open in the firewall)
  * then sumbit condor jobs to create workers that connect to that scheduler, using `examples/lxdask_worker_submit.py <number-of-workers>` 
  * once they appear in the scheduler, you can run create a dask client with `from distributed import Client; client = Client('url-of-the-scheduler')` and then cmgrdf processing by passing to the `Processor` constructor an additional argument `executor = ('dask', client))`
+   * For the moment, you should also reconfigure CMGRDF to not use DefinePerSample for gen weights, with `from CMGRDF.data import Source; Source.useDefinePerSample = False`
  * This is very similar to what the dask_lxplus python module would do, but in this manual submission it's easier to add more workers to the same scheduler later and especially the workers can be reloaded by CMGRDF (e.g. if you change your c++ code) without having to submit more jobs
 
 ### To Do (in random order)

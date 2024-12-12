@@ -401,6 +401,8 @@ def processorFromCommandLineArgs():
             ROOT.EnableImplicitMT(args.njobs if args.njobs > 0 else 0)
         executor = None
     elif args.mode == "dask":
+        from CMGRDF.data import Source
+        Source.useDefinePerSample = False
         from dask.distributed import Client
         if args.cluster:
             client = Client(args.cluster)
