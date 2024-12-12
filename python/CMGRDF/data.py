@@ -12,6 +12,8 @@ ProgressBar = ROOT.ProgressBarManager()
 class Source(object):
     """Base class that wraps a list of files from which an RDF can be created"""
 
+    useDefinePerSample = True
+
     def __init__(self, name : str, files, era=None, friends=None):
         if isinstance(files, str):
             if "*" in files:
@@ -82,7 +84,12 @@ class Source(object):
         if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
             nevents = self._getEntriesFromSample(sample)
             ProgressBar.AddDataFrame(ret, nevents)
-        #ret = Source._addDefinesFromMetas(ret, self._metas)
+        if DataFrameClass != ROOT.RDataFrame:
+            if Source.useDefinePerSample:
+                print("Will not use DefinePerSample to handle xsec and gen weights as it's not yet supported in DistRDF")
+                Source.useDefinePerSample = False
+        if Source.useDefinePerSample:
+            ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret
 
     def __eq__(self, o : object) -> bool:
@@ -339,9 +346,12 @@ class MCSample(Sample):
         flow2 = super().customizeFlow(flow, era=era)
         from CMGRDF.flow import AddWeight
         if self.genWeightName:
-            return flow2.prepend(
-                #AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
-                AddWeight("mcSampleWeight", "{0}*({1})*({2})*({3})".format(self.genWeightName, self.xsec, luminosity * 1000 / self._genWeightSum[era], getattr(self, "weight", 1))))
+            if Source.useDefinePerSample:
+                return flow2.prepend(
+                    AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, getattr(self, "weight", 1))))
+            else:
+                return flow2.prepend(
+                    AddWeight("mcSampleWeight", "{0}*({1})*({2})*({3})".format(self.genWeightName, self.xsec, luminosity * 1000 / self._genWeightSum[era], getattr(self, "weight", 1))))
         else:
             return flow2.prepend(AddWeight("weight", self.weight))
 
