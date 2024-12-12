@@ -221,24 +221,29 @@ class DefineDefault(SimpleExprFlowStep):
         super().__init__(name, expr, **options)
 
     def _attach(self, rdf):
+        expr = self.expr
         if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):
-            expr = self.expr
             if isinstance(expr, str):
                 expr = expr.strip()
                 try:
-                    if expr.lower() in ("true","false"):
+                    if expr.lower() in ("true", "false"):
                         expr = (expr.lower() == "true")
                     else:
                         expr = float(expr) if "." in expr else int(expr)
                 except ValueError:
                     if not hasattr(DefineDefault, "_warnedOnce"):
                         print(f"WARNING: using DefaultValueFor with a string value '{expr}'")
-                        DefineDefault._warnedOnce = True 
+                        DefineDefault._warnedOnce = True
                     pass
             return rdf.DefaultValueFor(self.name, expr)
         if self.name in rdf.GetColumnNames():
             return rdf
-        return rdf.Define(self.name, self.expr)
+        if not isinstance(expr, str):
+            if isinstance(expr, bool):
+                expr = "true" if expr else "false"
+            else:
+                expr = repr(expr)
+        return rdf.Define(self.name, expr)
 
 
 class Vary(SimpleExprFlowStep):
