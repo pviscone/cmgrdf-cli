@@ -1,5 +1,6 @@
 import copy
 import re
+import ROOT
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
 
@@ -220,7 +221,21 @@ class DefineDefault(SimpleExprFlowStep):
         super().__init__(name, expr, **options)
 
     def _attach(self, rdf):
-        # FIXME use DefinePerSample
+        if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):
+            expr = self.expr
+            if isinstance(expr, str):
+                expr = expr.strip()
+                try:
+                    if expr.lower() in ("true","false"):
+                        expr = (expr.lower() == "true")
+                    else:
+                        expr = float(expr) if "." in expr else int(expr)
+                except ValueError:
+                    if not hasattr(DefineDefault, "_warnedOnce"):
+                        print(f"WARNING: using DefaultValueFor with a string value '{expr}'")
+                        DefineDefault._warnedOnce = True 
+                    pass
+            return rdf.DefaultValueFor(self.name, expr)
         if self.name in rdf.GetColumnNames():
             return rdf
         return rdf.Define(self.name, self.expr)
