@@ -28,6 +28,13 @@ variables:
     LIBS_EXTRA: ""
     THISROOT_PATH: "/usr/local/bin"
 
+.el9-docker-test:
+  image: gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el9-root-test-base:latest
+  variables:
+    LCG_REL_PATH: ""
+    LIBS_EXTRA: ""
+    THISROOT_PATH: "/usr/local/bin"
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -74,6 +81,9 @@ compile-el9-dev3:
 
 compile-el9-docker:
   extends: [.compile, .el9-docker]
+
+compile-el9-docker-test:
+  extends: [.compile, .el9-docker-test]
 
 code-checks:
   tags: [ k8s-cvmfs ]
@@ -159,6 +169,10 @@ run-tests-base-el9-docker:
   extends: [.run-tests, .el9-docker]
   needs: [compile-el9-docker]
 
+run-tests-base-el9-docker-test:
+  extends: [.run-tests, .el9-docker-test]
+  needs: [compile-el9-docker-test]
+
 .run-tests-cards:
   extends: .run-tests
   before_script:
@@ -239,6 +253,10 @@ run-tests-SFs-el9-docker:
   extends: [.run-tests-SFs, .el9-docker]
   needs: [compile-el9-docker]
 
+run-tests-SFs-el9-docker-test:
+  extends: [.run-tests-SFs, .el9-docker-test]
+  needs: [compile-el9-docker-test]
+
 .run-tests-snapshot:
   extends: .run-tests
   script:
@@ -265,6 +283,10 @@ run-tests-snapshot-el9-106a:
 run-tests-snapshot-el9-dev3:
   extends: [.run-tests-snapshot, .el9-dev3]
   needs: [compile-el9-dev3]
+
+run-tests-snapshot-el9-docker-test:
+  extends: [.run-tests-snapshot, .el9-docker-test]
+  needs: [compile-el9-docker-test]
 
 .run-tests-dask-base:
   extends: [.run-tests]
