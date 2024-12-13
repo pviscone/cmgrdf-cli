@@ -90,12 +90,13 @@ class _Branch(object):
 class Processor(object):
     State = Enum("State", ["Clean", "Booked", "Run"])
 
-    def __init__(self, cache=None, executor=None):
+    def __init__(self, cache=None, executor=None, withUncertainties=None):
         self._trees = dict()  # type: dict[Source,_Branch]
         self._lumiMap = dict()  # type: dict[MultiKey, float]
         self._cache = cache
         self._toCache = dict()
         self._executor = executor
+        self.withUncertainties = withUncertainties
         if executor is not None:
             self._local = False
             self.RunGraphs = ROOT.RDF.Experimental.Distributed.RunGraphs
@@ -169,7 +170,9 @@ class Processor(object):
                 ret.append(sample)
         return ret
 
-    def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=False, logPerformance=True):
+    def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=None, logPerformance=True):
+        if withUncertainties is None:
+            withUncertainties = self.withUncertainties or False
         if self._state == Processor.State.Run:
             raise RuntimeError("After book() and run(), call clear() before booking again")
         self._state = Processor.State.Booked
@@ -238,10 +241,12 @@ class Processor(object):
         t1 = time.perf_counter()
 
         if logPerformance:
-            print("Booked %d targets in %.3fs" % (n1 - n0, t1 - t0))
+            print("Booked %d targets in %.3fs, uncertainties %s" % (n1 - n0, t1 - t0, withUncertainties))
         return self
 
-    def bookCutFlow(self, processes : List[Process], lumi, flows : Union[Flow, List[Flow]], cutNames=None, eras=None, taskName="", withUncertainties=False, logPerformance=True):
+    def bookCutFlow(self, processes : List[Process], lumi, flows : Union[Flow, List[Flow]], cutNames=None, eras=None, taskName="", withUncertainties=None, logPerformance=True):
+        if withUncertainties is None:
+            withUncertainties = self.withUncertainties or False
         self._rawResults = None  # invalidate existing results
 
         if eras is None:

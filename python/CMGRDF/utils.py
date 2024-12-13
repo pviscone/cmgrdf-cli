@@ -381,14 +381,16 @@ class FilteringList(list):
         return ret
 
 
-def processorFromCommandLineArgs():
+def processorFromCommandLineArgs(parser=None):
     import argparse
     import ROOT
     from CMGRDF.cache import SimpleCache
     from CMGRDF.processor import Processor
-    parser = argparse.ArgumentParser()
+    parser = parser if parser is not None else argparse.ArgumentParser()
     parser.add_argument("--mode", help="how to run", default="local", choices=("local", "dask"))
     parser.add_argument("--dask", help="shortcut for --mode dask", dest="mode", action="store_const", const="dask")
+    parser.add_argument("-u", "--with-systematics", "--syst", help="enable systematics by default", dest="withSystematics", action="store_const", const=True, default=None)
+    parser.add_argument("--stat", "--without-systematics,", help="disable systematics by default", dest="withSystematics", action="store_const", const=False, default=None)
     parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job. Use it once to flush just the plot cache, twice (-ff) to fush also the sums cache", action='count', default=0)
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
@@ -418,7 +420,8 @@ def processorFromCommandLineArgs():
             client.run(exec, f"import  ROOT\nROOT.EnableImplicitMT({args.njobs})")
         executor = (args.mode, client)
     cache = None if args.nocache else SimpleCache(flush=args.flushCache)
-    maker = Processor(cache=cache, executor=executor)
+    maker = Processor(cache=cache, executor=executor, withUncertainties=args.withSystematics)
+    maker.commandlineArgs = args  # in case they're used downstream
     if args.verbose:
         level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
         maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)
