@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scheduler", help="scheduler URL (default is this host)")
     parser.add_argument("-e", "--envfile", help="environment setup file")
-    parser.add_argument("-j", "--ncpu", help="number of CPU cores per job", default=1, type=int)
+    parser.add_argument("-j", "--ncpu", help="number of CPU cores per job (for internal ROOT multithreading)", default=1, type=int)
     parser.add_argument("-m", "--mem", help="memory per core, in GiB", default=2, type=float)
     parser.add_argument("--logdir", help="directory for logs")
     parser.add_argument("nworkers", help="number of workers", type=int)
@@ -55,7 +55,7 @@ RequestCpus = {args.ncpu}
 +MaxRuntime = {runtime_secs}
 
 Executable = $(CMGRDF)/examples/condor_runner.sh
-Arguments = {envscript} {scheduler} --nworkers {args.ncpu} --nthreads 1 --memory-limit {args.mem:.1f}GiB --worker-port 10000:10100
+Arguments = {envscript} {scheduler} --nworkers 1 --nthreads 1 --memory-limit {args.ncpu * args.mem:.1f}GiB --worker-port 10000:10100
 
 Queue {args.nworkers}\n""".lstrip())
         fp.flush()

@@ -389,7 +389,7 @@ def processorFromCommandLineArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", help="how to run", default="local", choices=("local", "dask"))
     parser.add_argument("--dask", help="shortcut for --mode dask", dest="mode", action="store_const", const="dask")
-    parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job", action="store_true")
+    parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job. Use it once to flush just the plot cache, twice (-ff) to fush also the sums cache", action='count', default=0)
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
     parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
@@ -414,6 +414,8 @@ def processorFromCommandLineArgs():
         faulthandler = "import faulthandler\nfaulthandler.enable()"
         client.run(exec, faulthandler)
         client.run_on_scheduler(exec, faulthandler)
+        if args.cluster and args.njobs:
+            client.run(exec, f"import  ROOT\nROOT.EnableImplicitMT({args.njobs})")
         executor = (args.mode, client)
     cache = None if args.nocache else SimpleCache(flush=args.flushCache)
     maker = Processor(cache=cache, executor=executor)

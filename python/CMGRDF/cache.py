@@ -103,7 +103,10 @@ class SimpleCache(object):
         self._data = CacheLayer(os.path.join(root, "data"), **kwargs) if cacheDatasets else None
         self._plots = CacheLayer(os.path.join(root, "plots"), **kwargs) if cachePlots else None
         if flush:
-            self.flush()
+            if isinstance(flush, int):
+                self.flush(alsoSums=(flush > 1))
+            else:
+                self.flush()
 
     def hasSum(self, source : Source, genSumName : str):
         return self._sums.has(source, genSumName) if self._sums else False
@@ -130,8 +133,10 @@ class SimpleCache(object):
         key = os.path.join(*k3)
         self._plots.write(key, (plot, plotvars))
 
-    def flush(self):
-        for c in (self._sums, self._data, self._plots):
+    def flush(self, alsoSums=True):
+        if alsoSums and self._sums is not None:
+            self._sums.flush()
+        for c in (self._data, self._plots):
             if c is not None:
                 c.flush()
 

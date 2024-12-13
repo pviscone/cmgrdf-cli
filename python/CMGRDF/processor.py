@@ -14,7 +14,7 @@ from CMGRDF.snapshot import Snapshot, mergeSnapshot
 
 
 class _Branch(object):
-    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", local=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
+    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", local=None, cache=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
         if isinstance(parentOrSource, _Branch):
             assert isinstance(stepOrTreeName, FlowStep)
             self.source = parentOrSource.source
@@ -40,6 +40,7 @@ class _Branch(object):
         self.leaves = dict()  # type: dict[Target, Any]
         self._rdfAndWeights = None  # type: Tuple[Any, list[str]]
         self._hasUncertainties = None
+        self._cache = cache
 
     def maybeBranch(self, step : FlowStep, verbose=False):
         for b in self.branches:
@@ -59,7 +60,7 @@ class _Branch(object):
     def rdfAndWeights(self) -> "Tuple[Any, list[str]]":
         if self._rdfAndWeights is None:
             if self.parentBranch is None:
-                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, **self.DataFrameArgs), [])
+                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, cache=self._cache, **self.DataFrameArgs), [])
                 self._hasUncertainties = False
             else:
                 self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights())
@@ -101,7 +102,7 @@ class Processor(object):
             self.VariationsFor = ROOT.RDF.Experimental.Distributed.VariationsFor
             if executor[0] == "dask":
                 self.DataFrameClass = ROOT.RDF.Experimental.Distributed.Dask.RDataFrame
-                self.DataFrameArgs = dict(daskclient=executor[1], npartitions=4)
+                self.DataFrameArgs = dict(daskclient=executor[1])
         else:
             self._local = True
             self.RunGraphs = ROOT.RDF.RunGraphs
@@ -123,7 +124,7 @@ class Processor(object):
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s, local %s" % (source.longId(), self._local))
-            self._trees[source] = _Branch(source, treeName, self._local, DataFrameClass=self.DataFrameClass, **self.DataFrameArgs)
+            self._trees[source] = _Branch(source, treeName, self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())

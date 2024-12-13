@@ -33,12 +33,16 @@ class Source(object):
         self._friendsForHash = None
         self._metas = []
 
-    def _getEntriesFromSample(self, sample):
+    def _getEntriesFromSample(self, sample, cache=None):
+        if cache and cache.hasSum(self, "_N_EVENTS_"):
+            return cache.getSum(self, "_N_EVENTS_")
         nevents = 0
         for fil, tree in zip(sample.GetFileNameGlobs(), sample.GetTreeNames()):
             tf = ROOT.TFile.Open(str(fil))
             nevents += tf.Get(str(tree)).GetEntries()
             tf.Close()
+        if cache:
+            cache.writeSum(self, "_N_EVENTS_", nevents)
         return nevents
 
     def _createRSample(self, treeName="Events"):
@@ -74,15 +78,20 @@ class Source(object):
             rdf._from = src
         return rdf
 
-    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):
+    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, cache=None, **kwargs):
         sample = self._createRSample(treeName)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
         if treeName == "Events":
             self._addGlobalFriends(spec)
+        if DataFrameClass != ROOT.RDataFrame and "npartitions" not in kwargs:
+            kwargs = dict(**kwargs)
+            nevents = self._getEntriesFromSample(sample, cache=cache)
+            kwargs['npartitions'] = min(max(2, int((nevents / 1e4)**0.5)), 16)
+            print(f"Will use {kwargs['npartitions']} partitions for {self.name}, era {self.era}, events {nevents}")
         ret = DataFrameClass(spec, **kwargs)
         if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
-            nevents = self._getEntriesFromSample(sample)
+            nevents = self._getEntriesFromSample(sample, cache=cache)
             ProgressBar.AddDataFrame(ret, nevents)
         if DataFrameClass != ROOT.RDataFrame:
             if Source.useDefinePerSample:
@@ -186,7 +195,7 @@ class MergedSource(Source):
         self._bigHash = None
         self._bigHashNoFriends = None
 
-    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, **kwargs):
+    def createRDF(self, treeName="Events", DataFrameClass=ROOT.RDataFrame, cache=None, **kwargs):
         if DataFrameClass != ROOT.RDataFrame:
             raise RuntimeError("MergedSource only supported in plain non-distributed RDataFrame for now")
         spec = ROOT.RDF.Experimental.RDatasetSpec()
