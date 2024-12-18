@@ -240,6 +240,7 @@ class Processor(object):
                         src = sample.source(era)
                         if not src:
                             continue
+                        srcid = src.longId()
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
                             assert isinstance(sample, (MCSample, MCGroup))
@@ -247,32 +248,35 @@ class Processor(object):
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         branch = self._growBranch(src, sflow, withUncertainties=withUncertainties)
+                        branchid = branch.longId()
                         for t in targets:
                             if t.mcOnly and not sample.isMC:
                                 continue
                             plotKey = sampleKey.addKeys(name=t.name)
-                            k3 = (src.longId(), branch.longId(), t.longId()) if self._cache else None
-                            if isinstance(t, Snapshot) and self._cache:
-                                cached = t.fromCache(sample, era, k3)
-                                if cached:
-                                    self._fromCache.append((plotKey, proc, sample, t, cached, None))
+                            tid = t.longId()
+                            if self._cache and (tid is not None):
+                                k3 = (srcid, branchid, tid)
+                                if isinstance(t, Snapshot):
+                                    cached = t.fromCache(sample, era, k3)
+                                    if cached:
+                                        self._fromCache.append((plotKey, proc, sample, t, cached, None))
+                                        continue
+                                elif self._cache.hasPlot(k3):
+                                    (res, resvar) = self._cache.getPlot(k3)
+                                    self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     continue
-                            if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):  # type: ignore
-                                (res, resvar) = self._cache.getPlot(k3)
-                                self._fromCache.append((plotKey, proc, sample, t, res, resvar))
+                            if t not in branch.leaves:
+                                branch.leaves[t] = t.attach(branch.rdf(), sample, era, withUncertainties)
+                            fut = branch.leaves[t]
+                            if withUncertainties and branch.hasUncertainties():
+                                # postpone to all at the end, to avoid multiple JITs
+                                futuresToVary.append((plotKey, proc, sample, t, fut))
+                            elif isinstance(t, Yield):
+                                self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(branch.rdf())))
                             else:
-                                if t not in branch.leaves:
-                                    branch.leaves[t] = t.attach(branch.rdf(), sample, era, withUncertainties)
-                                fut = branch.leaves[t]
-                                if withUncertainties and branch.hasUncertainties():
-                                    # postpone to all at the end, to avoid multiple JITs
-                                    futuresToVary.append((plotKey, proc, sample, t, fut))
-                                elif isinstance(t, Yield):
-                                    self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(branch.rdf())))
-                                else:
-                                    self._futures.append((plotKey, proc, sample, t, fut, None))
-                                if self._cache and k3[-1] is not None:  # type: ignore
-                                    self._toCache[plotKey] = k3
+                                self._futures.append((plotKey, proc, sample, t, fut, None))
+                            if self._cache and (tid is not None):
+                                self._toCache[plotKey] = (srcid, branchid, tid)
         for (plotKey, proc, sample, t, fut) in futuresToVary:
             futvars = t.bookVariations(fut, self.VariationsFor)
             self._futures.append((plotKey, proc, sample, t, fut, futvars))
@@ -323,7 +327,7 @@ class Processor(object):
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
                             assert isinstance(sample, (MCSample, MCGroup))
-                            sflow = sample.customizeFlowMC(flow.clone(), thislumi, era=era)  # type: ignore
+                            sflow = sample.customizeFlowMC(flow.clone(), thislumi, era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         ## now we have to go cut by cut
@@ -335,8 +339,8 @@ class Processor(object):
                                     wbranch = branch.maybeBranch(ComputeTotalWeight(), verbose=verbose)
                                     t = Yield(step.name, "weight")
                                     plotKey = sampleKey.addKeys(name=t.name)
-                                    k3 = (src.longId(), wbranch.longId(), t.longId()) if self._cache else None
-                                    if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):  # type: ignore
+                                    k3 = (src.longId(), wbranch.longId(), t.longId())
+                                    if self._cache and self._cache.hasPlot(k3):
                                         (res, resvar) = self._cache.getPlot(k3)
                                         self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     else:
@@ -348,7 +352,7 @@ class Processor(object):
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
                                         else:
                                             self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(wbranch.rdf())))
-                                        if self._cache and k3[-1] is not None:  # type: ignore
+                                        if self._cache:
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
             fvars = self.VariationsFor(fut)

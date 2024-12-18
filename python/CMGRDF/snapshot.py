@@ -1,8 +1,10 @@
+from collections.abc import Callable
 import json
 import os
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
-import ROOT
+import ROOT  # type: ignore
+from CMGRDF.data import Sample
 from CMGRDF.flow import Target
 from CMGRDF.utils import recursiveHash, selectColumns
 
@@ -28,7 +30,7 @@ class Snapshot(Target):
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
         self.hadd = False
 
-    def fromCache(self, sample, era, k3, verbose=False):
+    def fromCache(self, sample : Sample, era : Optional[str], k3 : tuple[str, str, str], verbose=False) -> Optional[Any]:
         outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
         sourceid, branchid, selfid = k3
         if os.path.exists(outname):
@@ -53,7 +55,7 @@ class Snapshot(Target):
                     pass
         return None
 
-    def toCache(self, snapshot, k3, verbose=False):
+    def toCache(self, snapshot : Any, k3 : tuple[str, str, str], verbose=False) -> None:
         sourceid, branchid, selfid = k3
         metafile = snapshot.fname.replace(".root", "") + ".meta.json"
         meta = dict(sourceid=sourceid, branchid=branchid, id=selfid,
@@ -67,7 +69,7 @@ class Snapshot(Target):
             print(f"Error when saiving metadata in {metafile} for {k3}: {e}")
             pass
 
-    def attach(self, rdf, sample, era, withUncertainties):
+    def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         if ROOT.gROOT.GetVersionInt() >= 63400:
             comprAlgo = getattr(ROOT.RCompressionSetting.EAlgorithm, "k" + self.compression[0].upper())
         else:
@@ -81,7 +83,7 @@ class Snapshot(Target):
         future._fname = outname
         return future
 
-    def finishFuture(self, future, sample, era):
+    def finishFuture(self, future : Any, sample : Sample, era : Optional[str]) -> Any:
         """Receive a future for the nominal value, unwraps it and return the value.
            By defalut it just calls `finish(future.GetValue(), sample, era)`"""
         rdf = future.GetValue()
@@ -96,10 +98,10 @@ class Snapshot(Target):
         rdf.era = era
         return rdf
 
-    def bookVariations(self, future, VariationsFor):
+    def bookVariations(self, future : Any, VariationsFor : Callable) -> None:
         return None
 
-    def finishVarFuture(self, varfuture, sample, era):
+    def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> None:
         return None
 
     def __hash__(self) -> int:
@@ -109,7 +111,7 @@ class Snapshot(Target):
         return "Snapshot-" + self._hash
 
 
-def mergeSnapshot(snap, verbose=False) -> None:
+def mergeSnapshot(snap : Any, verbose : bool = False) -> None:
     import subprocess
     try:
         out = subprocess.check_output(["hadd", "-ff", snap.fname] + snap.fnames, stderr=subprocess.STDOUT, encoding="utf-8")

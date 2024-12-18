@@ -1,10 +1,11 @@
-from typing import Sequence
+from collections.abc import Sequence
+from typing import Any, Optional
 from CMGRDF.flow import FlowStep
 from CMGRDF.utils import _recursiveAddToHash
 
 
 class JsonFilter(FlowStep):
-    def __init__(self, filename, onMC=True, onDataDriven=True, onData=True, eras=None):
+    def __init__(self, filename : str, onMC=True, onDataDriven=True, onData=True, eras : Optional[list[str]] = None):
         super().__init__("JSON", onMC=False, onDataDriven=True, onData=True, eras=eras)
         self.filename = filename
 
@@ -13,11 +14,11 @@ class JsonFilter(FlowStep):
             return FlowStep._equals(self, other) and self.filename == other.filename
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
         _recursiveAddToHash(self.filename, hasher)
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             return rdf.Filter(f'JsonFilter::load("{self.filename}")(run,luminosityBlock)', self.name)
         except BaseException:
@@ -26,10 +27,18 @@ class JsonFilter(FlowStep):
 
 
 class TriggerBitFilter(FlowStep):
-    def __init__(self, selectBits : Sequence[str], vetoBits : Sequence[str] = (), onMC=True, onDataDriven=True, onData=True, eras=None, name="HLT", defineDefaults : bool = False):
+    def __init__(self,
+                 selectBits : Sequence[str],
+                 vetoBits : Sequence[str] = (),
+                 onMC : bool = True,
+                 onDataDriven : bool = True,
+                 onData : bool = True,
+                 eras : Optional[list[str]] = None,
+                 name : str = "HLT",
+                 defineDefaults : bool = False):
         """Define a filter that checks for the OR of the trigger bits in selectBits and vetos the OR of bits in vetoBits.
            defineDefaults can be used to automatically insert a DefineDefault(bit, false) for all the used bits"""
-        super().__init__(name, onMC=False, onDataDriven=True, onData=True, eras=eras)
+        super().__init__(name, onMC=onMC, onDataDriven=onDataDriven, onData=onData, eras=eras)
         self.selectBits = list(sorted(selectBits))
         self.vetoBits = list(sorted(vetoBits))
         self.defineDefaults = defineDefaults
@@ -42,11 +51,11 @@ class TriggerBitFilter(FlowStep):
                     self.defineDefaults == other.defineDefaults)
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.selectBits, self.vetoBits, self.defineDefaults, hasher)
+        _recursiveAddToHash((self.selectBits, self.vetoBits, self.defineDefaults), hasher)
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             if self.defineDefaults:
                 colnames = rdf.GetColumnNames()

@@ -271,6 +271,7 @@ class PlotResult(object):
             if not hasattr(workspace, 'nodelete'):
                 workspace.nodelete = []
             roofit = RooFitContext(workspace)
+        assert (roofit is not None) and (workspace is not None)
         if not roofit.xvar:
             # create the x variable
             roofit.prepareXVar(h0, density, name=xvarName)
@@ -290,6 +291,7 @@ class PlotResult(object):
     def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : str = "r"):
         if not self._roofit:
             self.initRooFit()
+        assert self._roofit
         if signalPOI is not None and signalPOI != "":
             poiVar = self._roofit.workspace.var(signalPOI)
             if not poiVar:

@@ -120,18 +120,18 @@ class SimpleCache(object):
         if self._sums:
             self._sums.write(source, genSumName, wsum)
 
-    def hasPlot(self, k3) -> bool:
+    def hasPlot(self, k3 : tuple[str, str, str]) -> bool:
         """Check with key beign a tuple(sourceid, flowid, targetid)"""
         key = os.path.join(*k3)  # type: str
         return self._plots.has(key) if self._plots else False
 
-    def getPlot(self, k3) -> Any:
+    def getPlot(self, k3 : tuple[str, str, str]) -> Any:
         """Check with key beign a tuple(sourceid, flowid, targetid), return (plot, variations map)"""
         key = os.path.join(*k3)  # type: str
         assert (self._plots is not None)
         return self._plots.get(key)
 
-    def writePlot(self, k3, plot, plotvars) -> None:
+    def writePlot(self, k3 : tuple[str, str, str], plot, plotvars) -> None:
         key = os.path.join(*k3)  # type: str
         assert (self._plots is not None)
         self._plots.write(key, (plot, plotvars))

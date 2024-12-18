@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Collection, ItemsView, Iterator, KeysView
+from collections.abc import Collection, ItemsView, Iterator, KeysView, Mapping, Sequence
 from typing import Any, Optional, Union
 import struct
 import copy
@@ -11,7 +11,12 @@ import fnmatch
 
 
 class OptionDecl(object):
-    def __init__(self, name : str, default=None, opttype : Any = str, cmdline=None, **kwargs):
+    def __init__(self,
+                 name : str,
+                 default : Any = None,
+                 opttype : Any = str,
+                 cmdline : Optional[Sequence[str]] = None,
+                 **kwargs):
         self.name = name
         self.default = default
         self.type = opttype
@@ -22,11 +27,16 @@ class OptionDecl(object):
 class Options(object):
     def __init__(self, *optionDeclarations : OptionDecl):
         self._values: dict[str, Any] = dict()
-        self._declarations = []
+        self._declarations: list[tuple[str, Any, Any, Optional[Sequence[str]], Mapping[str, Any]]] = []
         for opt in optionDeclarations:
             self.declare(opt.name, default=opt.default, opttype=opt.type, cmdline=opt.cmdline, **opt.kwargs)
 
-    def declare(self, name : str, default : Any = None, opttype : Any = str, cmdline=None, **kwargs) -> "Options":
+    def declare(self,
+                name : str,
+                default : Any = None,
+                opttype : Any = str,
+                cmdline : Optional[Sequence[str]] = None,
+                **kwargs) -> "Options":
         self._declarations.append((name, default, opttype, cmdline, kwargs))
         if name in self._values:
             if default is not None:
@@ -290,9 +300,9 @@ def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]
         elif pat == "#old":
             sel.update(oldcols)
         else:
-            pat = re.compile(pat + "$")
+            repat = re.compile(pat + "$")
             for c in cols:
-                if re.match(pat, c):
+                if re.match(repat, c):
                     sel.add(c)
     for pat in columnVeto:
         if pat == "#new":
@@ -300,9 +310,9 @@ def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]
         elif pat == "#old":
             sel.difference_update(oldcols)
         else:
-            pat = re.compile(pat + "$")
+            repat = re.compile(pat + "$")
             for c in cols:
-                if re.match(pat, c):
+                if re.match(repat, c):
                     sel.discard(c)
     ret = ROOT.std.vector(ROOT.std.string)()
     ret.reserve(len(sel))
@@ -398,7 +408,7 @@ def processorFromCommandLineArgs(parser=None):
     parser.add_argument("--mode", help="how to run", default="local", choices=("local", "dask"))
     parser.add_argument("--dask", help="shortcut for --mode dask", dest="mode", action="store_const", const="dask")
     parser.add_argument("-u", "--with-systematics", "--syst", help="enable systematics by default", dest="withSystematics", action="store_const", const=True, default=None)
-    parser.add_argument("--stat", "--without-systematics,", help="disable systematics by default", dest="withSystematics", action="store_const", const=False, default=None)
+    parser.add_argument("--stat", "--without-systematics,", help="disabqle systematics by default", dest="withSystematics", action="store_const", const=False, default=None)
     parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job. Use it once to flush just the plot cache, twice (-ff) to fush also the sums cache", action='count', default=0)
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")

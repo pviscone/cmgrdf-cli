@@ -10,7 +10,7 @@ from CMGRDF.utils import MultiKey, Options, MultiReport
 
 class DatacardWriter(object):
     @staticmethod
-    def defaultOptions():
+    def defaultOptions() -> Options:
         opts = Options()
         opts.declare("asimov", None, help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')")
         opts.declare("autoMCStats", True, bool, help="use autoMCStats")
@@ -22,7 +22,7 @@ class DatacardWriter(object):
     def __init__(self, **options):
         self._options = DatacardWriter.defaultOptions().update(**options)
 
-    def makeCards(self, plots : MultiReport, plotKey : MultiKey, outname : str, **options):
+    def makeCards(self, plots : MultiReport, plotKey : MultiKey, outname : str, **options) -> None:
         assert isinstance(plots, MultiReport)
         assert isinstance(plotKey, MultiKey)
         opts = self._options.cloneAndUpdate(**options)
