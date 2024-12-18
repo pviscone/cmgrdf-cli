@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Union
+from typing import Optional, Union
 
 import ROOT
 from CMGRDF.flow import Target
@@ -15,8 +15,8 @@ class Snapshot(Target):
 
     def __init__(self,
                  filename : str,
-                 columnSel : 'Union[str, list[str], None]' = None,
-                 columnVeto : 'Union[str, list[str], None]' = None,
+                 columnSel : 'Optional[Union[str, list[str]]]' = None,
+                 columnVeto : 'Optional[Union[str, list[str]]]' = None,
                  compression : 'tuple[str, int]' = ("ZLIB", 1),
                  treeName="Events"):
         super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
@@ -96,20 +96,20 @@ class Snapshot(Target):
         rdf.era = era
         return rdf
 
-    def bookVariations(self, future):
+    def bookVariations(self, future, VariationsFor):
         return None
 
     def finishVarFuture(self, varfuture, sample, era):
         return None
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._hash)
 
-    def longId(self):
+    def longId(self) -> str:
         return "Snapshot-" + self._hash
 
 
-def mergeSnapshot(snap, verbose=False):
+def mergeSnapshot(snap, verbose=False) -> None:
     import subprocess
     try:
         out = subprocess.check_output(["hadd", "-ff", snap.fname] + snap.fnames, stderr=subprocess.STDOUT, encoding="utf-8")

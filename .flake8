@@ -14,6 +14,5 @@
 # ---
 # E741: ambiguous variable name 'l' (too pedantic! get a good font)
 # B007: Loop control variable ... not used within the loop body. If this is intended, start the name with an underscore
-# B006: B006 Do not use mutable data structures for argument defaults.  They are created during function definition time. All calls to the function reuse this one instance of that data structure, persisting changes between them --> Waving for now, will clean up later
-ignore = F403,F405,E402,W504,E203,W503,E262,E265,E266,E501,E741,B007,B006
+ignore = F403,F405,E402,W504,E203,W503,E262,E265,E266,E501,E741,B007
 max-line-length = 160

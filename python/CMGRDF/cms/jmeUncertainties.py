@@ -94,7 +94,7 @@ class JMEFactory(object):
 
 
 class JMEUncertaintiesDefine(Define):
-    def __init__(self, splitJER=False, uncSources=["Total"], doMET=True,
+    def __init__(self, splitJER=False, uncSources=("Total",), doMET=True,
                  jetAlgo="AK4PFPuppi", metcollection="PuppiMET", doSyst=False, suffix="", **options):
 
         if len(options['eras']) != 1:

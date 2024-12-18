@@ -3,7 +3,7 @@
 import os
 import os.path
 
-import ROOT
+import ROOT  # type: ignore
 from CMGRDF.histoWithNuisances import listAllNuisances, mergePlots
 from CMGRDF.utils import MultiKey, Options, MultiReport
 
@@ -60,7 +60,7 @@ class DatacardWriter(object):
                 print("Nothing to plot for %s" % key)
                 continue
             if opts.asimov:
-                if "s" in options.asimov:
+                if "s" in opts.asimov:
                     data_obs = mergePlots("data_obs", [h for (p, h) in signals + backgrounds])
                 else:
                     data_obs = mergePlots("data_obs", [h for (p, h) in backgrounds])
@@ -116,7 +116,7 @@ class DatacardWriter(object):
                                 effyield[p] = "%.3f" % kup
                                 isNorm = True
                         else:
-                            effyield[p] = "%.3f/%.3f" % (kdn, kup)
+                            effyield[p] = "%.3f/%.3f" % (kdn, kup)  # type: ignore
                             isNorm = True
                     if isNorm:
                         if name.endswith("_lnU"):
@@ -130,7 +130,7 @@ class DatacardWriter(object):
             datacard.write("shapes *        * %s $PROCESS $PROCESS_$SYSTEMATIC\n" % os.path.basename(rootname))
             datacard.write('##----------------------------------\n')
             datacard.write('bin         %s\n' % binname)
-            datacard.write('observation %s\n' % data_obs.Integral())
+            datacard.write('observation %s\n' % data_obs.Integral())  # type: ignore
             datacard.write('##----------------------------------\n')
             klen = max([7, len(binname)] + [len(p) for p in procs])
             kpatt = " %%%ds " % klen

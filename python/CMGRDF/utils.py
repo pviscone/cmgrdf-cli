@@ -1,6 +1,7 @@
 from collections import defaultdict
+from collections.abc import Collection, ItemsView, Iterator, KeysView
+from typing import Any, Optional, Union
 import struct
-from typing import Any, Collection, Sequence, Union
 import copy
 import hashlib
 import sys
@@ -25,7 +26,7 @@ class Options(object):
         for opt in optionDeclarations:
             self.declare(opt.name, default=opt.default, opttype=opt.type, cmdline=opt.cmdline, **opt.kwargs)
 
-    def declare(self, name : str, default : Any = None, opttype : Any = str, cmdline=None, **kwargs):
+    def declare(self, name : str, default : Any = None, opttype : Any = str, cmdline=None, **kwargs) -> "Options":
         self._declarations.append((name, default, opttype, cmdline, kwargs))
         if name in self._values:
             if default is not None:
@@ -34,7 +35,7 @@ class Options(object):
             self._values[name] = default
         return self
 
-    def addToParser(self, parser):
+    def addToParser(self, parser) -> None:
         for (name, default, opttype, cmdline, kwargs) in self._declarations:
             if opttype == bool:
                 if not cmdline:
@@ -46,47 +47,47 @@ class Options(object):
                     cmdline = ["--" + name]
                 parser.add_argument(*cmdline, dest=name, type=opttype, default=self._values[name], **kwargs)
 
-    def __getattr__(self, name : str):
+    def __getattr__(self, name : str) -> Any:
         return self._values[name]
 
-    def __getitem__(self, name : str):
+    def __getitem__(self, name : str) -> Any:
         return self._values[name]
 
-    def __hasattr__(self, name : str):
+    def __hasattr__(self, name : str) -> bool:
         return name in self._values
 
-    def __contains__(self, name : str):
+    def __contains__(self, name : str) -> bool:
         return name in self._values
 
-    def __setattr__(self, name : str, value):
+    def __setattr__(self, name : str, value) -> None:
         if name[0] == "_" or name not in self._values:
             object.__setattr__(self, name, value)
         else:
             self._values[name] = value
 
-    def __setitem__(self, name : str, value):
+    def __setitem__(self, name : str, value) -> None:
         self._values[name] = value
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._values)
 
-    def update(self, **kwargs):
+    def update(self, **kwargs) -> "Options":
         self._values.update(kwargs)
         return self
 
-    def items(self):
+    def items(self) -> ItemsView[str, Any]:
         return self._values.items()
 
-    def keys(self):
+    def keys(self) -> KeysView[str]:
         return self._values.keys()
 
-    def cloneAndUpdate(self, **kwargs):
+    def cloneAndUpdate(self, **kwargs) -> "Options":
         ret = Options()
         ret._values = dict(self._values.items())
         ret._values.update(**kwargs)
         return ret
 
-    def cloneAndExtend(self, *optionDeclarations : Sequence[OptionDecl]):
+    def cloneAndExtend(self, *optionDeclarations : OptionDecl) -> "Options":
         ret = Options()
         ret._values = copy.copy(self._values)
         ret._declarations = copy.copy(self._declarations)
@@ -98,52 +99,52 @@ class Options(object):
 class MultiKey(object):
     """A multi-field key to identify results, e.g. a histogram by its selection flow, variable name, and sample used"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs : Any):
         self._keys = sorted(kwargs.keys())
         self._values = dict(kwargs.items())
 
-    def idTuple(self):
+    def idTuple(self) -> tuple[int, ...]:
         return tuple([id(self._values[k]) for k in self._keys])
 
-    def keys(self):
+    def keys(self) -> list[str]:
         return self._keys
 
-    def items(self):
+    def items(self) -> ItemsView[str, Any]:
         return self._values.items()
 
-    def __len__(self):
-        return len(self._keys())
+    def __len__(self) -> int:
+        return len(self._keys)
 
-    def __getattr__(self, name : str):
+    def __getattr__(self, name : str) -> Any:
         return self._values[name]
 
-    def __getitem__(self, name : str):
+    def __getitem__(self, name : str) -> Any:
         return self._values[name]
 
-    def __hasattr__(self, name : str):
+    def __hasattr__(self, name : str) -> bool:
         return name in self._values
 
-    def __contains__(self, name : str):
+    def __contains__(self, name : str) -> bool:
         return name in self._values
 
-    def isSuperSet(self, other : "MultiKey"):
+    def isSuperSet(self, other : "MultiKey") -> bool:
         """Returns true if our key is a superset of `other`, i.e. if all our fields match those of `other`,
         (but `other` may have more fields that we don't have)"""
         return all((other._values[k] == v) for k, v in self._values.items())
 
-    def removeKeys(self, *keysToRemove : Sequence[str]):
+    def removeKeys(self, *keysToRemove : str) -> "MultiKey":
         """Produces a new multi-key removing the specified fields"""
         assert (all((k in self._keys) for k in keysToRemove))
         filtered = dict((k, v) for (k, v) in self.items() if k not in keysToRemove)
         return MultiKey(**filtered)
 
-    def selectKeys(self, *keys):
+    def selectKeys(self, *keys : str) -> "MultiKey":
         """Produces a new multi-key selecting only the specified fields"""
         assert (all((k in self._keys) for k in keys))
         filtered = dict((k, v) for (k, v) in self.items() if k in keys)
         return MultiKey(**filtered)
 
-    def addKeys(self, **kwargs):
+    def addKeys(self, **kwargs : Any) -> "MultiKey":
         """Produces a new multi-key adding the specified fields"""
         extended = copy.copy(self._values)
         for (k, v) in kwargs.items():
@@ -151,7 +152,7 @@ class MultiKey(object):
             extended[k] = v
         return MultiKey(**extended)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(tuple((k, self._values[k]) for k in self._keys))
 
     def __eq__(self, other) -> bool:
@@ -161,52 +162,52 @@ class MultiKey(object):
             return all(self[k] == other[k] for k in self._keys)
         return id(self) == id(other)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "(%s)" % (",".join("%s=%s" % (k, self._values[k]) for k in self._keys))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "MultiKey(%s)" % (",".join("%s=%r" % (k, self._values[k]) for k in self._keys))
 
 
 class MultiReport(object):
     """A list of pairs (multi-key, object) with some convenience methods for extracting them."""
 
-    def __init__(self, *items):
+    def __init__(self, *items : tuple[MultiKey, Any]):
         self._items = list(items)
         for item in items:
             assert (isinstance(item, tuple) and isinstance(items[0], MultiKey))
 
-    def append(self, key : MultiKey, value):
+    def append(self, key : MultiKey, value : Any) -> None:
         self._items.append((key, value))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._items)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[tuple[MultiKey, Any]]:
         return iter(self._items)
 
-    def groupRemoving(self, *keys):
-        """Return a map wh"""
+    def groupRemoving(self, *keys : str) -> ItemsView[MultiKey, list[Any]]:
+        """Return a list of groups of items removing some fields of the key"""
         mergeMap = defaultdict(list)
         for k, v in self._items:
             gk = k.removeKeys(*keys)
             mergeMap[gk].append(v)
         return mergeMap.items()
 
-    def allMatchingKey(self, key):
+    def allMatchingKey(self, key : MultiKey) -> list[tuple[MultiKey, Any]]:
         """Get the subset of (key,value) pairs whose key matches all the fields in this key"""
         return [(k, p) for (k, p) in self._items if key.isSuperSet(k)]
 
-    def getByKey(self, key):
+    def getByKey(self, key : MultiKey) -> Any:
         alls = self.allMatchingKey(key)
         assert (len(alls) == 1)
         return alls[0][1]
 
-    def sort(self, *args, **kwargs):
+    def sort(self, *args, **kwargs) -> None:
         self._items.sort(*args, **kwargs)
 
 
-def _recursiveAddToHash(obj, hasher):
+def _recursiveAddToHash(obj : Any, hasher) -> None:
     if obj is None:
         hasher.update(b"<None>")
         return
@@ -236,18 +237,18 @@ def _recursiveAddToHash(obj, hasher):
         raise RuntimeError("Don't know how to hash %r of type %s" % (obj, type(obj)))
 
 
-def safeName(obj):
+def safeName(obj : Any) -> str:
     return re.sub("[^A-Za-z0-9_]", "", obj.name)
 
 
-def recursiveHash(*objs):
+def recursiveHash(*objs : Any) -> str:
     hasher = hashlib.sha256()
     for obj in objs:
         _recursiveAddToHash(obj, hasher)
     return hasher.hexdigest()
 
 
-def eosToUrl(path):
+def eosToUrl(path : str) -> str:
     if path.startswith("/eos/cms"):
         return "root://eoscms.cern.ch/" + path
     elif path.startswith("/eos/user"):
@@ -256,19 +257,19 @@ def eosToUrl(path):
         return path
 
 
-def localOrEOS(path, localroot, eosroot):
+def localOrEOS(path : str, localroot : str, eosroot : str) -> str:
     localPath = os.path.join(localroot, path)
     if os.path.isdir(localPath):
         return localPath
     return eosToUrl(os.path.join(eosroot, path))
 
 
-def _getDefinedColumnNames(rdf) -> 'set[str]':
+def _getDefinedColumnNames(rdf) -> set[str]:
     if "DistRDF" in rdf.__module__:
-        ret = set()  # type: set[str]
+        ret: set[str] = set()
         node = rdf
         while node is not None:
-            if node.operation is not None and node.operation.name.startswith("Define"):
+            if node.operation is not None and (node.operation.name.startswith("Define") or node.operation.name == "Alias"):
                 ret.add(node.operation.args[0])
             node = node.parent
         return ret
@@ -276,8 +277,8 @@ def _getDefinedColumnNames(rdf) -> 'set[str]':
         return set(map(str, rdf.GetDefinedColumnNames()))
 
 
-def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]):
-    import ROOT
+def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]) -> Any:
+    import ROOT  # type: ignore
     import re
     cols = list(map(str, rdf.GetColumnNames()))
     newcols = _getDefinedColumnNames(rdf)
@@ -318,7 +319,7 @@ class NormUncertainty(object):
         if isinstance(value, float):
             self.kappaUp = value
             self.kappaDown = 1. / value
-        elif type(value) in (list, tuple) and len(value) == 2 and isinstance(value[0], float):
+        elif isinstance(value, tuple) and len(value) == 2 and isinstance(value[0], float):
             self.kappaDown = value[0]
             self.kappaUp = value[1]
         else:
@@ -326,22 +327,29 @@ class NormUncertainty(object):
         self.eras = eras
 
     @staticmethod
-    def parse(optionValue, defaultName : str):
+    def parse(optionValue : Union[None,
+                                  float,
+                                  tuple[float, float],
+                                  dict[str, Union[float, tuple[float, float]]],
+                                  list["NormUncertainty"]],
+              defaultName : str) -> "list[NormUncertainty]":
         if optionValue is None:
             return []
-        elif isinstance(optionValue, float) or (type(optionValue) in (tuple, list) and isinstance(optionValue[0], float)):
+        elif isinstance(optionValue, float) or (isinstance(optionValue, tuple) and isinstance(optionValue[0], float)):
             return [NormUncertainty(defaultName, optionValue)]
-        elif isinstance(optionValue, list) and isinstance(optionValue[0], NormUncertainty):
+        elif isinstance(optionValue, list):
+            assert all(isinstance(o, NormUncertainty) for o in optionValue)
             return optionValue[:]
         else:
+            assert isinstance(optionValue, dict)
             return [NormUncertainty(k, v) for (k, v) in optionValue.items()]
 
 
 class FilteringList(list):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args : Any, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def byNames(self, *args, match="glob"):
+    def byNames(self, *args : str, match="glob") -> "FilteringList":
         ret = FilteringList()
         if match == "glob":
             for item in self:
@@ -359,23 +367,23 @@ class FilteringList(list):
             raise RuntimeError(f"Unsupported match {match}, only 'exact', 're', and 'glob' are supported")
         return ret
 
-    def byName(self, arg):
+    def byName(self, arg : str) -> Any:
         matchingitems = [i for i in self if i.name == arg]
         if len(matchingitems) == 1:
             raise RuntimeError(f"Error, looking for name {arg} found {len(matchingitems)} matches: " + ", ".join([m.name for m in matchingitems]))
         return matchingitems[0]
 
-    def by(self, **kwargs):
+    def by(self, **kwargs : Any) -> "FilteringList":
         ret = FilteringList()
         for item in self:
             if all((getattr(item, p[0]) == p[1]) for p in kwargs.items()):
                 ret.append(item)
         return ret
 
-    def __iadd__(self, other):
+    def __iadd__(self, other) -> "FilteringList":
         return super().__iadd__(other)
 
-    def __add__(self, other):
+    def __add__(self, other) -> "FilteringList":
         ret = FilteringList(self)
         ret += other
         return ret
@@ -383,7 +391,7 @@ class FilteringList(list):
 
 def processorFromCommandLineArgs(parser=None):
     import argparse
-    import ROOT
+    import ROOT  # type: ignore
     from CMGRDF.cache import SimpleCache
     from CMGRDF.processor import Processor
     parser = parser if parser is not None else argparse.ArgumentParser()
@@ -398,10 +406,10 @@ def processorFromCommandLineArgs(parser=None):
     parser.add_argument("-v", "--verbose", action='count', default=0)
     parser.add_argument("-b", "--batch", help="batch mode (don't show progress bars)", default=False, action="store_true")
     args = parser.parse_args()
+    executor : Optional[tuple[str, Any]] = None
     if args.mode == "local":
         if args.njobs:
             ROOT.EnableImplicitMT(args.njobs if args.njobs > 0 else 0)
-        executor = None
     elif args.mode == "dask":
         from CMGRDF.data import Source
         Source.useDefinePerSample = False
@@ -421,10 +429,10 @@ def processorFromCommandLineArgs(parser=None):
         executor = (args.mode, client)
     cache = None if args.nocache else SimpleCache(flush=args.flushCache)
     maker = Processor(cache=cache, executor=executor, withUncertainties=args.withSystematics)
-    maker.commandlineArgs = args  # in case they're used downstream
+    maker.commandlineArgs = args  # type: ignore # in case they're used downstream
     if args.verbose:
         level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
-        maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)
+        maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)  # type: ignore
     if args.batch:
         from CMGRDF.data import ProgressBar
         ProgressBar.Disable()

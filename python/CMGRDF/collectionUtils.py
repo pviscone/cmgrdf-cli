@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
 
@@ -9,7 +9,7 @@ class DefineFromCollection(FlowStep):
     (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
     """
 
-    def __init__(self, name, srcColl, members : "list[str]" = None, index=None, redefine=False, **options):
+    def __init__(self, name, srcColl, members : Optional[list[str]] = None, index=None, redefine=False, **options):
         super().__init__(name, **options)
         self.members = members
         self.index = index
@@ -37,7 +37,7 @@ class DefineFromCollection(FlowStep):
                 raise
         return rdf
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl},{self.index})\033[0m\n"
         if self.members:
             out += f"\tmembers: {self.members}\n"
@@ -55,17 +55,17 @@ class DefineSkimmedCollection(FlowStep):
     def __init__(self,
                  name : str,
                  srcColl : str,
-                 members : "list[str]" = None,
-                 optMembers : "list[str]" = [],
-                 cut : str = None,
-                 mask : str = None,
-                 indices : str = None,
-                 redefine=False,
+                 members : Optional[list[str]] = None,
+                 optMembers : Optional[list[str]] = None,
+                 cut : Optional[str] = None,
+                 mask : Optional[str] = None,
+                 indices : Optional[str] = None,
+                 redefine : bool = False,
                  **options):
         super().__init__(name, **options)
         self.srcColl = srcColl
         self.members = members
-        self.optMembers = optMembers
+        self.optMembers = optMembers or []
         self.cut = cut
         self.mask = mask
         self.indices = indices
@@ -75,12 +75,12 @@ class DefineSkimmedCollection(FlowStep):
             self.mask = srcColl + "_is" + name
         self.rdf_func = "Redefine" if redefine else "Define"
 
-    def _params(self):
+    def _params(self) -> Any:
         return (self.srcColl,
                 self.members, self.optMembers,
                 self.cut, self.mask, self.indices)
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if self.members is None:
             members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
                        if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
@@ -100,7 +100,8 @@ class DefineSkimmedCollection(FlowStep):
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum({self.mask})")
             rdf._from = src
             copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
-        elif self.indices:
+        else:
+            assert self.indices is not None
             src = rdf
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.indices}.size()")
             rdf._from = src
@@ -123,11 +124,11 @@ class DefineSkimmedCollection(FlowStep):
             return FlowStep._equals(self, other) and self._params() == other._params()
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
         _recursiveAddToHash(self._params(), hasher)
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl})\033[0m\n"
         if self.cut:
             out += f"\tcut: {self.cut}\n"

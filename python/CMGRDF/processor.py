@@ -1,20 +1,29 @@
 from math import sqrt
 import time
-from typing import Any, List, Sequence, Tuple, Union
+from typing import Any, Optional, Union
+from collections.abc import Container, Sequence
 from enum import Enum
 
-import ROOT
+import ROOT  # type: ignore
 from CMGRDF.init import HasherFromGlobalConfig
 from CMGRDF.histoWithNuisances import HistoWithNuisances, YieldWithNuisances, mergePlots
 from CMGRDF.utils import MultiKey, MultiReport, safeName
-from CMGRDF.data import Source, MCGroup, Process
+from CMGRDF.data import MCSample, Sample, Source, MCGroup, Process
 from CMGRDF.flow import ComputeTotalWeight, Alias, Define, ReDefine, DefineDefault, Vary, FlowStep, Flow, Target, Yield
 from CMGRDF.plots import Plot, PlotResult
 from CMGRDF.snapshot import Snapshot, mergeSnapshot
+from CMGRDF.cache import SimpleCache
 
 
 class _Branch(object):
-    def __init__(self, parentOrSource : "Union[_Branch,Source]", stepOrTreeName : "Union[FlowStep,str]", withUncertainties=None, local=None, cache=None, DataFrameClass=ROOT.RDataFrame, **kwargs):
+    def __init__(self,
+                 parentOrSource : "Union[_Branch,Source]",
+                 stepOrTreeName : "Union[FlowStep,str]",
+                 withUncertainties : bool,
+                 local : Optional[bool] = None,
+                 cache : Optional[SimpleCache] = None,
+                 DataFrameClass=ROOT.RDataFrame,
+                 **kwargs):
         if isinstance(parentOrSource, _Branch):
             assert isinstance(stepOrTreeName, FlowStep)
             self.source = parentOrSource.source
@@ -38,40 +47,41 @@ class _Branch(object):
             self.hasher = HasherFromGlobalConfig()
             self.withUncertainties = withUncertainties
             self.step = None
-        self.branches = []  # type: List["_Branch"]
+        self.branches = []  # type: list["_Branch"]
         self.leaves = dict()  # type: dict[Target, Any]
-        self._rdfAndWeights = None  # type: Tuple[Any, list[str]]
+        self._rdfAndWeights = None  # type: Optional[tuple[Any, list[str]]]
         self._hasUncertainties = None
         self._cache = cache
 
-    def maybeBranch(self, step : FlowStep, verbose=False):
+    def maybeBranch(self, step : FlowStep, verbose=False) -> "_Branch":
         for b in self.branches:
             if b.step == step:
                 if verbose:
                     print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
                 return b
-        b = _Branch(self, step)
+        b = _Branch(self, step, self.withUncertainties)
         if verbose:
             print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
         self.branches.append(b)
         return b
 
-    def longId(self):
+    def longId(self) -> str:
         return "%s-%s" % (safeName(self.step), self.hasher.hexdigest())
 
-    def rdfAndWeights(self) -> "Tuple[Any, list[str]]":
+    def rdfAndWeights(self) -> tuple[Any, list[str]]:
         if self._rdfAndWeights is None:
             if self.parentBranch is None:
                 self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, cache=self._cache, **self.DataFrameArgs), [])
                 self._hasUncertainties = False
             else:
-                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights(), self.withUncertainties)
+                assert (self.step)
+                self._rdfAndWeights = self.step.attach(*self.parentBranch.rdfAndWeights(), withUncertainties=self.withUncertainties)
         return self._rdfAndWeights
 
-    def rdf(self):
+    def rdf(self) -> Any:
         return self.rdfAndWeights()[0]
 
-    def weights(self) -> "list[str]":
+    def weights(self) -> list[str]:
         return self.rdfAndWeights()[1]
 
     def hasUncertainties(self) -> bool:
@@ -94,8 +104,11 @@ class _Branch(object):
 class Processor(object):
     State = Enum("State", ["Clean", "Booked", "Run"])
 
-    def __init__(self, cache=None, executor=None, withUncertainties=None):
-        self._trees = dict()  # type: dict[Source,_Branch]
+    def __init__(self,
+                 cache : Optional[SimpleCache] = None,
+                 executor : Optional[tuple[str, Any]] = None,
+                 withUncertainties : Optional[bool] = None):
+        self._trees = dict()  # type: dict[Source, _Branch]
         self._lumiMap = dict()  # type: dict[MultiKey, float]
         self._cache = cache
         self._toCache = dict()
@@ -116,7 +129,7 @@ class Processor(object):
             self.DataFrameArgs = {}
         self.clear()
 
-    def clear(self):
+    def clear(self) -> "Processor":
         self._futures = []
         self._fromCache = []
         self._toCache.clear()
@@ -125,7 +138,12 @@ class Processor(object):
         self._state = Processor.State.Clean
         return self
 
-    def _growBranch(self, source : Source, flow : Flow, treeName="Events", verbose=False, withUncertainties=False):
+    def _growBranch(self,
+                    source : Source,
+                    flow : Optional[Flow],
+                    treeName : str = "Events",
+                    verbose : bool = False,
+                    withUncertainties : bool = False) -> _Branch:
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s, local %s" % (source.longId(), self._local))
@@ -140,21 +158,24 @@ class Processor(object):
             tree = tree.maybeBranch(ComputeTotalWeight(), verbose=verbose)
         return tree
 
-    def _bookCutFlowReports(self):
+    def _bookCutFlowReports(self) -> list[tuple[Source, Any]]:
         return [(src, b.rdf().Report()) for (src, b) in self._trees.items()]
 
-    def bookedLumi(self, multiKey):
+    def bookedLumi(self, multiKey : MultiKey) -> float:
         if multiKey not in self._lumiMap:
             lumi = sum([l for (k, l) in self._lumiMap.items() if multiKey.isSuperSet(k)])
             self._lumiMap[multiKey] = lumi
         return self._lumiMap[multiKey]
 
-    def prebookSumWeights(self, processes, eras, logPerformance=True):
+    def prebookSumWeights(self,
+                          processes : Sequence[Process],
+                          eras : Sequence[Optional[str]],
+                          logPerformance : bool = True) -> None:
         t0 = time.perf_counter()
         n = 0
         for p in processes:
             for s in p.samples:
-                if s.isMC and s.genWeightName is not None:
+                if isinstance(s, (MCSample, MCGroup)) and s.genWeightName is not None:
                     n += s.bookSumWeight(eras, cache=self._cache)
         if self._cache:
             self._cache.commitSums()
@@ -162,7 +183,7 @@ class Processor(object):
         if logPerformance and n > 0:
             print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
 
-    def _samplesForProc(self, proc):
+    def _samplesForProc(self, proc : Process) -> list[Sample]:
         if self._local:
             return proc.samples
         ret = []
@@ -174,7 +195,15 @@ class Processor(object):
                 ret.append(sample)
         return ret
 
-    def book(self, processes : Sequence[Process], lumi, flows : Union[Flow, Sequence[Flow]], targets : Union[Target, Sequence[Target]], eras=None, taskName="", withUncertainties=None, logPerformance=True):
+    def book(self,
+             processes : Sequence[Process],
+             lumi : Union[float, dict[str, float]],
+             flows : Union[Flow, Sequence[Flow]],
+             targets : Union[Target, Sequence[Target]],
+             eras : Optional[list[str]] = None,
+             taskName : str = "",
+             withUncertainties : Optional[bool] = None,
+             logPerformance : bool = True) -> "Processor":
         if withUncertainties is None:
             withUncertainties = self.withUncertainties or False
         if self._state == Processor.State.Run:
@@ -183,9 +212,13 @@ class Processor(object):
         self._rawResults = None  # invalidate existing results
 
         if eras is None:
-            eras = [None]
-            lumi = {None: lumi}
-        self.prebookSumWeights(processes, eras, logPerformance=logPerformance)
+            eralist = [None]
+            assert isinstance(lumi, float)
+        else:
+            eralist = eras
+            assert isinstance(lumi, dict)
+
+        self.prebookSumWeights(processes, eralist, logPerformance=logPerformance)
 
         t0 = time.perf_counter()
         n0 = len(self._futures)
@@ -197,8 +230,9 @@ class Processor(object):
         futuresToVary = []
 
         for flow in flows:
-            for era in eras:
-                self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = lumi[era]
+            for era in eralist:
+                thislumi : float = lumi[era] if eras is not None else lumi  # type: ignore
+                self._lumiMap[MultiKey(taskName=taskName, flow=flow.name, era=era)] = thislumi
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
                     for sample in self._samplesForProc(proc):
@@ -208,7 +242,8 @@ class Processor(object):
                             continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
+                            assert isinstance(sample, (MCSample, MCGroup))
+                            sflow = sample.customizeFlowMC(flow.clone(), thislumi, era=era)
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         branch = self._growBranch(src, sflow, withUncertainties=withUncertainties)
@@ -222,7 +257,7 @@ class Processor(object):
                                 if cached:
                                     self._fromCache.append((plotKey, proc, sample, t, cached, None))
                                     continue
-                            if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):
+                            if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):  # type: ignore
                                 (res, resvar) = self._cache.getPlot(k3)
                                 self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                             else:
@@ -236,7 +271,7 @@ class Processor(object):
                                     self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(branch.rdf())))
                                 else:
                                     self._futures.append((plotKey, proc, sample, t, fut, None))
-                                if self._cache and k3[-1] is not None:
+                                if self._cache and k3[-1] is not None:  # type: ignore
                                     self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
             futvars = t.bookVariations(fut, self.VariationsFor)
@@ -248,15 +283,27 @@ class Processor(object):
             print("Booked %d targets in %.3fs, uncertainties %s" % (n1 - n0, t1 - t0, withUncertainties))
         return self
 
-    def bookCutFlow(self, processes : List[Process], lumi, flows : Union[Flow, List[Flow]], cutNames=None, eras=None, taskName="", withUncertainties=None, logPerformance=True):
+    def bookCutFlow(self,
+                    processes : Sequence[Process],
+                    lumi : Union[float, dict[str, float]],
+                    flows : Union[Flow, list[Flow]],
+                    cutNames : Optional[Container[str]] = None,
+                    eras : Optional[list[str]] = None,
+                    taskName="",
+                    withUncertainties=None,
+                    logPerformance=True):
         if withUncertainties is None:
             withUncertainties = self.withUncertainties or False
         self._rawResults = None  # invalidate existing results
 
         if eras is None:
-            eras = [None]
-            lumi = {None: lumi}
-        self.prebookSumWeights(processes, eras, logPerformance=logPerformance)
+            eralist = [None]
+            assert isinstance(lumi, float)
+        else:
+            eralist = eras
+            assert isinstance(lumi, dict)
+
+        self.prebookSumWeights(processes, eralist, logPerformance=logPerformance)
 
         t0 = time.perf_counter()
         n0 = len(self._futures)
@@ -265,7 +312,8 @@ class Processor(object):
         futuresToVary = []
         verbose = False
         for flow in flows:
-            for era in eras:
+            for era in eralist:
+                thislumi : float = lumi[era] if eras is not None else lumi  # type: ignore
                 for proc in processes:
                     procKey = MultiKey(taskName=taskName, flow=flow.name, era=era, process=proc.name)
                     for sample in self._samplesForProc(proc):
@@ -274,7 +322,8 @@ class Processor(object):
                             continue
                         sampleKey = procKey.addKeys(sample=sample.name)
                         if sample.isMC:
-                            sflow = sample.customizeFlow(flow.clone(), lumi[era], era=era)
+                            assert isinstance(sample, (MCSample, MCGroup))
+                            sflow = sample.customizeFlowMC(flow.clone(), thislumi, era=era)  # type: ignore
                         else:
                             sflow = sample.customizeFlow(flow.clone(), era=era)
                         ## now we have to go cut by cut
@@ -287,7 +336,7 @@ class Processor(object):
                                     t = Yield(step.name, "weight")
                                     plotKey = sampleKey.addKeys(name=t.name)
                                     k3 = (src.longId(), wbranch.longId(), t.longId()) if self._cache else None
-                                    if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):
+                                    if self._cache and (k3[-1] is not None) and self._cache.hasPlot(k3):  # type: ignore
                                         (res, resvar) = self._cache.getPlot(k3)
                                         self._fromCache.append((plotKey, proc, sample, t, res, resvar))
                                     else:
@@ -299,7 +348,7 @@ class Processor(object):
                                             futuresToVary.append((plotKey, proc, sample, t, fut))
                                         else:
                                             self._futures.append((plotKey, proc, sample, t, fut, t.attachSumw2(wbranch.rdf())))
-                                        if self._cache and k3[-1] is not None:
+                                        if self._cache and k3[-1] is not None:  # type: ignore
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
             fvars = self.VariationsFor(fut)
@@ -315,6 +364,7 @@ class Processor(object):
         self._state = Processor.State.Run
         if self._rawResults is None:
             if not self._local:
+                assert self._executor
                 from CMGRDF.init import RunDistributedInitializer
                 RunDistributedInitializer(self._executor[1])
                 from CMGRDF.init import DistributedInitializerCode
@@ -344,7 +394,7 @@ class Processor(object):
                     if isinstance(target, Snapshot):
                         target.toCache(result, self._toCache[plotKey])
                     else:
-                        self._cache.writePlot(self._toCache[plotKey], result, resvars)
+                        self._cache.writePlot(self._toCache[plotKey], result, resvars)  # type: ignore
                 ret.append(plotKey, (proc, sample, target, result, resvars))
 
             for (plotKey, proc, sample, target, result, resvars) in self._fromCache:
@@ -352,13 +402,13 @@ class Processor(object):
             self._rawResults = ret
         return self._rawResults
 
-    def printRawCutFlowReports(self):
+    def printRawCutFlowReports(self) -> None:
         for source, report in sorted(self._reports, key=lambda p : p[0].longId()):
             print("Cut flow for %s" % source.longId())
             report.GetValue().Print()
             print("")
 
-    def runPlots(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs):
+    def runPlots(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
@@ -419,6 +469,7 @@ class Processor(object):
                 for k in yvars.keys():
                     if ":" in k:
                         (var, sign) = str(k).split(":")
+                        assert (sign in ("up", "down"))
                         hist.addVariation(var, sign, yvars[k])
                     elif k == "":  # sum(weight2)
                         hist.stat = sqrt(yvars[k])

@@ -4,26 +4,27 @@ import json
 import pickle
 import sys
 import shutil
+from typing import Any, Union
 import ROOT
 
 from CMGRDF.data import Source
 
 
 class SumCache(object):
-    def __init__(self, jsonFileName):
+    def __init__(self, jsonFileName : str):
         self._fileName = jsonFileName
         self._cache = self._maybeRead()
 
-    def has(self, source : Source, genSumName : str):
+    def has(self, source : Source, genSumName : str) -> bool:
         return source.idForSumCache(genSumName) in self._cache
 
-    def get(self, source : Source, genSumName : str):
+    def get(self, source : Source, genSumName : str) -> Union[float, int]:
         return self._cache[source.idForSumCache(genSumName)][0]
 
-    def write(self, source : Source, genSumName : str, wsum : float):
+    def write(self, source : Source, genSumName : str, wsum : Union[float, int]) -> None:
         self._cache[source.idForSumCache(genSumName)] = (wsum, time.time())
 
-    def commitToDisk(self):
+    def commitToDisk(self) -> None:
         if not os.path.isdir(os.path.dirname(self._fileName)):
             os.makedirs(os.path.dirname(self._fileName))
         existing = self._maybeRead()
@@ -33,10 +34,10 @@ class SumCache(object):
         #print("Writing to %r: %s" % (self._fileName, self._cache))
         json.dump(self._cache, open(self._fileName, 'w'))
 
-    def flush(self):
+    def flush(self) -> None:
         self._cache.clear()
 
-    def _maybeRead(self):
+    def _maybeRead(self) -> dict[str, tuple[Union[float, int], float]]:
         if os.path.isfile(self._fileName):
             try:
                 return json.load(open(self._fileName))
@@ -47,23 +48,23 @@ class SumCache(object):
 
 
 class CacheLayer(object):
-    def __init__(self, root, ttl=None, touch=True, verbose=False):
+    def __init__(self, root, ttl=None, touch=True, verbose=False) -> None:
         self._root = root
         self._ttl = ttl
         self._now = time.time()
         self._touch = touch
         self._verbose = verbose
 
-    def _upToDate(self, fullpath):
+    def _upToDate(self, fullpath : str) -> bool:
         if self._ttl:
             return os.path.getmtime(fullpath) > self._now - self._ttl
         return True
 
-    def has(self, path):
+    def has(self, path : str) -> bool:
         fullpath = os.path.join(self._root, path)
         return os.path.isfile(fullpath) and self._upToDate(fullpath)
 
-    def get(self, path):
+    def get(self, path : str) -> Any:
         fullpath = os.path.join(self._root, path)
         if self._touch:
             os.system("touch " + fullpath)
@@ -72,7 +73,7 @@ class CacheLayer(object):
             print("retrieving %s from cache file %s" % (path, fullpath))
         return ret
 
-    def getRDF(self, path, treeName="Events"):
+    def getRDF(self, path : str, treeName="Events"):
         fullpath = os.path.join(self._root, path)
         if self._touch:
             os.system("touch " + fullpath)
@@ -81,14 +82,14 @@ class CacheLayer(object):
             print("retrieving %s from cache file %s" % (path, fullpath))
         return ret
 
-    def write(self, path, obj):
+    def write(self, path : str, obj : Any) -> None:
         fullpath = os.path.join(self._root, path)
         pathdir = os.path.dirname(fullpath)
         if not os.path.isdir(pathdir):
             os.makedirs(pathdir)
         pickle.dump(obj, open(fullpath, 'wb'))
 
-    def flush(self):
+    def flush(self) -> None:
         if os.path.isdir(self._root):
             for f in os.listdir(self._root):
                 shutil.rmtree(os.path.join(self._root, f))
@@ -108,38 +109,40 @@ class SimpleCache(object):
             else:
                 self.flush()
 
-    def hasSum(self, source : Source, genSumName : str):
+    def hasSum(self, source : Source, genSumName : str) -> bool:
         return self._sums.has(source, genSumName) if self._sums else False
 
-    def getSum(self, source : Source, genSumName : str):
+    def getSum(self, source : Source, genSumName : str) -> Union[float, int]:
         assert self._sums
         return self._sums.get(source, genSumName)
 
-    def writeSum(self, source : Source, genSumName : str, wsum : float):
+    def writeSum(self, source : Source, genSumName : str, wsum : Union[float, int]) -> None:
         if self._sums:
             self._sums.write(source, genSumName, wsum)
 
-    def hasPlot(self, k3):
+    def hasPlot(self, k3) -> bool:
         """Check with key beign a tuple(sourceid, flowid, targetid)"""
-        key = os.path.join(*k3)
+        key = os.path.join(*k3)  # type: str
         return self._plots.has(key) if self._plots else False
 
-    def getPlot(self, k3):
+    def getPlot(self, k3) -> Any:
         """Check with key beign a tuple(sourceid, flowid, targetid), return (plot, variations map)"""
-        key = os.path.join(*k3)
+        key = os.path.join(*k3)  # type: str
+        assert (self._plots is not None)
         return self._plots.get(key)
 
-    def writePlot(self, k3, plot, plotvars):
-        key = os.path.join(*k3)
+    def writePlot(self, k3, plot, plotvars) -> None:
+        key = os.path.join(*k3)  # type: str
+        assert (self._plots is not None)
         self._plots.write(key, (plot, plotvars))
 
-    def flush(self, alsoSums=True):
+    def flush(self, alsoSums=True) -> None:
         if alsoSums and self._sums is not None:
             self._sums.flush()
         for c in (self._data, self._plots):
             if c is not None:
                 c.flush()
 
-    def commitSums(self):
+    def commitSums(self) -> None:
         if self._sums:
             self._sums.commitToDisk()

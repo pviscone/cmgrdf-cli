@@ -1,17 +1,19 @@
 #!/usr/bin/env python
+from collections.abc import Iterable
 from math import sqrt, hypot, log, exp
 import copy
 from array import array
-import ROOT
+import ROOT  # type: ignore
+from typing import Any, Literal, Optional, Union
 
 
-def _cloneNoDir(hist, name=''):
+def _cloneNoDir(hist, name : str = "") -> Any:
     ret = hist.Clone(name)
     ret.SetDirectory(ROOT.BindObject(0, ROOT.TDirectory))
     return ret
 
 
-def _projectionXNoDir(hist2d, name, y1, y2):
+def _projectionXNoDir(hist2d, name : str, y1 : int, y2 : int) -> Any:
     nx = hist2d.GetNbinsX()
     ax = hist2d.GetXaxis()
     xbins = array('f', [(ax.GetBinLowEdge(b + 1) if b < nx else ax.GetBinUpEdge(b)) for b in range(0, nx + 1)])
@@ -25,7 +27,7 @@ def _projectionXNoDir(hist2d, name, y1, y2):
     return proj
 
 
-def warnAboutNegativeBins(hist, histName=None):
+def warnAboutNegativeBins(hist, histName : Optional[Any] = None) -> None:
     if histName is None:
         histName = hist.GetName()
     if hist.Integral() < 0:
@@ -42,7 +44,7 @@ def warnAboutNegativeBins(hist, histName=None):
 #
 
 
-def cropNegativeBins(histo):
+def cropNegativeBins(histo) -> None:
     if "TH1" in histo.ClassName():
         for b in range(0, histo.GetNbinsX() + 2):
             if histo.GetBinContent(b) < 0:
@@ -60,7 +62,7 @@ def cropNegativeBins(histo):
                         histo.SetBinContent(bx, by, bz, 0.0)
 
 
-def cropBinErrorTo100Percent(histo):
+def cropBinErrorTo100Percent(histo) -> None:
     if "TH1" in histo.ClassName():
         for b in range(0, histo.GetNbinsX() + 2):
             histo.SetBinError(b, min(histo.GetBinContent(b), histo.GetBinError(b)))
@@ -75,7 +77,7 @@ def cropBinErrorTo100Percent(histo):
                     histo.SetBinError(bx, by, bz, min(histo.GetBinContent(bx, by, bz), histo.GetBinError(bx, by, bz)))
 
 
-def _isNullHistogram(h):
+def _isNullHistogram(h) -> bool:
     if h.Integral() != 0:
         return False
     if "TH1" in h.ClassName():
@@ -108,7 +110,7 @@ class RooFitContext(object):
         self.xvar = None
         self._rebin = False
 
-    def prepareXVar(self, histo, density, name="x"):
+    def prepareXVar(self, histo, density : bool, name="x") -> None:
         if "TH1" not in histo.ClassName():
             raise RuntimeError("Unsupported for non-TH1")
         self.xname = name
@@ -131,7 +133,7 @@ class RooFitContext(object):
             self.xvar = ROOT.RooRealVar(name, name, axis.GetXmin(), axis.GetXmax())
         self.xvar.setBins(histo.GetNbinsX())
 
-    def hist2roofit(self, histo):
+    def hist2roofit(self, histo) -> Any:
         """If needed, transform input histogram produced by ROOT via Draw to deal with non-uniform binning, so that it can be used in RooFit without worries
            Input histogram is not modified"""
         if not self._rebin:
@@ -144,7 +146,7 @@ class RooFitContext(object):
             ret.SetBinContent(b, scale * histo.GetBinContent(b))
         return ret
 
-    def roofit2hist(self, histo, norm, target=None, add=False):
+    def roofit2hist(self, histo, norm, target=None, add=False) -> Any:
         """Transform input histogram produced by RooFit via createHistogram to undo what hist2roofit did, and set normalization
            Input histogram may be modified. Output may be the same object as input (but modified), or a new object."""
         if add and not target:
@@ -165,9 +167,10 @@ class RooFitContext(object):
             histo = target
         return histo
 
-    def roopdf2hist(self, name, pdf, normobj, target=None, add=False):
+    def roopdf2hist(self, name : str, pdf, normobj, target=None, add=False) -> Any:
         """Create a new histogram from a pdf, and normalize it according to a given RooAbsReal.
            If a target histogram is provided, write the output into it with SetBinContent."""
+        assert self.xvar
         if normobj.getVal() == 0:
             if target is not None:
                 target.Reset()
@@ -183,12 +186,12 @@ class RooFitContext(object):
         histo.SetDirectory(ROOT.nullptr)
         return self.roofit2hist(histo, normobj.getVal(), target=target, add=add)
 
-    def imp(self, obj, *args):
+    def imp(self, obj, *args) -> None:
         self._import(obj, *args)
         if hasattr(self.workspace, 'nodelete'):
             self.workspace.nodelete.append(obj)
 
-    def factory(self, expr, neverDelete=True):
+    def factory(self, expr : str, neverDelete=True) -> Any:
         x = self.workspace.factory(expr)
         if neverDelete and hasattr(self.workspace, 'nodelete'):
             self.workspace.nodelete.append(x)
@@ -213,17 +216,18 @@ class PostFitSetup(object):
                 self._checkParamsForPostFit()
             self._throwPostFit(throwPostFitToys)
 
-    def postFitToys(self, ntoys_min=500):
+    def postFitToys(self, ntoys_min=500) -> Any:
         if self._postFitToys is None or self._postFitToys.numEntries() < ntoys_min:
             self._throwPostFit(ntoys_min)
         return self._postFitToys
 
-    def preFitToys(self, ntoys_min=500):
+    def preFitToys(self, ntoys_min=500) -> Any:
         if self._preFitToys is None or self._preFitToys.numEntries() < ntoys_min:
             self._throwPreFit(ntoys_min)
         return self._preFitToys
 
-    def _throwPostFit(self, ntoys):
+    def _throwPostFit(self, ntoys) -> None:
+        assert self.fitResult
         obs = ROOT.RooArgSet(self.params).snapshot()
         dtoy = ROOT.RooDataSet("postFitToys", "", obs)
         #print "Throwing %d toys of %d nuisances" % (ntoys, obs.getSize())
@@ -234,7 +238,7 @@ class PostFitSetup(object):
         #print "Thrown %d toys of %d nuisances in %.3f s" % (ntoys, obs.getSize(), timer.RealTime())
         self._postFitToys = dtoy
 
-    def _throwPreFit(self, ntoys):
+    def _throwPreFit(self, ntoys) -> None:
         if self.params is None:
             raise RuntimeError("Can't throw pre-fit toys without nuisances")
         obs = ROOT.RooArgSet(self.params).snapshot()
@@ -250,7 +254,7 @@ class PostFitSetup(object):
         #print "Thrown %d pre-fit toys of %d nuisances in %.3f s" % (ntoys, obs.getSize(), timer.RealTime())
         self._preFitToys = dtoy
 
-    def makeFitLog(self):
+    def makeFitLog(self) -> list[str]:
         if not self.fitResult:
             return []
         log = ["FIT RESULT (status = %d, covQual %d, edm %g)" % (self.fitResult.status(), self.fitResult.covQual(), self.fitResult.edm()), []]
@@ -269,21 +273,26 @@ class PostFitSetup(object):
 
 
 class YieldWithNuisances(object):
-    def __init__(self, name, value_central, stat_uncertainty=0, nominal=None, variations={}):
+    def __init__(self,
+                 name : str,
+                 value_central : float,
+                 stat_uncertainty : float = 0,
+                 nominal : Optional[float] = None,
+                 variations : Optional[dict[str, tuple[float, float]]] = None):
         self.name = name
         self.central = value_central
         self.stat = stat_uncertainty
         self.nominal = nominal if nominal is not None else self.central
-        self.variations = copy.copy(variations)
-        self._rooFit = None
-        self._postFit = None
+        self.variations : dict[str, tuple[float, float]] = copy.copy(variations) if variations else {}  # type
+        self._rooFit : Optional[dict[str, Any]] = None
+        self._postFit : Optional[PostFitSetup] = None
         self._usePostFit = True
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         """Needed to pickle"""
         return dict(name=self.name, central=self.central, nominal=self.nominal, stat=self.stat, variations=self.variations)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state : dict[str, Any]) -> None:
         """Needed to un-pickle"""
         self.name = state['name']
         self.central = state['central']
@@ -294,21 +303,21 @@ class YieldWithNuisances(object):
         self._postFit = None
         self._usePostFit = True
 
-    def printVariations(self):
+    def printVariations(self) -> None:
         print(f'central: {self.central}')
         print(f'stat: {self.stat}')
         for (x, (v1, v2)) in self.variations.items():
             print(f'  variation {x} : up {v1}  down {v2}')
         print('')
 
-    def Scale(self, x):
+    def Scale(self, x) -> None:
         if self._rooFit and 'norm' in self._rooFit:
             self._rooFit['norm'].setNominalValue(self.central * x)
         self.central *= x
         self.nominal *= x
         self.variations = dict((k, (v[0] * x, v[1] * x)) for (k, v) in self.variations.items())
 
-    def addRooFitScaleFactor(self, roofunc):
+    def addRooFitScaleFactor(self, roofunc) -> None:
         if not self._rooFit:
             raise RuntimeError("Component was not roofitized before")
         if "norm" not in self._rooFit:
@@ -316,22 +325,23 @@ class YieldWithNuisances(object):
         self._rooFit["norm"].addOtherFactor(roofunc)
         self._rooFit["scaleFactors"][roofunc.GetName()] = roofunc
 
-    def rooFitScaleFactors(self):
+    def rooFitScaleFactors(self) -> dict[str, Any]:
         if self._rooFit:
             if "scaleFactors" in self._rooFit:
                 return self._rooFit["scaleFactors"]
         return {}
 
-    def raw(self):
+    def raw(self) -> float:
         return self.nominal if self._usePostFit else self.central
 
-    def systAsymm(self, toadd=None):
+    def systAsymm(self, toadd : Optional[Iterable[str]] = None) -> tuple[float, float]:
         """return the overall syst uncertainty (down, up)"""
         if toadd == []:
             return (0, 0)
         if self._postFit and self._usePostFit and toadd is not None:
             raise RuntimeError("Selection of nuisances yet implemented for post-fit")
         if self._postFit and self._usePostFit:
+            assert self._rooFit
             if "norm" not in self._rooFit:
                 self._makeNorm()
             toys = self._postFit.postFitToys()
@@ -352,47 +362,48 @@ class YieldWithNuisances(object):
                 down2 += max(0, self.central - min(vup, vdn))**2
             return (-sqrt(down2), sqrt(up2))
 
-    def syst(self, toadd=None):
+    def syst(self, toadd=None) -> float:
         asym = self.systAsymm(toadd)
         return sqrt((asym[0]**2 + asym[1]**2) / 2)
 
-    def totAsymm(self):
+    def totAsymm(self) -> tuple[float, float]:
         systA = self.systAsymm()
         return (-hypot(self.stat, -systA[0]), hypot(self.stat, systA[1]))
 
-    def tot(self):
+    def tot(self) -> float:
         return hypot(self.stat, self.syst())
 
-    def getCentral(self):
+    def getCentral(self) -> float:
         return self.central
 
-    def getVariation(self, alternate):
+    def getVariation(self, alternate) -> tuple[float, float]:
         return self.variations[alternate]
 
-    def hasVariation(self, alternate):
+    def hasVariation(self, alternate) -> bool:
         return (alternate in self.variations)
 
-    def hasVariations(self):
+    def hasVariations(self) -> bool:
         return bool(self.variations)
 
-    def getVariationList(self):
+    def getVariationList(self) -> list[str]:
         return list(self.variations.keys())
 
-    def addYieldVariations(self, name, kup, kdown):
+    def addYieldVariations(self, name : str, kup : float, kdown : float) -> None:
         self.variations[name] = (self.central * kup, self.central * kdown)
 
-    def addVariation(self, name, sign, yield_varied):
-        idx = 0 if sign == 'up' else 1
+    def addVariation(self, name : str, sign : Literal["up", "down"], yield_varied : float) -> None:
         if name not in self.variations:
-            self.variations[name] = [None, None]
-        self.variations[name][idx] = yield_varied
+            self.variations[name] = (yield_varied, 0.) if sign == 'up' else (0., yield_varied)
+        else:
+            old = self.variations[name]
+            self.variations[name] = (yield_varied, old[1]) if sign == 'up' else (old[0], yield_varied)
         # invalidate caches
         if self._rooFit or self._postFit:
             print("WARNING: adding a variantion on an object that already has roofit/postfit info")
             self._rooFit = None
             self._postFit = None
 
-    def rooNorm(self, roofitContext=None):
+    def rooNorm(self, roofitContext : Optional[RooFitContext] = None) -> Any:
         if self._rooFit:
             if roofitContext is not None and self._rooFit['context'] != roofitContext:
                 print("I have to regenerate the RooFit setup as it has changed.")
@@ -402,11 +413,12 @@ class YieldWithNuisances(object):
             if not roofitContext:
                 raise RuntimeError("Must provide a valid RooFitContext to create objects")
             self.setupRooFit(roofitContext)
+        assert (self._rooFit)
         if "norm" not in self._rooFit:
             self._makeNorm()
         return self._rooFit["norm"]
 
-    def setPostFitInfo(self, postFitSetup, applyIt):
+    def setPostFitInfo(self, postFitSetup : PostFitSetup, applyIt : bool) -> None:
         if self._rooFit is None:
             raise RuntimeError("Can't setPostFitInfo if you don't have a valid roofit setup")
         self._postFit = postFitSetup
@@ -415,15 +427,16 @@ class YieldWithNuisances(object):
         else:
             self._doPreFit()
 
-    def _doPreFit(self):
+    def _doPreFit(self) -> None:
         self._usePostFit = False
         self.nominal = self.central
         if self._rooFit and self._postFit and self._postFit.fitResult:
             self._rooFit["workspace"].allVars().assignValueOnly(self._postFit.fitResult.floatParsInit())
 
-    def _doPostFit(self):
+    def _doPostFit(self) -> None:
+        assert (self._rooFit is not None and self._postFit is not None and self._postFit.fitResult is not None)
         self._usePostFit = True
-        roofit = self._rooFit["context"]
+        roofit = self._rooFit["context"]  # type: RooFitContext
         roofit.workspace.allVars().assignValueOnly(self._postFit.fitResult.floatParsFinal())
         if self.central == 0:
             return
@@ -431,15 +444,15 @@ class YieldWithNuisances(object):
             self._makeNorm()
         self.nominal = self._rooFit["norm"].getVal()
 
-    def setupRooFit(self, roofitContext):
+    def setupRooFit(self, roofitContext) -> None:
         if self._rooFit:
             if self._rooFit["context"] == roofitContext:
                 return
             print("WARNING, discarding already existing RooFit context")
         self._rooFit = {"context": roofitContext, "workspace": roofitContext.workspace}
 
-    def _makeNorm(self):
-        self.cropNegativeBins()  # can't do with this
+    def _makeNorm(self) -> None:
+        raise RuntimeError("Not implemented correctly?")
         roofitContext = self._rooFit["context"]
         norm0 = self.central.Integral()
         normfactor = ROOT.ProcessNormalization(self.name, "", norm0)
@@ -456,17 +469,17 @@ class YieldWithNuisances(object):
         self._rooFit["norm"] = normfactor
         self._rooFit["scaleFactors"] = {}
 
-    def _dropNorm(self):
+    def _dropNorm(self) -> None:
         if self._rooFit:
             for k in "norm", "scaleFactors":
                 if k in self._rooFit:
                     del self._rooFit[k]
 
-    def _canAdd(self, x : "YieldWithNuisances"):
+    def _canAdd(self, x : "YieldWithNuisances") -> bool:
         #if isinstance(x,YieldSumWithNuisances): return False
         return set(self.rooFitScaleFactors().keys()) == set(x.rooFitScaleFactors().keys())
 
-    def __iadd__(self, x : "YieldWithNuisances"):
+    def __iadd__(self, x : "YieldWithNuisances") -> "YieldWithNuisances":
         if not self._canAdd(x):
             raise RuntimeError("Not yet implemented, but could be")
             #return YieldSumWithNuisances([self, x])
@@ -490,7 +503,7 @@ class YieldWithNuisances(object):
         self._dropNorm()
         return self
 
-    def __add__(self, x : "YieldWithNuisances"):
+    def __add__(self, x : "YieldWithNuisances") -> "YieldWithNuisances":
         if not self._canAdd(x):
             raise RuntimeError("Not yet implemented, but could be")
             #return YieldSumWithNuisances([self, x])
@@ -498,10 +511,10 @@ class YieldWithNuisances(object):
         h += x
         return h
 
-    def Clone(self, name=None):
+    def Clone(self, name : Optional[str] = None) -> "YieldWithNuisances":
         return YieldWithNuisances(name if name is not None else self.name, self.central, self.stat, nominal=self.nominal, variations=self.variations)
 
-    def Add(self, other : "YieldWithNuisances", scaleFactor=None):
+    def Add(self, other : "YieldWithNuisances", scaleFactor : Optional[float] = None) -> None:
         if scaleFactor is None:
             self += other
         else:
@@ -511,7 +524,7 @@ class YieldWithNuisances(object):
 
 
 class HistoWithNuisances(object):
-    def __init__(self, histo_central, reset=False):
+    def __init__(self, histo_central : Any, reset : bool = False):
         if isinstance(histo_central, HistoWithNuisances):
             raise RuntimeError("Created with HWN instead of THn or TGraph")
         self.central = _cloneNoDir(histo_central, histo_central.GetName())
@@ -519,11 +532,11 @@ class HistoWithNuisances(object):
         self.variations = {}
         if reset:
             self.nominal.Reset()
-        self._rooFit = None
-        self._postFit = None
+        self._rooFit : Optional[dict[str, Any]] = None
+        self._postFit : Optional[PostFitSetup] = None
         self._usePostFit = True
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         """Needed to pickle"""
         ret = {'name': self.central.GetName(), 'central': self.central, 'nominal': None}
         if self.nominal != self.central:
@@ -534,7 +547,7 @@ class HistoWithNuisances(object):
         ret['variations'] = variations
         return ret
 
-    def __setstate__(self, state):
+    def __setstate__(self, state : dict[str, Any]) -> None:
         """Needed to un-pickle"""
         self.central = _cloneNoDir(state['central'], state['name'])
         self.nominal = _cloneNoDir(state['nominal'], state['name'] + "_nominal") if (state['nominal'] is not None) else self.central
@@ -547,12 +560,12 @@ class HistoWithNuisances(object):
         self._postFit = None
         self._usePostFit = True
 
-    def __getattr__(self, name):
+    def __getattr__(self, name : str) -> Any:
         if name in self.__dict__:
             return self.__dict__[name]
         return getattr(self.nominal if self._usePostFit else self.central, name)
 
-    def isSimple(self):
+    def isSimple(self) -> bool:
         if len(self.variations) != 0:
             return False
         if self.nominal != self.central:
@@ -561,7 +574,7 @@ class HistoWithNuisances(object):
             return False
         return True
 
-    def isZero(self):
+    def isZero(self) -> bool:
         if not _isNullHistogram(self.central):
             return False
         for v, p in self.variations.items():
@@ -570,7 +583,7 @@ class HistoWithNuisances(object):
                     return False
         return True
 
-    def Clone(self, newname):
+    def Clone(self, newname : str) -> "HistoWithNuisances":
         h = HistoWithNuisances(_cloneNoDir(self.central, newname))
         for v, p in self.variations.items():
             h.variations[v] = [_cloneNoDir(x, x.GetName()) for x in p]
@@ -584,18 +597,18 @@ class HistoWithNuisances(object):
         h._usePostFit = self._usePostFit
         return h
 
-    def Reset(self):
+    def Reset(self) -> None:
         self.central.Reset()
         self.nominal.Reset()
         self.variations = {}
         self._dropPdfAndNorm()
 
-    def printVariations(self):
+    def printVariations(self) -> None:
         print('central:', self.GetName(), self.Integral())
         for (x, (v1, v2)) in self.variations.items():
             print(x, v1.Integral() if v1 else '-', v2.Integral() if v2 else '-')
 
-    def Scale(self, x):
+    def Scale(self, x : float) -> None:
         if self._rooFit and 'norm' in self._rooFit:
             self._rooFit['norm'].setNominalValue(self.central.Integral() * x)
         self.central.Scale(x)
@@ -605,7 +618,7 @@ class HistoWithNuisances(object):
             for h in p:
                 h.Scale(x)
 
-    def addRooFitScaleFactor(self, roofunc):
+    def addRooFitScaleFactor(self, roofunc : Any) -> None:
         if not self._rooFit:
             raise RuntimeError("Component was not roofitized before")
         if "norm" not in self._rooFit:
@@ -613,19 +626,19 @@ class HistoWithNuisances(object):
         self._rooFit["norm"].addOtherFactor(roofunc)
         self._rooFit["scaleFactors"][roofunc.GetName()] = roofunc
 
-    def rooFitScaleFactors(self):
+    def rooFitScaleFactors(self) -> dict[str, Any]:
         if self._rooFit:
             if "scaleFactors" in self._rooFit:
                 return self._rooFit["scaleFactors"]
         return {}
 
-    def raw(self):
+    def raw(self) -> Any:
         return self.nominal if self._usePostFit else self.central
 
-    def sumSystUncertainties(self, toadd=None):
+    def sumSystUncertainties(self, toadd=None) -> tuple[Any, Any]:
         """in each bin, this does max/min of (central,up,down) of each variation and then sums in quadrature upward and downward shifts"""
         if toadd == []:
-            return [self.nominal, self.nominal]
+            return (self.nominal, self.nominal)
         if self._postFit and self._usePostFit and toadd is not None:
             raise RuntimeError("Selection of nuisances yet implemented for post-fit")
         if toadd is None:
@@ -637,9 +650,10 @@ class HistoWithNuisances(object):
         htotup = _cloneNoDir(hempty, self.GetName() + '_systUp')
         htotdn = _cloneNoDir(hempty, self.GetName() + '_systDn')
         if self._postFit and self._usePostFit:
+            assert self._rooFit is not None
             if "pdf" not in self._rooFit:
                 self._makePdfAndNorm()
-            toys = self._postFit.postFitToys()
+            toys = self._postFit.postFitToys()  # type: Any
             if "TH1" not in self.nominal.ClassName():
                 raise RuntimeError("Unsupported for non-TH1")
             nom_bins = [self.nominal.GetBinContent(b) for b in range(1, self.nominal.GetNbinsX() + 1)]
@@ -688,9 +702,9 @@ class HistoWithNuisances(object):
                     for b2 in range(1, self.GetNbinsY() + 1):
                         htotup.SetBinContent(b1, b2, self.GetBinContent(b1, b2) + sqrt(sum([(hvars[x][0].GetBinContent(b1, b2))**2 for x in hvars])))
                         htotdn.SetBinContent(b1, b2, self.GetBinContent(b1, b2) - sqrt(sum([(hvars[x][1].GetBinContent(b1, b2))**2 for x in hvars])))
-        return [htotup, htotdn]
+        return (htotup, htotdn)
 
-    def integralStatError(self, relative=False):
+    def integralStatError(self, relative=False) -> float:
         err = sqrt(sum([self.raw().GetBinError(b)**2 for b in range(1, self.raw().GetNbinsX() + 1)]))
         if relative:
             i0 = self.raw().Integral()
@@ -698,7 +712,11 @@ class HistoWithNuisances(object):
         else:
             return err
 
-    def integralSystError(self, toadd=None, relative=False, symmetrize=True, cropAtZero=True):
+    def integralSystError(self,
+                          toadd : Optional[Iterable[str]] = None,
+                          relative : bool = False,
+                          symmetrize : bool = True,
+                          cropAtZero : bool = True) -> Union[float, tuple[float, float]]:
         """Compute the systematic-only uncertainty on the integral. Does not add the MC statistics."""
         if "TH" not in self.ClassName():
             raise RuntimeError('Cannot compute systematic uncertainty for scatter plot')
@@ -706,10 +724,12 @@ class HistoWithNuisances(object):
         if relative and i0 == 0:
             return 0 if symmetrize else (0, 0)
         if self._postFit and self._usePostFit:
+            assert (self._rooFit)
+            assert (self._postFit.fitResult)
             if toadd is None and symmetrize is True:
                 if "norm" not in self._rooFit:
                     self._makePdfAndNorm()
-                toys = self._postFit.postFitToys()
+                toys : Any = self._postFit.postFitToys()
                 wvars = self._rooFit["workspace"].allVars()
                 norm = self._rooFit["norm"]
                 nominal, sumw2 = norm.getVal(), 0.0
@@ -737,7 +757,7 @@ class HistoWithNuisances(object):
             idown /= i0
         return sqrt(0.5 * (iup**2 + idown**2)) if symmetrize else (-idown, iup)
 
-    def integralWithNuisances(self):
+    def integralWithNuisances(self) -> YieldWithNuisances:
         central = self.central.Integral()
         nominal = self.raw().Integral()
         stat = self.integralStatError()
@@ -749,7 +769,7 @@ class HistoWithNuisances(object):
         ywn._usePostFit = self._usePostFit
         return ywn
 
-    def graphAsymmTotalErrors(self, toadd=None, relative=False):
+    def graphAsymmTotalErrors(self, toadd : Optional[Iterable[str]] = None, relative : bool = False) -> Any:
         if "TH1" not in self.central.ClassName():
             raise RuntimeError("Unsupported for non-TH1")
         h = self.raw()
@@ -994,7 +1014,7 @@ class HistoWithNuisances(object):
                                 ROOT.RooArgList(roofitContext.xvar),
                                 roofitContext.hist2roofit(hraw))
 
-    def rooFitPdfAndNorm(self, roofitContext : RooFitContext = None):
+    def rooFitPdfAndNorm(self, roofitContext : Optional[RooFitContext] = None):
         if self._rooFit:
             if roofitContext is not None and self._rooFit['context'] != roofitContext:
                 print("I have to regenerate the RooFit setup as it has changed.")
@@ -1004,11 +1024,12 @@ class HistoWithNuisances(object):
             if not roofitContext:
                 raise RuntimeError("Must provide a valid RooFitContext to create objects")
             self.setupRooFit(roofitContext)
+        assert self._rooFit
         if "pdf" not in self._rooFit:
             self._makePdfAndNorm()
         return (self._rooFit["pdf"], self._rooFit["norm"])
 
-    def setPostFitInfo(self, postFitSetup : PostFitSetup, applyIt : bool):
+    def setPostFitInfo(self, postFitSetup : PostFitSetup, applyIt : bool) -> None:
         if self._rooFit is None:
             raise RuntimeError("Can't setPostFitInfo if you don't have a valid roofit setup")
         self._postFit = postFitSetup
@@ -1017,13 +1038,14 @@ class HistoWithNuisances(object):
         else:
             self._doPreFit()
 
-    def _doPreFit(self):
+    def _doPreFit(self) -> None:
         self._usePostFit = False
         self.nominal = self.central
         if self._rooFit and self._postFit and self._postFit.fitResult:
             self._rooFit["workspace"].allVars().assignValueOnly(self._postFit.fitResult.floatParsInit())
 
-    def _doPostFit(self):
+    def _doPostFit(self) -> None:
+        assert self._rooFit is not None and self._postFit is not None and self._postFit.fitResult is not None
         self._usePostFit = True
         roofit = self._rooFit["context"]
         roofit.workspace.allVars().assignValueOnly(self._postFit.fitResult.floatParsFinal())
@@ -1044,14 +1066,15 @@ class HistoWithNuisances(object):
                 continue
             self.nominal.SetBinError(b, self.nominal.GetBinContent(b) * self.central.GetBinError(b) / self.central.GetBinContent(b))
 
-    def setupRooFit(self, roofitContext):
+    def setupRooFit(self, roofitContext) -> None:
         if self._rooFit:
             if self._rooFit["context"] == roofitContext:
                 return
             print("WARNING, discarding already existing RooFit context")
         self._rooFit = {"context": roofitContext, "workspace": roofitContext.workspace}
 
-    def _makePdfAndNorm(self):
+    def _makePdfAndNorm(self) -> None:
+        assert self._rooFit
         self.cropNegativeBins()  # can't do with this
         roofitContext = self._rooFit["context"]
         templates = ROOT.TList()
@@ -1163,7 +1186,7 @@ class HistoWithNuisances(object):
         h._usePostFit = self._usePostFit
         return h
 
-    def writeToFile(self, tfile, writeVariations=True, takeOwnership=False):
+    def writeToFile(self, tfile, writeVariations=True, takeOwnership=False) -> None:
         tfile.WriteTObject(self.nominal, self.nominal.GetName())
         for key, vals in self.variations.items():
             tfile.WriteTObject(vals[0], self.GetName() + "_" + key + "Up")
@@ -1263,7 +1286,7 @@ class SumWithNuisances(HistoWithNuisances):
     def addVariation(self, name, sign, histo_varied, clone=True):
         raise RuntimeError("Not supported")
 
-    def addBinByBin(self, namePattern="{name}_bbb_{bin}", ycutoff=1e-3, relcutoff=1e-2, verbose=False, norm=False):
+    def addBinByBin(self, namePattern="{name}_bbb_{bin}", ycutoff=1e-3, relcutoff=1e-2, verbose=False, norm=False, conservativePruning=False):
         raise RuntimeError("Not supported")
 
     ## HistoWithNuisance API that we could support but we don't
@@ -1273,7 +1296,7 @@ class SumWithNuisances(HistoWithNuisances):
     def Clone(self, newname):
         raise RuntimeError("Not supported")
 
-    def writeToFile(self, tfile, writeVariations=True):
+    def writeToFile(self, tfile, writeVariations=True, takeOwnership=False) -> None:
         if writeVariations:
             if not hasattr(SumWithNuisances, '_warnedAboutWriteToFile'):
                 print("WARNING: variations for %s can't be saved to file yet" % self.central.GetName())
@@ -1281,7 +1304,7 @@ class SumWithNuisances(HistoWithNuisances):
         tfile.WriteTObject(self.nominal, self.nominal.GetName())
 
     ## HistoWithNuisance API that we implement differently: variation names
-    def hasVariations(self):
+    def hasVariations(self) -> bool:
         return bool(self.variations)
 
     def getVariationList(self):
@@ -1343,9 +1366,9 @@ class SumWithNuisances(HistoWithNuisances):
             raise RuntimeError("Not supported")
     ## HistoWithNuisance API that we implement differently: uncertainties
 
-    def sumSystUncertainties(self, toadd=None):
+    def sumSystUncertainties(self, toadd=None) -> tuple[Any, Any]:
         if toadd == []:
-            return [self.nominal, self.nominal]
+            return (self.nominal, self.nominal)
         if toadd is not None:
             raise RuntimeError("Not implemented")
         hempty = _cloneNoDir(self.central)
@@ -1354,6 +1377,7 @@ class SumWithNuisances(HistoWithNuisances):
         htotdn = _cloneNoDir(hempty, self.nominal.GetName() + '_systDn')
         if not self._postFit:
             self._postFit = PostFitSetup(params=self._nuisances)
+        assert self._rooFit  # initialized by the above
         toys = self._postFit.postFitToys() if self._usePostFit else self._postFit.preFitToys()
         nom_bins = [self.nominal.GetBinContent(b) for b in range(1, self.nominal.GetNbinsX() + 1)]
         sumw2s = [0. for x in nom_bins]
@@ -1375,9 +1399,9 @@ class SumWithNuisances(HistoWithNuisances):
             htotup.SetBinContent(ib + 1, x0 + sqrt(xw2 / toys.numEntries()))
             htotdn.SetBinContent(ib + 1, max(0, x0 - sqrt(xw2 / toys.numEntries())))
         wvars.assignValueOnly(snap)
-        return [htotup, htotdn]
+        return (htotup, htotdn)
 
-    def integralSystError(self, toadd=None, relative=False, symmetrize=True, cropAtZero=True):
+    def integralSystError(self, toadd=None, relative=False, symmetrize=True, cropAtZero=True) -> Union[float, tuple[float, float]]:
         i0 = self.raw().Integral()
         if relative and i0 == 0:
             return 0 if symmetrize else (0, 0)
@@ -1405,7 +1429,7 @@ class SumWithNuisances(HistoWithNuisances):
 
 
 class ParametricHistoWN(HistoWithNuisances):
-    def __init__(self, histo_central, binToFix=1, binRange=[-7, 7], nuisancePrefixName=None):
+    def __init__(self, histo_central, binToFix=1, binRange=(-7, 7), nuisancePrefixName=None):
         HistoWithNuisances.__init__(self, histo_central)
         self._binToFix = binToFix
         self._binRange = binRange

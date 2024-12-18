@@ -26,7 +26,7 @@ class JsonFilter(FlowStep):
 
 
 class TriggerBitFilter(FlowStep):
-    def __init__(self, selectBits : Sequence[str], vetoBits : Sequence[str] = [], onMC=True, onDataDriven=True, onData=True, eras=None, name="HLT", defineDefaults : bool = False):
+    def __init__(self, selectBits : Sequence[str], vetoBits : Sequence[str] = (), onMC=True, onDataDriven=True, onData=True, eras=None, name="HLT", defineDefaults : bool = False):
         """Define a filter that checks for the OR of the trigger bits in selectBits and vetos the OR of bits in vetoBits.
            defineDefaults can be used to automatically insert a DefineDefault(bit, false) for all the used bits"""
         super().__init__(name, onMC=False, onDataDriven=True, onData=True, eras=eras)

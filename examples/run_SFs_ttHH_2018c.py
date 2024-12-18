@@ -10,8 +10,8 @@ if P.startswith("/eos") and not os.path.isdir("/eos"):
 print(f"Reading from {P}")
 
 
-def mkMC(name, parts=0, normUncertainties=[]):
-    uncertainties = normUncertainties[:] + [lumiUncerty2018]
+def mkMC(name, parts=0, normUncertainties=()):
+    uncertainties = list(normUncertainties) + [lumiUncerty2018]
     if parts == 0:
         return MCSample(name, P, xsec="xsec", normUncertainties=uncertainties)
     else:
