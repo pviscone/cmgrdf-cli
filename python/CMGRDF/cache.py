@@ -5,7 +5,7 @@ import pickle
 import sys
 import shutil
 from typing import Any, Union
-import ROOT
+import ROOT  # type: ignore
 
 from CMGRDF.data import Source
 

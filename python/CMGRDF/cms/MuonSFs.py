@@ -1,4 +1,5 @@
 import os
+from typing import Any, Union
 
 from CMGRDF.init import Declare
 from CMGRDF.flow import Define
@@ -10,10 +11,20 @@ muonPOGEras = {"2016APV": "2016preVFP_UL", "2016": "2016postVFP_UL", "2017": "20
 
 
 class MuonIDSFDefine(Define):
-    def __init__(self, idName, era, onData=False, onDataDriven=False, den="genTracks", nuisName="CMS_eff_m", ptRange=(15, 249.999), **options):
+    def __init__(self,
+                 idName : str,
+                 era : str,
+                 onData : bool = False,
+                 onDataDriven : bool = False,
+                 den : str = "genTracks",
+                 nuisName : str = "CMS_eff_m",
+                 ptRange : tuple[float, float] = (15, 249.999),
+                 **options):
         super().__init__(f'Muon_SF_{idName}Id',
                          f'muonIDSF_{idName}_{era}(Muon_pt, {ptRange[0]}, {ptRange[1]}, Muon_eta)',
-                         onData=onData, onDataDriven=onDataDriven, **options)
+                         onData=onData,
+                         onDataDriven=onDataDriven,
+                         **options)
         self.era = era
         self.idName = idName
         self.nuisName = nuisName
@@ -51,7 +62,7 @@ class MuonIDSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if not self._init:
             self.init()
         try:
@@ -69,10 +80,21 @@ class MuonIDSFDefine(Define):
 
 
 class MuonIDIsoSFDefine(Define):
-    def __init__(self, idName, isoName, era, onData=False, onDataDriven=False, den="genTracks", nuisName="CMS_eff_m", ptRange=(15, 249.999), **options):
+    def __init__(self,
+                 idName : str,
+                 isoName : str,
+                 era : str,
+                 onData : bool = False,
+                 onDataDriven : bool = False,
+                 den : str = "genTracks",
+                 nuisName : str = "CMS_eff_m",
+                 ptRange : tuple[float, float] = (15, 249.999),
+                 **options):
         super().__init__(f'Muon_SF_{idName}Id_{isoName}Iso',
                          f'muonIDIsoSF_{idName}_{isoName}_{era}(Muon_pt, {ptRange[0]}, {ptRange[1]}, Muon_eta)',
-                         onData=onData, onDataDriven=onDataDriven, **options)
+                         onData=onData,
+                         onDataDriven=onDataDriven,
+                         **options)
         self.era = era
         self.idName = idName
         self.isoName = isoName
@@ -83,7 +105,7 @@ class MuonIDIsoSFDefine(Define):
         self._isoCorrName = f"NUM_{isoName}{isoKind}_DEN_{idName}ID"
         self._init = False
 
-    def init(self):
+    def init(self) -> None:
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._idCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         corrIso = CorrectionlibFactory.loadCorrector(self._fname, self._isoCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.isoName, check=True)[0]
         Declare('''
@@ -112,7 +134,7 @@ class MuonIDIsoSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ISO>", self.isoName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<CORRISO>", corrIso).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if not self._init:
             self.init()
         try:
@@ -129,7 +151,8 @@ class MuonIDIsoSFDefine(Define):
             raise
 
 
-MuonSFs = dict()
+MuonSFs : dict[Union[str, tuple[str, str]],
+               Union[MuonIDSFDefine, MuonIDIsoSFDefine, list[MuonIDSFDefine], list[MuonIDIsoSFDefine]]] = dict()
 for muid in "Loose", "Medium", "MediumPrompt":
     for era in run2eras:
         MuonSFs[(f"{muid}Id", era)] = MuonIDSFDefine(muid, era)

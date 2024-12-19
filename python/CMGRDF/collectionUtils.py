@@ -9,25 +9,31 @@ class DefineFromCollection(FlowStep):
     (ex To define LepGood1_pt. DefineFromCollection("LepGood1",members=["pt"],index="iLepFO_Recl[0]") )
     """
 
-    def __init__(self, name, srcColl, members : Optional[list[str]] = None, index=None, redefine=False, **options):
+    def __init__(self,
+                 name : str,
+                 srcColl : str,
+                 members : Optional[list[str]] = None,
+                 index : str = "",
+                 redefine : bool = False,
+                 **options):
         super().__init__(name, **options)
         self.members = members
         self.index = index
         self.srcColl = srcColl
         self.rdf_func = "Redefine" if redefine else "Define"
 
-        if index is None:
+        if not index:
             raise RuntimeError(f"Error in {self.name}: must specify index")
 
-    def _attach(self, rdf, withUncertainties):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        cols = set(str(c) for c in rdf.GetColumnNames())
         if self.members is None:
-            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
-                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
-            members = list(dict.fromkeys(members))  # Remove duplicates
+            members = [branch.split(f"{self.srcColl}_", 1)[1] for branch in cols
+                       if branch.startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(set(members))  # Remove duplicates
         else:
             members = self.members
 
-        cols = set(rdf.GetColumnNames())
         for m in members:
             rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
             try:
@@ -47,6 +53,10 @@ class DefineFromCollection(FlowStep):
         if self.sample:
             out += f"\tsample: {self.sample}\n"
         return out
+
+    def _addToHash(self, hasher : Any) -> None:
+        super()._addToHash(hasher)
+        _recursiveAddToHash((self.srcColl, self.index, self.members), hasher)
 
 
 class DefineSkimmedCollection(FlowStep):
@@ -124,7 +134,7 @@ class DefineSkimmedCollection(FlowStep):
             return FlowStep._equals(self, other) and self._params() == other._params()
         return id(self) == id(other)
 
-    def _addToHash(self, hasher) -> None:
+    def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
         _recursiveAddToHash(self._params(), hasher)
 

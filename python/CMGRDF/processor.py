@@ -20,6 +20,7 @@ class _Branch(object):
                  parentOrSource : "Union[_Branch,Source]",
                  stepOrTreeName : "Union[FlowStep,str]",
                  withUncertainties : bool,
+                 hasher : Optional[Any] = None,
                  local : Optional[bool] = None,
                  cache : Optional[SimpleCache] = None,
                  DataFrameClass=ROOT.RDataFrame,
@@ -37,14 +38,14 @@ class _Branch(object):
             self.step = stepOrTreeName
             stepOrTreeName._addToHash(self.hasher)
         else:
-            assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str)
+            assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str) and (hasher is not None)
             self.source = parentOrSource
             self.sourceTreeName = stepOrTreeName
             self._local = local
             self.DataFrameClass = DataFrameClass
             self.DataFrameArgs = dict(**kwargs)
             self.parentBranch = None
-            self.hasher = HasherFromGlobalConfig()
+            self.hasher = hasher
             self.withUncertainties = withUncertainties
             self.step = None
         self.branches = []  # type: list["_Branch"]
@@ -127,6 +128,7 @@ class Processor(object):
             self.VariationsFor = ROOT.RDF.Experimental.VariationsFor
             self.DataFrameClass = ROOT.RDataFrame
             self.DataFrameArgs = {}
+        self._hasher = HasherFromGlobalConfig()
         self.clear()
 
     def clear(self) -> "Processor":
@@ -147,7 +149,7 @@ class Processor(object):
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s, local %s" % (source.longId(), self._local))
-            self._trees[source] = _Branch(source, treeName, withUncertainties=withUncertainties, local=self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
+            self._trees[source] = _Branch(source, treeName, withUncertainties, hasher=self._hasher.copy(), local=self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())
@@ -186,7 +188,7 @@ class Processor(object):
     def _samplesForProc(self, proc : Process) -> list[Sample]:
         if self._local:
             return proc.samples
-        ret = []
+        ret : list[Sample] = []
         for sample in proc.samples:
             if isinstance(sample, MCGroup):
                 print(f"Splitting MCGroup {sample.name} since it's not supported in DistRDF")
@@ -295,7 +297,7 @@ class Processor(object):
                     eras : Optional[list[str]] = None,
                     taskName="",
                     withUncertainties=None,
-                    logPerformance=True):
+                    logPerformance=True) -> "Processor":
         if withUncertainties is None:
             withUncertainties = self.withUncertainties or False
         self._rawResults = None  # invalidate existing results
@@ -363,7 +365,7 @@ class Processor(object):
             print("Booked %d targets in %.3fs" % (n1 - n0, t1 - t0))
         return self
 
-    def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False, debug=False):
+    def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False, debug=False) -> MultiReport:
         """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
         self._state = Processor.State.Run
         if self._rawResults is None:
@@ -461,7 +463,7 @@ class Processor(object):
             print("Merged %d plots in %.3fs" % (len(plots), time.perf_counter() - t0))
         return results
 
-    def runYields(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs):
+    def runYields(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
@@ -503,7 +505,7 @@ class Processor(object):
             print("Merged %d yields in %.3fs" % (len(merged), time.perf_counter() - t0))
         return merged
 
-    def runSnapshots(self, logPerformance=True, hadd=True):
+    def runSnapshots(self, logPerformance=True, hadd=True) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance)
         plots = MultiReport()
         for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:

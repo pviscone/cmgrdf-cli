@@ -1,7 +1,7 @@
 import hashlib
 import os.path
 import sys
-from typing import Optional
+from typing import Any, Optional
 import ROOT  # type: ignore
 
 _codelines = []
@@ -11,7 +11,7 @@ _dynlibs = []
 _hasher = hashlib.sha256()
 
 
-def _makePreprocessorGuard(code) -> str:
+def _makePreprocessorGuard(code : str) -> str:
     if code.startswith("#ifndef"):
         return code
     hasher = hashlib.sha256()
@@ -20,7 +20,7 @@ def _makePreprocessorGuard(code) -> str:
     return f"#ifndef {symbol}\n#define {symbol}\n{code}\n#endif"
 
 
-def ProcessLine(code) -> None:
+def ProcessLine(code : str) -> None:
     global _codelines, _hasher
     shortcode = code.strip()[:70]  # noqa: F841
     code = code if code[0] == "." else _makePreprocessorGuard(code)  # don't wrap CLING magic codes
@@ -30,7 +30,7 @@ def ProcessLine(code) -> None:
     #print(f"Global hash is now {_hasher.hexdigest()} after processline {shortcode!r}")
 
 
-def Declare(code) -> None:
+def Declare(code : str) -> None:
     global _codelines, _hasher
     shortcode = code.strip()[:70]  # noqa: F841
     code = _makePreprocessorGuard(code)
@@ -40,7 +40,7 @@ def Declare(code) -> None:
     #print(f"Global hash is now {_hasher.hexdigest()} after declaring {shortcode!r}")
 
 
-def _hashFile(role, filename, filepath) -> None:
+def _hashFile(role : str, filename : str, filepath : str) -> None:
     global _hasher
     if filepath:
         filepath = os.path.expandvars(filepath)
@@ -82,7 +82,7 @@ def LoadLibrary(library : str, filepath : str = "${CMGRDF}/lib", extraPaths : Op
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {library}")
 
 
-def HasherFromGlobalConfig():
+def HasherFromGlobalConfig() -> Any:
     global _hasher
     return _hasher.copy()
 
@@ -92,13 +92,13 @@ def GlobalConfigHash() -> str:
     return _hasher.hexdigest()
 
 
-_modules_and_inits: list[tuple[str, str]] = [
+_modules_and_inits = [
     ("correctionlib", "correctionlib.register_pyroot_binding()"),
     ("CMSJMECalculators", "CMSJMECalculators.loadJMESystematicsCalculators()")
 ]
 
 
-def RunDistributedInitializer(daskClient) -> None:
+def RunDistributedInitializer(daskClient : Any) -> None:
     global _modules_and_inits
     current_config = _hasher.hexdigest()
     #print(f"Requested hash is now {current_config}")

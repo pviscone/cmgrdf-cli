@@ -1,13 +1,13 @@
-import correctionlib
 import re
 from CMGRDF.init import Declare
 from typing import Any, Optional
 
+import correctionlib
 correctionlib.register_pyroot_binding()
 
 
 class CorrectionlibFactory(object):
-    _ids = dict()  # type: dict[str,str]
+    _ids: dict[str, str] = dict()
 
     @classmethod
     def _strToId(cls, name: str, prefix : str, hint : Optional[str] = None) -> str:
@@ -22,7 +22,7 @@ class CorrectionlibFactory(object):
             cls._ids[name] = key
         return cls._ids[name]
 
-    _files = dict()  # type: dict[str, tuple[str, Any]]
+    _files : dict[str, tuple[str, Any]] = dict()
 
     @classmethod
     def _loadSet(cls, filename : str, hint : Optional[str] = None, check : bool = False) -> tuple[str, Any]:
@@ -35,7 +35,7 @@ class CorrectionlibFactory(object):
             Declare(f'auto {fileid} = correction::CorrectionSet::from_file("{filename}");')
         return cls._files[filename]
 
-    _correctors = dict()  # type: dict[tuple[str, str], tuple[str, Any]]
+    _correctors : dict[tuple[str, str], tuple[str, Any]] = dict()
 
     @classmethod
     def loadCorrector(cls, filename : str, corrector : str, fileHint=None, corrHint=None, check=False, access_method="at") -> tuple[str, Any]:
