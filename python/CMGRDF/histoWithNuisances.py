@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#pyright: reportPrivateUsage=false, reportUninitializedInstanceVariable=false
 from collections.abc import Iterable, Sequence
 from math import sqrt, hypot, log, exp
 import copy
@@ -111,10 +112,9 @@ class RooFitContext(object):
         self.xvar = None
         self._rebin = False
 
-    def prepareXVar(self, histo, density : bool, name="x") -> None:
+    def prepareXVar(self, histo : Any, density : bool, name : str = "x") -> None:
         if "TH1" not in histo.ClassName():
             raise RuntimeError("Unsupported for non-TH1")
-        self.xname = name
         self._histo = _cloneNoDir(histo, "_template_")
         if density:
             self._rebin = True
@@ -135,7 +135,7 @@ class RooFitContext(object):
             self.xvar = ROOT.RooRealVar(name, name, axis.GetXmin(), axis.GetXmax())  # type: ignore
         self.xvar.setBins(histo.GetNbinsX())
 
-    def hist2roofit(self, histo) -> Any:
+    def hist2roofit(self, histo : Any) -> Any:
         """If needed, transform input histogram produced by ROOT via Draw to deal with non-uniform binning, so that it can be used in RooFit without worries
            Input histogram is not modified"""
         if not self._rebin:
@@ -148,7 +148,7 @@ class RooFitContext(object):
             ret.SetBinContent(b, scale * histo.GetBinContent(b))
         return ret
 
-    def roofit2hist(self, histo, norm, target=None, add=False) -> Any:
+    def roofit2hist(self, histo : Any, norm : float, target : Optional[Any] = None, add : bool = False) -> Any:
         """Transform input histogram produced by RooFit via createHistogram to undo what hist2roofit did, and set normalization
            Input histogram may be modified. Output may be the same object as input (but modified), or a new object."""
         if add and not target:
@@ -160,6 +160,7 @@ class RooFitContext(object):
                 raise RuntimeError("Unsupported for non-TH1")
             if target is None:
                 target = _cloneNoDir(self._histo, histo.GetName())
+            assert target
             for b in range(1, histo.GetNbinsX() + 1):
                 scale = 1.0 / histo.GetXaxis().GetBinWidth(b) if self._density else 1.0
                 if add:
@@ -169,7 +170,7 @@ class RooFitContext(object):
             histo = target
         return histo
 
-    def roopdf2hist(self, name : str, pdf, normobj, target=None, add=False) -> Any:
+    def roopdf2hist(self, name : str, pdf : Any, normobj : Any, target : Optional[Any] = None, add : bool = False) -> Any:
         """Create a new histogram from a pdf, and normalize it according to a given RooAbsReal.
            If a target histogram is provided, write the output into it with SetBinContent."""
         assert self.xvar

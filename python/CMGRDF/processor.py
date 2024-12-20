@@ -37,7 +37,7 @@ class _Branch(object):
             self.hasher = parentOrSource.hasher.copy()
             self.withUncertainties = parentOrSource.withUncertainties
             self.step = stepOrTreeName
-            stepOrTreeName._addToHash(self.hasher)
+            stepOrTreeName._addToHash(self.hasher)  # pyright: ignore[reportPrivateUsage]
         else:
             assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str) and (hasher is not None)
             self.source = parentOrSource
@@ -113,7 +113,11 @@ class Processor(object):
         self._trees : dict[Source, _Branch] = dict()
         self._lumiMap : dict[MultiKey, float] = dict()
         self._cache = cache
-        self._toCache = dict()
+        self._rawResults : Optional[MultiReport] = None
+        self._reports : list[tuple[Source, Any]] = []
+        self._futures: list[tuple[MultiKey, Process, Sample, Target, Any, Any]] = []
+        self._fromCache: list[tuple[MultiKey, Process, Sample, Target, Any, Any]] = []
+        self._toCache : dict[MultiKey, tuple[str, str, str]] = dict()
         self._executor = executor
         self.withUncertainties = withUncertainties
         if executor is not None:
@@ -130,11 +134,11 @@ class Processor(object):
             self.DataFrameClass = ROOT.RDataFrame
             self.DataFrameArgs = {}
         self._hasher = HasherFromGlobalConfig()
-        self.clear()
+        self._state = Processor.State.Clean
 
     def clear(self) -> "Processor":
-        self._futures = []
-        self._fromCache = []
+        self._futures.clear()
+        self._fromCache.clear()
         self._toCache.clear()
         self._trees.clear()
         self._rawResults = None
@@ -316,7 +320,7 @@ class Processor(object):
         n0 = len(self._futures)
         if isinstance(flows, Flow):
             flows = [flows]
-        futuresToVary = []
+        futuresToVary: list[tuple[MultiKey, Process, Sample, Target, Any]] = []
         verbose = False
         for flow in flows:
             for era in eralist:

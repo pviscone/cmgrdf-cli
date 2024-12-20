@@ -1,7 +1,7 @@
 from typing import Any, Optional
 from collections.abc import Sequence
 from CMGRDF.flow import FlowStep
-from CMGRDF.utils import _recursiveAddToHash
+from CMGRDF.utils import recursiveAddToHash
 import ROOT  # type: ignore
 
 
@@ -17,7 +17,7 @@ class JsonFilter(FlowStep):
 
     def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.filename, hasher)
+        recursiveAddToHash(self.filename, hasher)
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
@@ -54,7 +54,7 @@ class TriggerBitFilter(FlowStep):
 
     def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash((self.selectBits, self.vetoBits, self.defineDefaults), hasher)
+        recursiveAddToHash((self.selectBits, self.vetoBits, self.defineDefaults), hasher)
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:

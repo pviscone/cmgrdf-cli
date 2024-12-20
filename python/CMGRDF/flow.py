@@ -1,10 +1,10 @@
 import copy
 import re
 from typing import Any, Literal, Optional, Union
-from collections.abc import Callable, Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable
 import ROOT  # type: ignore
 from CMGRDF.data import Sample
-from CMGRDF.utils import _recursiveAddToHash, safeName
+from CMGRDF.utils import recursiveAddToHash, safeName
 
 
 class FlowStep(object):
@@ -105,7 +105,7 @@ class FlowStep(object):
                 obj1.eras == obj2.eras)
 
     def _addToHash(self, hasher) -> None:
-        _recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
+        recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
 
     def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name})\033[0m\n"
@@ -137,7 +137,7 @@ class SimpleExprFlowStep(FlowStep):
 
     def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr, hasher)
+        recursiveAddToHash(self.expr, hasher)
 
     def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name},{self.expr})\033[0m\n"
@@ -248,9 +248,7 @@ class DefineDefault(SimpleExprFlowStep):
                     try:
                         self.value = float(value) if "." in value else int(value)
                     except ValueError:
-                        if not hasattr(self, "_warnedOnce"):
-                            print(f"WARNING: using DefaultValueFor with a string value '{value}'")
-                            self._warnedOnce = True
+                        print(f"WARNING: using DefaultValueFor with a string value '{value}'")
                         pass
         else:
             if not isinstance(self.value, str):
@@ -367,8 +365,8 @@ class AddWeightUncertainty(FlowStep):
 
     def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.nominal, hasher)
-        _recursiveAddToHash(self.vars, hasher)
+        recursiveAddToHash(self.nominal, hasher)
+        recursiveAddToHash(self.vars, hasher)
 
 
 class ComputeTotalWeight(SimpleExprFlowStep):

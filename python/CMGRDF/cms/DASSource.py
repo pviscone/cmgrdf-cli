@@ -1,3 +1,4 @@
+#pyright: reportUninitializedInstanceVariable=false
 from typing import Any, Optional, Union
 from CMGRDF.data import DataSample, MCSample, Source
 from CMGRDF.skimFilters import JsonFilter

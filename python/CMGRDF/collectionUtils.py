@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import Any, Optional, Union
 from CMGRDF.flow import Define, FlowStep
-from CMGRDF.utils import _recursiveAddToHash
+from CMGRDF.utils import recursiveAddToHash
 
 
 class DefineFromCollection(FlowStep):
@@ -57,7 +57,7 @@ class DefineFromCollection(FlowStep):
 
     def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash((self.srcColl, self.index, self.members), hasher)
+        recursiveAddToHash((self.srcColl, self.index, self.members), hasher)
 
 
 class DefineSkimmedCollection(FlowStep):
@@ -137,7 +137,7 @@ class DefineSkimmedCollection(FlowStep):
 
     def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self._params(), hasher)
+        recursiveAddToHash(self._params(), hasher)
 
     def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl})\033[0m\n"

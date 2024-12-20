@@ -1,6 +1,6 @@
+from CMGRDF.data import MCSample
 import ROOT
 from CMGRDF import *
-from CMGRDF.data import Sample
 from CMGRDF.collectionUtils import *
 
 LOCAL = "/scratch/gpetrucc" if os.path.exists("/scratch/gpetrucc") else "/data/shared"
@@ -9,7 +9,7 @@ if P.startswith("/eos") and not os.path.isdir("/eos"):
     P = "root://eoscms.cern.ch/" + P
 
 
-def mkMC(name, parts=0):
+def mkMC(name, parts=0) -> MCSample:
     if parts == 0:
         return MCSample(name, P, xsec="xsec")
     else:

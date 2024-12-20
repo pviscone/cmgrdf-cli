@@ -221,7 +221,7 @@ class MultiReport(object):
         self._items.sort(*args, **kwargs)
 
 
-def _recursiveAddToHash(obj : Any, hasher : Any) -> None:
+def recursiveAddToHash(obj : Any, hasher : Any) -> None:
     if obj is None:
         hasher.update(b"<None>")
         return
@@ -235,18 +235,18 @@ def _recursiveAddToHash(obj : Any, hasher : Any) -> None:
     elif isinstance(obj, float):
         hasher.update(struct.pack("d", obj))
     elif isinstance(obj, (list, tuple)):
-        _recursiveAddToHash(len(obj), hasher)
+        recursiveAddToHash(len(obj), hasher)
         for e in obj:
-            _recursiveAddToHash(e, hasher)
+            recursiveAddToHash(e, hasher)
     elif isinstance(obj, set):
-        _recursiveAddToHash(len(obj), hasher)
+        recursiveAddToHash(len(obj), hasher)
         for e in sorted(obj):
-            _recursiveAddToHash(e, hasher)
+            recursiveAddToHash(e, hasher)
     elif isinstance(obj, dict):
-        _recursiveAddToHash(len(obj), hasher)
+        recursiveAddToHash(len(obj), hasher)
         for k, v in sorted(obj.items()):
-            _recursiveAddToHash(k, hasher)
-            _recursiveAddToHash(v, hasher)
+            recursiveAddToHash(k, hasher)
+            recursiveAddToHash(v, hasher)
     else:
         raise RuntimeError("Don't know how to hash %r of type %s" % (obj, type(obj)))
 
@@ -258,7 +258,7 @@ def safeName(obj : Any) -> str:
 def recursiveHash(*objs : Any) -> str:
     hasher = hashlib.sha256()
     for obj in objs:
-        _recursiveAddToHash(obj, hasher)
+        recursiveAddToHash(obj, hasher)
     return hasher.hexdigest()
 
 

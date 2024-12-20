@@ -51,7 +51,7 @@ class Plot(Target):
             else:
                 nbins, low, high = self._bins
                 self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title", self.name), int(nbins), low, high)
-            self._template = self._model.GetHistogram()
+            self.template = self._model.GetHistogram()
         elif typ == "Histo2D":
             self._expr = args[0]
             if isinstance(args[1], list):
@@ -72,7 +72,7 @@ class Plot(Target):
             else:
                 nbinsx, lowx, highx, nbinsy, lowy, highy = self._bins
                 self._model = ROOT.RDF.TH2DModel(self.name, self.getOpt("title", self.name), int(nbinsx), lowx, highx, int(nbinsy), lowy, highy)
-            self._template = self._model.GetHistogram()
+            self.template = self._model.GetHistogram()
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
@@ -203,11 +203,12 @@ class PlotResult(object):
                  fillTotals : bool = True):
         self.spec = plot
         self.name = plot.name
-        self.template = self.spec._template
+        self.template = self.spec.template
         self.histos = [(k, h if isinstance(h, HistoWithNuisances) else HistoWithNuisances(h)) for (k, h) in histos]
-        self.totals = {}
-        self._roofit : Optional[RooFitContext] = None
+        self.totals : dict[Literal["signal", "background"], HistoWithNuisances] = {}
         self.lumi : Optional[float] = None
+        self._roofit : Optional[RooFitContext] = None
+        self._roofitPOI : Optional[Any] = None
         if fillTotals:
             self.fillTotals()
 

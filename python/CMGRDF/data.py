@@ -1,3 +1,4 @@
+# pyright: reportImportCycles=false
 from typing import Any, Optional, Union
 from collections.abc import Callable, Iterable, Mapping, Sequence
 import ROOT  # type: ignore
@@ -411,7 +412,7 @@ class MCSample(Sample):
                 self._genWeightSum[era] = sumw  # type: ignore
                 src.addMeta("genWeightSum", sumw)
                 continue
-            chain = ROOT.TChain("Runs")  # type: ignore
+            chain = ROOT.TChain("Runs")
             for f in src.files:
                 chain.Add(f)
             genSumWeightName = self.genSumWeightName
@@ -423,7 +424,7 @@ class MCSample(Sample):
                 else:
                     raise RuntimeError("ERROR: can't find gen sum name in sample " + self.name)
             chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
-            hist = ROOT.gROOT.FindObject("htemp")  # type: ignore
+            hist = ROOT.gROOT.FindObject("htemp")
             sumw = hist.GetBinContent(1)
             self._genWeightSum[era] = sumw  # type: ignore
             src.addMeta("genWeightSum", sumw)

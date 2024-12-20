@@ -85,7 +85,7 @@
 "reportMissingTypeArgument" : "none",
 "reportInvalidTypeVarUse" : "warning",
 "reportCallInDefaultInitializer" : "warning",
-"reportUnnecessaryIsInstance" : "warning",
+"reportUnnecessaryIsInstance" : "none",
 "reportUnnecessaryCast" : "warning",
 "reportUnnecessaryComparison" : "warning",
 "reportUnnecessaryContains" : "warning",
