@@ -59,7 +59,7 @@ class TriggerBitFilter(FlowStep):
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             if self.defineDefaults:
-                if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):  # type: ignore
+                if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):
                     for b in self.selectBits + self.vetoBits:
                         src = rdf
                         rdf = rdf.DefaultValueFor(b, False)

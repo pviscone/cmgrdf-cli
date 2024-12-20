@@ -130,7 +130,7 @@ class DatacardWriter(object):
             datacard.write("shapes *        * %s $PROCESS $PROCESS_$SYSTEMATIC\n" % os.path.basename(rootname))
             datacard.write('##----------------------------------\n')
             datacard.write('bin         %s\n' % binname)
-            datacard.write('observation %s\n' % data_obs.Integral())  # type: ignore
+            datacard.write('observation %s\n' % data_obs.Integral())
             datacard.write('##----------------------------------\n')
             klen = max([7, len(binname)] + [len(p) for p in procs])
             kpatt = " %%%ds " % klen

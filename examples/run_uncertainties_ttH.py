@@ -39,7 +39,7 @@ plots = [
 lumi = 59.
 
 if __name__ == "__main__":
-    from CMGRDF.utils import processorFromCommandLineArgs
+    from CMGRDF.cmdline import processorFromCommandLineArgs
     maker = processorFromCommandLineArgs()
     maker.book(data, lumi, cuts, plots, withUncertainties=True)
     result_plots = maker.runPlots()

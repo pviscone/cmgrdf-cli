@@ -1,7 +1,7 @@
 import copy
 import re
 from typing import Any, Literal, Optional, Union
-from collections.abc import Callable, Container, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 import ROOT  # type: ignore
 from CMGRDF.data import Sample
 from CMGRDF.utils import _recursiveAddToHash, safeName
@@ -436,16 +436,16 @@ class Marker(FlowStep):
 class Flow(object):
     """A sequence of steps, with a name."""
 
-    def __init__(self, name, *steps, **options):
+    def __init__(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]], **options : Any):
         self.name = name
-        self.steps = Flow._flatten(steps)  # type: list[FlowStep]
+        self.steps = Flow._flatten(steps)
         for k, v in options.items():
             setattr(self, k, v)
         self._from = None
 
     @staticmethod
-    def _flatten(steps: Sequence[Union[FlowStep, Sequence]]) -> list[FlowStep]:
-        ret = []  # type: list[FlowStep]
+    def _flatten(steps: Iterable[Union[FlowStep, Iterable[FlowStep]]]) -> list[FlowStep]:
+        ret: list[FlowStep] = []
         for s in steps:
             if isinstance(s, list):
                 ret += Flow._flatten(s)
@@ -454,7 +454,7 @@ class Flow(object):
                 ret.append(s)
         return ret
 
-    def clone(self, newName=None) -> "Flow":
+    def clone(self, newName : Optional[str] = None) -> "Flow":
         ret = copy.copy(self)
         if newName:
             ret.name = newName
@@ -462,8 +462,8 @@ class Flow(object):
         ret._from = self
         return ret
 
-    def upToStep(self, step, included=True) -> "Flow":
-        newsteps = []  # type: list[FlowStep]
+    def upToStep(self, step : str, included=True) -> "Flow":
+        newsteps: list[FlowStep] = []
         for s in self.steps:
             newsteps.append(s)
             if s.name == step:
@@ -473,8 +473,8 @@ class Flow(object):
         self.steps = newsteps
         return self
 
-    def fromStep(self, step, included=True) -> "Flow":
-        newsteps = []  # type: list[FlowStep]
+    def fromStep(self, step : str, included=True) -> "Flow":
+        newsteps: list[FlowStep] = []
         for s in reversed(self.steps):
             newsteps.append(s)
             if s.name == step:
@@ -488,11 +488,11 @@ class Flow(object):
         self.steps[0:0] = Flow._flatten(steps)
         return self
 
-    def append(self, *steps : FlowStep) -> "Flow":
+    def append(self, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
         self.steps += Flow._flatten(steps)
         return self
 
-    def replace(self, name : str, *steps : FlowStep) -> "Flow":
+    def replace(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
         matches = [i for (i, s) in enumerate(self.steps) if s.name == name]
         if len(matches) != 1:
             raise RuntimeError(f"Looking for step {name} in flow {self.name}, found {matches}")
@@ -511,9 +511,9 @@ class Flow(object):
     def insertBeforeOrAfter(self,
                             when : Literal["before", "after"],
                             name : str,
-                            *steps : FlowStep) -> "Flow":
+                            *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
         assert (when in ("before", "after"))
-        newSteps = []  # type: list[FlowStep]
+        newSteps: list[FlowStep] = []
         found = True
         for s in self.steps:
             if s.name == name and when == "before":
@@ -529,7 +529,7 @@ class Flow(object):
     def __add__(self, other_flow) -> "Flow":
         return Flow(f"{self.name}+{other_flow.name}", [*self.steps, *other_flow.steps])
 
-    def __getitem__(self, key) -> FlowStep:
+    def __getitem__(self, key : int) -> FlowStep:
         return self.steps[key]
 
     def __str__(self) -> str:

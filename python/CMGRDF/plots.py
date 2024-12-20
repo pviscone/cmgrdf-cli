@@ -283,12 +283,12 @@ class PlotResult(object):
             h.setupRooFit(roofit)
         # and return the context
         self._roofit = roofit
-        return self._roofit  # type: ignore
+        return self._roofit
 
     def getRooFit(self) -> RooFitContext:
         return self._roofit if self._roofit is not None else self.initRooFit()
 
-    def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : str = "r"):
+    def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : Optional[str] = "r") -> None:
         if not self._roofit:
             self.initRooFit()
         assert self._roofit
@@ -314,19 +314,19 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     points = []
     errors = []
     for i in range(h.GetNbinsX()):
-        N = h.GetBinContent(i + 1)
+        n = h.GetBinContent(i + 1)
         dN = h.GetBinError(i + 1)
-        if drawZeroBins or N > 0:
-            if N > 0 and dN > 0 and abs(dN**2 / N - 1) > 1e-4:
+        if drawZeroBins or n > 0:
+            if n > 0 and dN > 0 and abs(dN**2 / n - 1) > 1e-4:
                 #print "Hey, this is not Poisson to begin with! %.2f, %.2f, neff = %.2f, yscale = %.5g" % (N, dN, (N/dN)**2, (dN**2/N))
-                yscale = (dN**2 / N)
-                N = (N / dN)**2
+                yscale = (dN**2 / n)
+                n = (n / dN)**2
             else:
                 yscale = 1
             x = xaxis.GetBinCenter(i + 1)
-            points.append((x, yscale * N))
-            EYlow = (N - ROOT.ROOT.Math.chisquared_quantile_c(1 - q, 2 * N) / 2.) if N > 0 else 0
-            EYhigh = ROOT.ROOT.Math.chisquared_quantile_c(q, 2 * (N + 1)) / 2. - N
+            points.append((x, yscale * n))
+            EYlow = (n - ROOT.ROOT.Math.chisquared_quantile_c(1 - q, 2 * n) / 2.) if n > 0 else 0
+            EYhigh = ROOT.ROOT.Math.chisquared_quantile_c(q, 2 * (n + 1)) / 2. - n
             EXhigh, EXlow = (xaxis.GetBinUpEdge(i + 1) - x, x - xaxis.GetBinLowEdge(i + 1)) if drawXbars else (0, 0)
             errors.append((EXlow, EXhigh, yscale * EYlow, yscale * EYhigh))
     ret = ROOT.TGraphAsymmErrors(len(points))
@@ -395,7 +395,7 @@ class PlotSetPrinter(object):
         total.SetName(outputName + "_total")
         outputFormats = opts.plotFormats.split(",")
         if "jupyter" in outputFormats:
-            from IPython.display import Image, HTML, display
+            from IPython.display import Image, HTML, display  # type: ignore
             outputFormats.remove("jupyter")
             if "png" not in outputFormats:
                 outputFormats.append("png")
@@ -649,7 +649,7 @@ class PlotSetPrinter(object):
             elif ext == "root":
                 pass  # already being done
             elif ext == "jupyter":
-                display(Image("%s/%s.png" % (path, outputName)))
+                display(Image("%s/%s.png" % (path, outputName)))  # type: ignore
             else:
                 raise RuntimeError("Unsupported output format %r" % ext)
         if outputTDir:

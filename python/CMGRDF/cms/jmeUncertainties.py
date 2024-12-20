@@ -1,8 +1,8 @@
 from CMGRDF.init import Declare
 from CMGRDF.flow import Define, Cut
-from CMSJMECalculators import loadJMESystematicsCalculators
+from CMSJMECalculators import loadJMESystematicsCalculators  # type: ignore
 loadJMESystematicsCalculators()
-from CMSJMECalculators import config as calcConfigs
+from CMSJMECalculators import config as calcConfigs  # type: ignore
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 
 jecTags = {

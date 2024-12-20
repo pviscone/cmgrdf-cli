@@ -149,7 +149,7 @@ cuts_corr_Zmm = cuts_Zmm.clone("Zmm_corr").prepend(MuRocCorr2018).append(muIDsf)
 lumi = 6.90
 
 if __name__ == "__main__":
-    from CMGRDF.utils import processorFromCommandLineArgs
+    from CMGRDF.cmdline import processorFromCommandLineArgs
     maker = processorFromCommandLineArgs()
     #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
     maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)

@@ -131,7 +131,7 @@ plots_3l_tight = [
 lumi = 6.90
 
 if __name__ == "__main__":
-    from CMGRDF.utils import processorFromCommandLineArgs
+    from CMGRDF.cmdline import processorFromCommandLineArgs
     maker = processorFromCommandLineArgs()
     printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
     cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
@@ -168,22 +168,10 @@ if __name__ == "__main__":
         snapshotReportFile.write("\n".join(snapshotReport))
 
     ## Next try to run from a snapshot
-    def sampleFromSnap(sample : Sample, skimpath):
-        if sample.isMC:
-            # May need to remake mc groups if they were split for distributed processing
-            if isinstance(sample, MCGroup) and not os.path.isfile(skimpath.format(name=sample.name)):
-                files = [skimpath.format(name=sub.name) for sub in sample.samples]
-                if all(os.path.isfile(f) for f in files):
-                    print(f"MC sample {sample.name} is split in {', '.join(sub.name for sub in sample.samples)}")
-                    return MCSample(sample.name, files, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
-            return MCSample(sample.name, skimpath, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
-        elif sample.isDataDriven:
-            return DataDrivenSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
-        elif sample.isData:
-            return DataSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    from CMGRDF.snapshot import remakeSampleFromSnapshot
 
     def samplesFromSnap(skimpath, *names):
-        return [sampleFromSnap(mcSamples[n], skimpath) for n in names]
+        return [remakeSampleFromSnapshot(mcSamples[n], skimpath) for n in names]
 
     procs_3l_tight_snap = [
         Process("TopZ", samplesFromSnap(skimpath, "TTZ", "TZQ", "TWZ"), label="t#bar{t}Z+tZ", fillColor=ROOT.kGreen + 1, signal=True),
@@ -192,7 +180,7 @@ if __name__ == "__main__":
         Process("DY", samplesFromSnap(skimpath, "DY"), label="DY", fillColor=ROOT.kAzure + 10, normUncertainty=2.0),
         Process("WW", samplesFromSnap(skimpath, "WW2l"), label="WW", fillColor=ROOT.kAzure + 2, normUncertainty=2.0),
         Process("TT", samplesFromSnap(skimpath, "TT2l", "TW"), label="t#bar{t}+tW", fillColor=ROOT.kViolet - 4, normUncertainty=1.5),
-        Data([sampleFromSnap(d, skimpath) for d in dataSamples])
+        Data([remakeSampleFromSnapshot(d, skimpath) for d in dataSamples])
     ]
     cutsOnSkim = cuts_tight.clone("tight_on_skim").fromStep("3l", included=False)
     maker2 = Processor()

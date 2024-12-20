@@ -1,10 +1,9 @@
 from typing import Optional
-from collections.abc import Sequence
 from CMGRDF.flow import Flow, FlowStep
 
 
 class Append(object):
-    def __init__(self, *steps : Sequence[FlowStep]):
+    def __init__(self, *steps : FlowStep):
         self.steps = list(steps)
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:

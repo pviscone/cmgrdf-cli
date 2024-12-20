@@ -96,7 +96,13 @@ class CacheLayer(object):
 
 
 class SimpleCache(object):
-    def __init__(self, root="__auto__", cacheSums=True, cachePlots=True, cacheDatasets=False, flush=False, **kwargs):
+    def __init__(self,
+                 root : str = "__auto__",
+                 cacheSums : bool = True,
+                 cachePlots : bool = True,
+                 cacheDatasets : bool = False,
+                 flush : Union[int, bool] = False,
+                 **kwargs: Any):
         if root == "__auto__":
             root = sys.argv[0].rsplit(".py", 1)[0] + "_cache.dir"
         print("Using cache dir %s%s" % (root, ", and flushing it" if flush else ""))
@@ -104,7 +110,7 @@ class SimpleCache(object):
         self._data = CacheLayer(os.path.join(root, "data"), **kwargs) if cacheDatasets else None
         self._plots = CacheLayer(os.path.join(root, "plots"), **kwargs) if cachePlots else None
         if flush:
-            if isinstance(flush, int):
+            if not isinstance(flush, bool):
                 self.flush(alsoSums=(flush > 1))
             else:
                 self.flush()
@@ -122,17 +128,17 @@ class SimpleCache(object):
 
     def hasPlot(self, k3 : tuple[str, str, str]) -> bool:
         """Check with key beign a tuple(sourceid, flowid, targetid)"""
-        key = os.path.join(*k3)  # type: str
+        key = os.path.join(*k3)
         return self._plots.has(key) if self._plots else False
 
     def getPlot(self, k3 : tuple[str, str, str]) -> Any:
         """Check with key beign a tuple(sourceid, flowid, targetid), return (plot, variations map)"""
-        key = os.path.join(*k3)  # type: str
+        key = os.path.join(*k3)
         assert (self._plots is not None)
         return self._plots.get(key)
 
     def writePlot(self, k3 : tuple[str, str, str], plot, plotvars) -> None:
-        key = os.path.join(*k3)  # type: str
+        key = os.path.join(*k3)
         assert (self._plots is not None)
         self._plots.write(key, (plot, plotvars))
 

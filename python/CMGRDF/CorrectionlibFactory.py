@@ -2,7 +2,7 @@ import re
 from CMGRDF.init import Declare
 from typing import Any, Optional
 
-import correctionlib
+import correctionlib  # type: ignore
 correctionlib.register_pyroot_binding()
 
 

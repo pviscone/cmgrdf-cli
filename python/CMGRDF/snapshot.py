@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 from collections.abc import Callable
 
 import ROOT  # type: ignore
-from CMGRDF.data import Sample
+from CMGRDF.data import Sample, MCSample, MCGroup, DataDrivenSample, DataSample
 from CMGRDF.flow import Target
 from CMGRDF.utils import recursiveHash, selectColumns
 
@@ -17,9 +17,9 @@ class Snapshot(Target):
 
     def __init__(self,
                  filename : str,
-                 columnSel : 'Optional[Union[str, list[str]]]' = None,
-                 columnVeto : 'Optional[Union[str, list[str]]]' = None,
-                 compression : 'tuple[str, int]' = ("ZLIB", 1),
+                 columnSel : Optional[Union[str, list[str]]] = None,
+                 columnVeto : Optional[Union[str, list[str]]] = None,
+                 compression : Optional[tuple[str, int]] = ("ZLIB", 1),
                  treeName="Events"):
         super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
         self.filename = filename
@@ -129,3 +129,20 @@ def mergeSnapshot(snap : Any, verbose : bool = False) -> None:
     except subprocess.CalledProcessError as e:
         quoted_output = e.stdout.replace('\n', '\n>> ')
         print(f"ERROR when merging {snap.fnames} into {snap.fname}: {e}\n>> {quoted_output}\n")
+
+
+def remakeSampleFromSnapshot(sample : Sample, skimpath) -> Sample:
+    if sample.isMC:
+        # May need to remake mc groups if they were split for distributed processing
+        if isinstance(sample, MCGroup) and not os.path.isfile(skimpath.format(name=sample.name)):
+            files = [skimpath.format(name=sub.name) for sub in sample.samples]
+            if all(os.path.isfile(f) for f in files):
+                print(f"MC sample {sample.name} is split in {', '.join(sub.name for sub in sample.samples)}")
+                return MCSample(sample.name, files, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+        return MCSample(sample.name, skimpath, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+    elif sample.isDataDriven:
+        return DataDrivenSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    elif sample.isData:
+        return DataSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    else:
+        raise RuntimeError(f"Can't load a sample {sample.name} of unsupported type {type(sample)} from a snapshot in {skimpath}")

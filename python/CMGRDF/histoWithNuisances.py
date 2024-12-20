@@ -442,7 +442,7 @@ class YieldWithNuisances(object):
     def _doPostFit(self) -> None:
         assert (self._rooFit is not None and self._postFit is not None and self._postFit.fitResult is not None)
         self._usePostFit = True
-        roofit = self._rooFit["context"]  # type: RooFitContext
+        roofit = cast(RooFitContext, self._rooFit["context"])
         roofit.workspace.allVars().assignValueOnly(self._postFit.fitResult.floatParsFinal())
         if self.central == 0:
             return
@@ -659,7 +659,7 @@ class HistoWithNuisances(object):
             assert self._rooFit is not None
             if "pdf" not in self._rooFit:
                 self._makePdfAndNorm()
-            toys = self._postFit.postFitToys()  # type: Any
+            toys = self._postFit.postFitToys()
             if "TH1" not in self.nominal.ClassName():
                 raise RuntimeError("Unsupported for non-TH1")
             nom_bins = [self.nominal.GetBinContent(b) for b in range(1, self.nominal.GetNbinsX() + 1)]
@@ -1538,11 +1538,11 @@ def mergePlots(name : str, plots : list[Any]) -> Any:
     if isinstance(one, HistoWithNuisances) or isinstance(one, YieldWithNuisances):
         for p in plots[1:]:
             one += p
-    elif isinstance(one, ROOT.TH1):  # type: ignore
+    elif isinstance(one, ROOT.TH1):
         for p in plots[1:]:
             one.Add(p)
-    elif isinstance(one, ROOT.TGraph):  # type: ignore
-        others = ROOT.TList()  # type: ignore
+    elif isinstance(one, ROOT.TGraph):
+        others = ROOT.TList()
         for p in plots[1:]:
             others.Add(p)
         one.Merge(others)

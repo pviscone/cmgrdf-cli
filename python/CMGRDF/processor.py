@@ -49,9 +49,9 @@ class _Branch(object):
             self.hasher = hasher
             self.withUncertainties = withUncertainties
             self.step = None
-        self.branches = []  # type: list["_Branch"]
-        self.leaves = dict()  # type: dict[Target, Any]
-        self._rdfAndWeights = None  # type: Optional[tuple[Any, list[str]]]
+        self.branches : list[_Branch] = []
+        self.leaves : dict[Target, Any] = dict()
+        self._rdfAndWeights : Optional[tuple[Any, list[str]]] = None
         self._hasUncertainties = None
         self._cache = cache
 
@@ -110,8 +110,8 @@ class Processor(object):
                  cache : Optional[SimpleCache] = None,
                  executor : Optional[tuple[str, Any]] = None,
                  withUncertainties : Optional[bool] = None):
-        self._trees = dict()  # type: dict[Source, _Branch]
-        self._lumiMap = dict()  # type: dict[MultiKey, float]
+        self._trees : dict[Source, _Branch] = dict()
+        self._lumiMap : dict[MultiKey, float] = dict()
         self._cache = cache
         self._toCache = dict()
         self._executor = executor

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any, Optional, Union
 from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import _recursiveAddToHash
@@ -65,8 +66,8 @@ class DefineSkimmedCollection(FlowStep):
     def __init__(self,
                  name : str,
                  srcColl : str,
-                 members : Optional[list[str]] = None,
-                 optMembers : Optional[list[str]] = None,
+                 members : Optional[Iterable[str]] = None,
+                 optMembers : Optional[Iterable[str]] = None,
                  cut : Optional[str] = None,
                  mask : Optional[str] = None,
                  indices : Optional[str] = None,
@@ -74,8 +75,8 @@ class DefineSkimmedCollection(FlowStep):
                  **options):
         super().__init__(name, **options)
         self.srcColl = srcColl
-        self.members = members
-        self.optMembers = optMembers or []
+        self.members = list(members) if members is not None else None
+        self.optMembers = list(optMembers or [])
         self.cut = cut
         self.mask = mask
         self.indices = indices

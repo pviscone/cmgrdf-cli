@@ -73,7 +73,7 @@ def LoadLibrary(library : str, filepath : str = "${CMGRDF}/lib", extraPaths : Op
     paths = ([filepath] if filepath else []) + (extraPaths if extraPaths else [])
     for p in paths:
         p = os.path.expandvars(p)
-        ROOT.gSystem.AddDynamicPath(p)  # type: ignore
+        ROOT.gSystem.AddDynamicPath(p)
         _dynpaths.add(p)
     ROOT.gSystem.Load(library)
     _dynlibs.append(library)

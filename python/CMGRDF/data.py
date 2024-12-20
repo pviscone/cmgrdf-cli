@@ -108,7 +108,7 @@ class Source(object):
 
     def __eq__(self, o : Any) -> bool:
         if o.__class__ == Source:
-            return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends and self._metas == o._metas  # type: ignore
+            return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends and self._metas == o._metas
         else:
             return id(self) == id(o)
 
@@ -201,7 +201,7 @@ class MergedSource(Source):
         self._bigHashNoFriends = None
 
     def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache : Any = None, **kwargs : Any) -> Any:
-        if DataFrameClass != ROOT.RDataFrame:  # type: ignore
+        if DataFrameClass != ROOT.RDataFrame:
             raise RuntimeError("MergedSource only supported in plain non-distributed RDataFrame for now")
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         for src in self.sources:
@@ -371,7 +371,8 @@ class MCSample(Sample):
         else:
             self._genWeightSum = {None: genWeightSum}
         self.genSumWeightName = genSumWeightName
-        self.xsec = xsec if xsec is not None else 1.0
+        self.xsec = xsec
+        #self.xsec = xsec if xsec is not None else 1.0
         self.isMC = True
         if self.xsec:
             if self.eras is None:
