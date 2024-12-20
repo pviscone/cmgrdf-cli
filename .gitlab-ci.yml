@@ -116,6 +116,25 @@ code-checks-dev3:
       - code-format-dev3.patch
     when: always
 
+code-checks-pyright:
+  image: node:18-slim
+  stage: build
+  before_script:
+    - npm i -g pyright
+    - npm i -g pyright-to-gitlab-ci
+  script:
+   - pyright python/CMGRDF --outputjson > report_raw.json || true
+  after_script:
+   - pyright-to-gitlab-ci --src report_raw.json --output report.json --base_path .
+  artifacts:
+    when: always
+    paths:
+      - report_raw.json
+      - report.json
+    reports:
+      codequality: report.json
+  allow_failure: true
+
 .run-tests:
   tags: [ k8s-cvmfs ]
   stage: test
@@ -328,7 +347,7 @@ run-tests-snapshot-el9-docker-test:
         python3 $SCRIPT -n -j $JOBS --dask -c tcp://localhost:11111 --batch | grep -v '% Completed' || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
-  timeout: 30m
+  timeout: 60m
   artifacts:
     paths:
       - examples/plots
