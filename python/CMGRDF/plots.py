@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional
 
 import ROOT  # type: ignore
 from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitContext, listAllNuisances, mergePlots, warnAboutNegativeBins
-from CMGRDF.utils import MultiKey, Options, MultiReport, recursiveHash, safeName
+from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target
 
@@ -199,7 +199,7 @@ class PlotResult(object):
 
     def __init__(self,
                  plot : Plot,
-                 histos : list[tuple[MultiKey, Any]],
+                 histos : list[tuple[Process, Any]],
                  fillTotals : bool = True):
         self.spec = plot
         self.name = plot.name

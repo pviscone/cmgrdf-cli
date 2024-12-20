@@ -232,33 +232,45 @@ class DeDefinePerSamplefine(SimpleExprFlowStep):
 class DefineDefault(SimpleExprFlowStep):
     """Defines a variable if it's not already present in the tree"""
 
-    def __init__(self, name : str, expr : str, **options):
-        super().__init__(name, expr, **options)
+    def __init__(self, name : str, expr : Union[str, float, int, bool], **options : Any):
+        super().__init__(name, str(expr), **options)
+        self.value = expr
+        self._converted = False
+        self._hasDefaultValueFor = False
+
+    def _convert(self, hasDefaultValueFor : bool) -> None:
+        if hasDefaultValueFor:
+            if isinstance(self.value, str):
+                value = self.value.strip()
+                if value.lower() in ("true", "false"):
+                    self.value = (value.lower() == "true")
+                else:
+                    try:
+                        self.value = float(value) if "." in value else int(value)
+                    except ValueError:
+                        if not hasattr(self, "_warnedOnce"):
+                            print(f"WARNING: using DefaultValueFor with a string value '{value}'")
+                            self._warnedOnce = True
+                        pass
+        else:
+            if not isinstance(self.value, str):
+                if isinstance(self.value, bool):
+                    self.value = "true" if self.value else "false"
+                else:
+                    self.value = repr(self.value)
+        self._converted = True
+        self._hasDefaultValueFor = hasDefaultValueFor
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
-        expr = self.expr
-        if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):  # type: ignore
-            if isinstance(expr, str):
-                expr = expr.strip()
-                try:
-                    if expr.lower() in ("true", "false"):
-                        expr = (expr.lower() == "true")
-                    else:
-                        expr = float(expr) if "." in expr else int(expr)
-                except ValueError:
-                    if not hasattr(DefineDefault, "_warnedOnce"):
-                        print(f"WARNING: using DefaultValueFor with a string value '{expr}'")
-                        DefineDefault._warnedOnce = True
-                    pass
-            return rdf.DefaultValueFor(self.name, expr)
-        if self.name in rdf.GetColumnNames():
-            return rdf
-        if not isinstance(expr, str):
-            if isinstance(expr, bool):
-                expr = "true" if expr else "false"
-            else:
-                expr = repr(expr)
-        return rdf.Define(self.name, expr)
+        if not self._converted:
+            self._convert((ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__))
+        if self._hasDefaultValueFor:
+            return rdf.DefaultValueFor(self.name, self.value)
+        else:
+            assert isinstance(self.value, str)
+            if self.name in rdf.GetColumnNames():
+                return rdf
+            return rdf.Define(self.name, self.value)
 
 
 class Vary(SimpleExprFlowStep):

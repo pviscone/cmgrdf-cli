@@ -1,7 +1,7 @@
-from collections.abc import Callable
 import json
 import os
 from typing import Any, Optional, Union
+from collections.abc import Callable
 
 import ROOT  # type: ignore
 from CMGRDF.data import Sample
@@ -30,7 +30,7 @@ class Snapshot(Target):
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
         self.hadd = False
 
-    def fromCache(self, sample : Sample, era : Optional[str], k3 : tuple[str, str, str], verbose=False) -> Optional[Any]:
+    def fromCache(self, sample : Sample, era : Optional[str], k3 : tuple[str, str, str], verbose : bool = False) -> Optional[Any]:
         outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
         sourceid, branchid, selfid = k3
         if os.path.exists(outname):

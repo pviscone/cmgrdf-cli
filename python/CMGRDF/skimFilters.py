@@ -1,15 +1,16 @@
-from collections.abc import Sequence
 from typing import Any, Optional
+from collections.abc import Sequence
 from CMGRDF.flow import FlowStep
 from CMGRDF.utils import _recursiveAddToHash
+import ROOT  # type: ignore
 
 
 class JsonFilter(FlowStep):
-    def __init__(self, filename : str, onMC=True, onDataDriven=True, onData=True, eras : Optional[list[str]] = None):
+    def __init__(self, filename : str, eras : Optional[list[str]] = None):
         super().__init__("JSON", onMC=False, onDataDriven=True, onData=True, eras=eras)
         self.filename = filename
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other : Any) -> bool:
         if other.__class__ == self.__class__:
             return FlowStep._equals(self, other) and self.filename == other.filename
         return id(self) == id(other)
@@ -58,12 +59,18 @@ class TriggerBitFilter(FlowStep):
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             if self.defineDefaults:
-                colnames = rdf.GetColumnNames()
-                for b in self.selectBits + self.vetoBits:
-                    if b not in colnames:
+                if (ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__):  # type: ignore
+                    for b in self.selectBits + self.vetoBits:
                         src = rdf
-                        rdf = rdf.Define(b, "false")
+                        rdf = rdf.DefaultValueFor(b, False)
                         rdf._from = src
+                else:
+                    colnames = rdf.GetColumnNames()
+                    for b in self.selectBits + self.vetoBits:
+                        if b not in colnames:
+                            src = rdf
+                            rdf = rdf.Define(b, "false")
+                            rdf._from = src
             sel = " || ".join(self.selectBits)
             veto = " || ".join(self.vetoBits)
             src = rdf

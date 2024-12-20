@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Collection, ItemsView, Iterator, KeysView, Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 import struct
 import copy
 import hashlib
@@ -16,7 +16,8 @@ class OptionDecl(object):
                  default : Any = None,
                  opttype : Any = str,
                  cmdline : Optional[Sequence[str]] = None,
-                 **kwargs):
+                 **kwargs : Any):
+        super().__init__()
         self.name = name
         self.default = default
         self.type = opttype
@@ -26,6 +27,7 @@ class OptionDecl(object):
 
 class Options(object):
     def __init__(self, *optionDeclarations : OptionDecl):
+        super().__init__()
         self._values: dict[str, Any] = dict()
         self._declarations: list[tuple[str, Any, Any, Optional[Sequence[str]], Mapping[str, Any]]] = []
         for opt in optionDeclarations:
@@ -36,7 +38,7 @@ class Options(object):
                 default : Any = None,
                 opttype : Any = str,
                 cmdline : Optional[Sequence[str]] = None,
-                **kwargs) -> "Options":
+                **kwargs : Any) -> "Options":
         self._declarations.append((name, default, opttype, cmdline, kwargs))
         if name in self._values:
             if default is not None:
@@ -45,7 +47,7 @@ class Options(object):
             self._values[name] = default
         return self
 
-    def addToParser(self, parser) -> None:
+    def addToParser(self, parser : Any) -> None:
         for (name, default, opttype, cmdline, kwargs) in self._declarations:
             if opttype == bool:
                 if not cmdline:
@@ -69,19 +71,19 @@ class Options(object):
     def __contains__(self, name : str) -> bool:
         return name in self._values
 
-    def __setattr__(self, name : str, value) -> None:
+    def __setattr__(self, name : str, value : Any) -> None:
         if name[0] == "_" or name not in self._values:
             object.__setattr__(self, name, value)
         else:
             self._values[name] = value
 
-    def __setitem__(self, name : str, value) -> None:
+    def __setitem__(self, name : str, value : Any) -> None:
         self._values[name] = value
 
     def __len__(self) -> int:
         return len(self._values)
 
-    def update(self, **kwargs) -> "Options":
+    def update(self, **kwargs : Any) -> "Options":
         self._values.update(kwargs)
         return self
 
@@ -91,7 +93,7 @@ class Options(object):
     def keys(self) -> KeysView[str]:
         return self._values.keys()
 
-    def cloneAndUpdate(self, **kwargs) -> "Options":
+    def cloneAndUpdate(self, **kwargs : Any) -> "Options":
         ret = Options()
         ret._values = dict(self._values.items())
         ret._values.update(**kwargs)
@@ -110,6 +112,7 @@ class MultiKey(object):
     """A multi-field key to identify results, e.g. a histogram by its selection flow, variable name, and sample used"""
 
     def __init__(self, **kwargs : Any):
+        super().__init__()
         self._keys = sorted(kwargs.keys())
         self._values = dict(kwargs.items())
 
@@ -183,6 +186,7 @@ class MultiReport(object):
     """A list of pairs (multi-key, object) with some convenience methods for extracting them."""
 
     def __init__(self, *items : tuple[MultiKey, Any]):
+        super().__init__()
         self._items = list(items)
         for item in items:
             assert (isinstance(item, tuple) and isinstance(items[0], MultiKey))
@@ -213,11 +217,11 @@ class MultiReport(object):
         assert (len(alls) == 1)
         return alls[0][1]
 
-    def sort(self, *args, **kwargs) -> None:
+    def sort(self, *args : Any, **kwargs : Any) -> None:
         self._items.sort(*args, **kwargs)
 
 
-def _recursiveAddToHash(obj : Any, hasher) -> None:
+def _recursiveAddToHash(obj : Any, hasher : Any) -> None:
     if obj is None:
         hasher.update(b"<None>")
         return
@@ -274,7 +278,7 @@ def localOrEOS(path : str, localroot : str, eosroot : str) -> str:
     return eosToUrl(os.path.join(eosroot, path))
 
 
-def _getDefinedColumnNames(rdf) -> set[str]:
+def _getDefinedColumnNames(rdf : Any) -> set[str]:
     if "DistRDF" in rdf.__module__:
         ret: set[str] = set()
         node = rdf
@@ -287,13 +291,13 @@ def _getDefinedColumnNames(rdf) -> set[str]:
         return set(map(str, rdf.GetDefinedColumnNames()))
 
 
-def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]) -> Any:
+def selectColumns(rdf : Any, columnSel : Collection[str], columnVeto : Collection[str]) -> Any:
     import ROOT  # type: ignore
     import re
     cols = list(map(str, rdf.GetColumnNames()))
     newcols = _getDefinedColumnNames(rdf)
     oldcols = list(set(cols).difference(newcols))
-    sel = set(cols) if columnSel == [] else set()  # type: set[str]
+    sel: set[str] = set(cols) if columnSel == [] else set()
     for pat in columnSel:
         if pat == "#new":
             sel.update(newcols)
@@ -323,7 +327,8 @@ def selectColumns(rdf, columnSel : Collection[str], columnVeto : Collection[str]
 
 
 class NormUncertainty(object):
-    def __init__(self, name : str, value : "Union[float, tuple[float, float]]", eras=None):
+    def __init__(self, name : str, value : "Union[float, tuple[float, float]]", eras : Optional[list[str]] = None):
+        super().__init__()
         self.name = name
         self.value = value
         if isinstance(value, float):
@@ -356,10 +361,10 @@ class NormUncertainty(object):
 
 
 class FilteringList(list):
-    def __init__(self, *args : Any, **kwargs):
+    def __init__(self, *args : Any, **kwargs : Any):
         super().__init__(*args, **kwargs)
 
-    def byNames(self, *args : str, match="glob") -> "FilteringList":
+    def byNames(self, *args : str, match : Literal["glob", "re", "exact"] = "glob") -> "FilteringList":
         ret = FilteringList()
         if match == "glob":
             for item in self:
@@ -390,16 +395,16 @@ class FilteringList(list):
                 ret.append(item)
         return ret
 
-    def __iadd__(self, other) -> "FilteringList":
+    def __iadd__(self, other : Any) -> "FilteringList":
         return super().__iadd__(other)
 
-    def __add__(self, other) -> "FilteringList":
+    def __add__(self, other : Any) -> "FilteringList":
         ret = FilteringList(self)
         ret += other
         return ret
 
 
-def processorFromCommandLineArgs(parser=None):
+def processorFromCommandLineArgs(parser : Any = None):
     import argparse
     import ROOT  # type: ignore
     from CMGRDF.cache import SimpleCache

@@ -1,5 +1,5 @@
 from typing import Any, Optional, Union
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 import ROOT  # type: ignore
 import os
 import os.path
@@ -38,7 +38,7 @@ class Source(object):
         self._friendsForHash = None
         self._metas = []
 
-    def _getEntriesFromSample(self, rsample, cache=None) -> int:
+    def _getEntriesFromSample(self, rsample : Any, cache : Any = None) -> int:
         if cache and cache.hasSum(self, "_N_EVENTS_"):
             return cache.getSum(self, "_N_EVENTS_")
         nevents = 0
@@ -50,7 +50,7 @@ class Source(object):
             cache.writeSum(self, "_N_EVENTS_", nevents)
         return nevents
 
-    def _createRSample(self, treeName="Events") -> Any:
+    def _createRSample(self, treeName : str = "Events") -> Any:
         metaInfo = ROOT.RDF.Experimental.RMetaData()
         for meta in self._metas:
             metaInfo.Add(meta[0], meta[1])
@@ -62,7 +62,7 @@ class Source(object):
         files = [eosToUrl(f) for f in files]
         return ROOT.RDF.Experimental.RSample(self.name, treeName, files, metaInfo)
 
-    def _addGlobalFriends(self, spec) -> None:
+    def _addGlobalFriends(self, spec : Any) -> None:
         if self.friends is not None:
             for f in self.friends:
                 if isinstance(f, tuple):
@@ -73,7 +73,7 @@ class Source(object):
                     raise RuntimeError("Unsupported friend %r for %s" % (f, self))
 
     @staticmethod
-    def _addDefinesFromMetas(rdf, metas) -> Any:
+    def _addDefinesFromMetas(rdf : Any, metas : list[tuple[str, Union[str, int, float]]]) -> Any:
         for meta in metas:
             src = rdf
             if isinstance(meta[1], str):
@@ -83,7 +83,7 @@ class Source(object):
             rdf._from = src
         return rdf
 
-    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache=None, **kwargs):
+    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache : Any = None, **kwargs : Any) -> Any:
         sample = self._createRSample(treeName)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
@@ -106,24 +106,24 @@ class Source(object):
             ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret
 
-    def __eq__(self, o : object) -> bool:
+    def __eq__(self, o : Any) -> bool:
         if o.__class__ == Source:
             return o.name == self.name and o.files == self.files and o.era == self.era and o.friends == self.friends and self._metas == o._metas  # type: ignore
         else:
             return id(self) == id(o)
 
-    def addMeta(self, field, value) -> None:
+    def addMeta(self, field : str, value : Union[str, int, float]) -> None:
         self._metas.append((field, value))
         # invalidate hash
         self._bigHash = None
 
-    def hasMeta(self, key) -> bool:
+    def hasMeta(self, key : str) -> bool:
         return any(m[0] == key for m in self._metas)
 
-    def hasCompatibleMeta(self, otherSample) -> bool:
-        if len(otherSample._metas) != len(self._metas):
+    def hasCompatibleMeta(self, otherSource : "Source") -> bool:
+        if len(otherSource._metas) != len(self._metas):
             return False
-        for m1, m2 in zip(self._metas, otherSample._metas):
+        for m1, m2 in zip(self._metas, otherSource._metas):
             if m1[0] != m2[0]:
                 return False
             if isinstance(m1[1], str) and m1[1] != m2[1]:
@@ -135,7 +135,7 @@ class Source(object):
             self._makeBigHash()
         return self._bigHash if friendsAndMeta else self._bigHashNoFriendsNoMeta  # type: ignore
 
-    def _makeFilesHash(self):
+    def _makeFilesHash(self) -> None:
         if os.path.exists(self.files[0]):  # files may not exist if e.g. they're globs or root URLs
             self._filesForHash = [(f, os.path.getmtime(f)) for f in self.files]
             tsfriends = []
@@ -158,22 +158,22 @@ class Source(object):
             self._filesForHash = self.files[:]
             self._friendsForHash = self.friends[:] if self.friends else None
 
-    def _makeBigHash(self):
+    def _makeBigHash(self) -> None:
         if not self._filesForHash:
             self._makeFilesHash()
         self._bigHash = recursiveHash(self.name, self.era, self._metas, self._filesForHash, self._friendsForHash)
         self._bigHashNoFriendsNoMeta = recursiveHash(self.name, self.era, self._filesForHash)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.bigHash())
 
-    def longId(self):
+    def longId(self) -> str:
         return "%s-%s-%s" % (safeName(self), self.era if self.era else "", self.bigHash())
 
-    def idForSumCache(self, cacheName):
+    def idForSumCache(self, cacheName : str) -> str:
         return "%s-%s-%s-%s" % (safeName(self), self.era if self.era else "", self.bigHash(False), cacheName)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Source(%s%s, %d files[%s%s]%s, id %s)" % (
             self.name, (", era %s" % self.era) if self.era else "",
             len(self.files), self.files[0], ", ..." if len(self.files) > 1 else "",
@@ -182,7 +182,7 @@ class Source(object):
         )
 
     @staticmethod
-    def _autoName(files: "list[str]") -> str:
+    def _autoName(files: list[str]) -> str:
         assert (len(files) != 0)
         if len(files) > 1 or files[0].endswith("/*.root"):
             return os.path.basename(os.path.dirname(files[0]))
@@ -200,7 +200,7 @@ class MergedSource(Source):
         self._bigHash = None
         self._bigHashNoFriends = None
 
-    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache=None, **kwargs):  # type: ignore
+    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache : Any = None, **kwargs : Any) -> Any:
         if DataFrameClass != ROOT.RDataFrame:  # type: ignore
             raise RuntimeError("MergedSource only supported in plain non-distributed RDataFrame for now")
         spec = ROOT.RDF.Experimental.RDatasetSpec()
@@ -223,7 +223,7 @@ class MergedSource(Source):
         else:
             return id(self) == id(o)
 
-    def addMeta(self, field, value) -> None:
+    def addMeta(self, field : str, value : Union[str, int, float]) -> None:
         raise RuntimeError(f"Error: you can't add a metadata {field}, {value} to a merged source {self}")
 
     def __hash__(self) -> int:
@@ -249,15 +249,19 @@ class Sample(object):
 
     def __init__(self,
                  name : str,
-                 source : Union[Source, dict[Any, Source], str, dict[Any, str]],
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
                  hooks : Optional[list[Any]] = None,
-                 eras : Optional[list[Any]] = None,
+                 eras : Optional[list[str]] = None,
                  subera : Optional[Union[str, int]] = None,
-                 friends=None,
-                 normUncertainty=None,
+                 friends : Optional[list[str]] = None,
+                 normUncertainty : Union[None,
+                                         list[NormUncertainty],
+                                         float,
+                                         tuple[float, float],
+                                         dict[str, Union[float, tuple[float, float]]]] = None,
                  suffix : str = "",
                  weight : Union[float, str] = 1,
-                 **kwargs):
+                 **kwargs : Any):
         """source can be any 4 of the following:
              - a source object, if this sample doesn't have a list of eras
              - a dict (era -> Source) if this sample has a list of eras.
@@ -322,7 +326,7 @@ class Sample(object):
             assert (self.eras is None)
             return True
 
-    def customizeFlow(self, flow, era : Optional[str]) -> Any:
+    def customizeFlow(self, flow : Any, era : Optional[str]) -> Any:
         for h in self._hooks:
             flow2 = h.customizeFlow(flow, era=era)
             if flow2 != flow:
@@ -349,12 +353,12 @@ class MCSample(Sample):
 
     def __init__(self,
                  name : str,
-                 source,
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
                  genWeightName : Optional[str] = "genWeight",
                  genWeightSum : Optional[float] = None,
                  genSumWeightName : str = "_auto_",
-                 xsec : Union[float, str] = 1.0,
-                 **kwargs):
+                 xsec : Union[float, str, None] = 1.0,
+                 **kwargs : Any):
         super().__init__(name, source, **kwargs)
         assert ((xsec is None) == (genWeightName is None))
         assert ((genWeightName is not None) or ('weight' in kwargs))
@@ -367,7 +371,7 @@ class MCSample(Sample):
         else:
             self._genWeightSum = {None: genWeightSum}
         self.genSumWeightName = genSumWeightName
-        self.xsec = xsec
+        self.xsec = xsec if xsec is not None else 1.0
         self.isMC = True
         if self.xsec:
             if self.eras is None:
@@ -394,7 +398,7 @@ class MCSample(Sample):
         assert ((self.eras is None) == (era is None))
         return self._genWeightSum[era]  # type: ignore
 
-    def bookSumWeight(self, eras, cache=None):
+    def bookSumWeight(self, eras : Iterable[Optional[str]], cache : Any = None) -> int:
         """Compute the sum of weights for this sample, and return the number of computations actually done"""
         ret = 0
         for era in eras:
@@ -432,14 +436,16 @@ class MCSample(Sample):
         return f"MCSample({self.name}{xsec_string}, {self._sourcesAsString()})"
 
 
-def _mergeEras(samples):
+def _mergeEras(samples : Iterable[Sample]) -> Optional[list[str]]:
     if all((s.eras is None) for s in samples):
         return None
     else:
-        return list(sorted(set([e for s in samples for e in s.eras])))  # use set to make unique
+        # use set to make unique
+        assert all((s.eras is not None) for s in samples)
+        return list(sorted(set([e for s in samples for e in s.eras])))  # type: ignore
 
 
-def _mergeSources(name, samples):
+def _mergeSources(name : str, samples : Iterable[Sample]) -> Union[MergedSource, dict[str, MergedSource]]:
     eras = _mergeEras(samples)
     if eras is None:
         eras = [None]
@@ -461,7 +467,11 @@ class MCGroup(Sample):
        Useful e.g. for samples binned at gen level and that can be used all together.
        This allows the framework to build a single RDF graph, and saves some overheads."""
 
-    def __init__(self, name : str, samples : list[MCSample], moreHooks=None, extraWeight=None):
+    def __init__(self,
+                 name : str,
+                 samples : list[MCSample],
+                 moreHooks : Optional[list[Any]] = None,
+                 extraWeight : Optional[Union[str, float]] = None):
         super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
         self.samples = samples
         self.moreHooks = moreHooks[:] if moreHooks else []
@@ -472,7 +482,7 @@ class MCGroup(Sample):
         self._hooks += self.moreHooks[:]
         self.genWeightName = samples[0].genWeightName
         assert all((s.genWeightName == self.genWeightName) for s in samples[1:])
-        self.weight = samples[0].weight  # type: Union[str,float]
+        self.weight = samples[0].weight
         assert all((s.weight == self.weight) for s in samples[1:])
         if any(isinstance(s.xsec, str) for s in samples):
             assert (all((s.xsec == samples[0].xsec) for s in samples))
@@ -489,7 +499,7 @@ class MCGroup(Sample):
         else:
             return flow2.prepend(AddWeight("weight", str(self.weight)))
 
-    def bookSumWeight(self, eras, **kwargs) -> int:
+    def bookSumWeight(self, eras : Iterable[Optional[str]], **kwargs : Any) -> int:
         """Compute the sum of weights for these samples, and return the number of computations actually done"""
         return sum(s.bookSumWeight(eras, **kwargs) for s in self.samples)
 
@@ -513,7 +523,11 @@ class MCGroup(Sample):
 class DataDrivenSample(Sample):
     """A sample for a data driven background estimate, and so not scaled by luminosity."""
 
-    def __init__(self, name : str, source, weight : Union[str, float] = 1, **options):
+    def __init__(self,
+                 name : str,
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
+                 weight : Union[str, float] = 1,
+                 **options):
         super().__init__(name, source, **options)
         self.weight = weight
         self.isMC = False
@@ -537,11 +551,14 @@ class DataDrivenSample(Sample):
 class DataSample(DataDrivenSample):
     """The data sample"""
 
-    def __init__(self, name, samples, **options):
-        super().__init__(name, samples, **options)
+    def __init__(self,
+                 name : str,
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
+                 **options : Any):
+        super().__init__(name, source, **options)
         self.isData = True
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DataSample({self.name}, {self._sourcesAsString()})"
 
 

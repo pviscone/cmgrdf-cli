@@ -1,3 +1,4 @@
+import copy
 from math import sqrt
 import time
 from typing import Any, Optional, Union
@@ -450,7 +451,10 @@ class Processor(object):
                 merged.append(mergedKey, (plot, proc, mergePlots(proc.name, hists)))
             else:
                 sample = mergeList[0][2]
-                merged.append(mergedKey, (plot, proc, sample, mergePlots(sample.name, hists)))
+                pcopy = copy.copy(proc)
+                pcopy.name = f"{proc.name}_{sample.name}"
+                pcopy.sample = sample
+                merged.append(mergedKey, (plot, pcopy, mergePlots(sample.name, hists)))
         keysToRemove = ["process"] if mergeSamples else ["process", "sample"]
         results = MultiReport()
         for mergedKey, mergeList in merged.groupRemoving(*keysToRemove):
