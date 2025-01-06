@@ -132,7 +132,7 @@ lumi = 6.90
 
 if __name__ == "__main__":
     from CMGRDF.cmdline import processorFromCommandLineArgs
-    maker = processorFromCommandLineArgs()
+    maker, args = processorFromCommandLineArgs()
     printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
     cutflowCuts = ("Trigger", "3l", "minMll12", "Zpeak", "3jets", "1b")
     maker.bookCutFlow(procs_3l_tight, lumi, cuts_tight, cutNames=cutflowCuts)

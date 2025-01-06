@@ -37,7 +37,8 @@ class MuonIDSFDefine(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         Declare('''
-        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
+        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                              const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
@@ -109,7 +110,9 @@ class MuonIDIsoSFDefine(Define):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._idCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         corrIso = CorrectionlibFactory.loadCorrector(self._fname, self._isoCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.isoName, check=True)[0]
         Declare('''
-        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
+        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                                       const ROOT::RVec<float> & eta,
+                                                       const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
@@ -118,7 +121,8 @@ class MuonIDIsoSFDefine(Define):
             }
             return sf;
         }
-        ROOT::RVec<ROOT::RVec<float>> muonIDIsoSF_<ID>_<ISO>_<ERA>_syst(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta) {
+        ROOT::RVec<ROOT::RVec<float>> muonIDIsoSF_<ID>_<ISO>_<ERA>_syst(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                                                        const ROOT::RVec<float> & eta) {
             ROOT::RVec<ROOT::RVec<float>> sf(2);
             sf[0].resize(pt.size(), 1.0);
             sf[1].resize(pt.size(), 1.0);

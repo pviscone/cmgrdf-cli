@@ -1,8 +1,8 @@
 from typing import Optional
-from CMGRDF.flow import Flow, FlowStep
+from CMGRDF.flow import Flow, FlowStep, Hook
 
 
-class Append(object):
+class Append(Hook):
     def __init__(self, *steps : FlowStep):
         self.steps = list(steps)
 
@@ -10,7 +10,7 @@ class Append(object):
         return flow.append(self.steps)
 
 
-class Prepend(object):
+class Prepend(Hook):
     def __init__(self, *steps : FlowStep):
         self.steps = list(steps)
 
@@ -18,7 +18,7 @@ class Prepend(object):
         return flow.prepend(self.steps)
 
 
-class Replace(object):
+class Replace(Hook):
     def __init__(self, *steps : FlowStep, name):
         self.steps = list(steps)
         self.name = name
@@ -27,7 +27,7 @@ class Replace(object):
         return flow.replace(self.name, self.steps)
 
 
-class Remove(object):
+class Remove(Hook):
     def __init__(self, name : str):
         self.name = name
 
@@ -35,7 +35,7 @@ class Remove(object):
         return flow.remove(self.name)
 
 
-class Insert(object):
+class Insert(Hook):
     def __init__(self,
                  *steps : FlowStep,
                  before : Optional[str] = None,

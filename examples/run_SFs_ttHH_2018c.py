@@ -150,7 +150,7 @@ lumi = 6.90
 
 if __name__ == "__main__":
     from CMGRDF.cmdline import processorFromCommandLineArgs
-    maker = processorFromCommandLineArgs()
+    maker, args = processorFromCommandLineArgs()
     #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
     maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
     maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)

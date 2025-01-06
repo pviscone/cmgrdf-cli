@@ -12,7 +12,8 @@ class DatacardWriter(object):
     @staticmethod
     def defaultOptions() -> Options:
         opts = Options()
-        opts.declare("asimov", None, help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')")
+        opts.declare("asimov", None,
+                     help=("Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')"))
         opts.declare("autoMCStats", True, bool, help="use autoMCStats")
         opts.declare("autoMCStatsThreshold", 10, int, help="threshold to put on autoMCStats")
         opts.declare("threshold", 0.0, float, help="Minimum event yield to consider processes")

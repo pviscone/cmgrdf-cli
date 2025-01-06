@@ -43,7 +43,8 @@ class CorrectionlibFactory(object):
             corrSetId, corrSet = cls._loadSet(filename, hint=fileHint, check=check)
             if check:
                 if corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
-                    raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " + ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
+                    raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " +
+                                       ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
             corrId = cls._strToId(corrector + filename, corrSetId + "_corr_", hint=corrHint)
             Declare(f'auto {corrId} = {corrSetId}->{access_method}("{corrector}");')
             if access_method == "at":

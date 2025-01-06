@@ -2,6 +2,8 @@ import copy
 import re
 from typing import Any, Literal, Optional, Union
 from collections.abc import Callable, Container, Iterable
+from abc import ABC, abstractmethod
+
 import ROOT  # type: ignore
 from CMGRDF.data import Sample
 from CMGRDF.utils import recursiveAddToHash, safeName
@@ -539,6 +541,12 @@ class Flow(object):
     @property
     def show(self) -> None:
         print(self)
+
+
+class Hook(ABC):
+    @abstractmethod
+    def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
+        raise NotImplementedError
 
 
 class Target(object):

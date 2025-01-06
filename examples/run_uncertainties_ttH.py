@@ -40,7 +40,7 @@ lumi = 59.
 
 if __name__ == "__main__":
     from CMGRDF.cmdline import processorFromCommandLineArgs
-    maker = processorFromCommandLineArgs()
+    maker, args = processorFromCommandLineArgs()
     maker.book(data, lumi, cuts, plots, withUncertainties=True)
     result_plots = maker.runPlots()
     printer = PlotSetPrinter(topRightText="L = %.0f fb^{-1} (13 TeV)" % lumi, showRatio=True)

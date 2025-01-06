@@ -1,9 +1,10 @@
 import copy
 from math import sqrt
 import time
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, overload
 from collections.abc import Container, Sequence
 from enum import Enum
+import resource
 
 import ROOT  # type: ignore
 from CMGRDF.init import HasherFromGlobalConfig
@@ -17,10 +18,28 @@ from CMGRDF.cache import SimpleCache
 
 
 class _Branch(object):
+    @overload
     def __init__(self,
-                 parentOrSource : "Union[_Branch,Source]",
-                 stepOrTreeName : "Union[FlowStep,str]",
+                 parentOrSource : Source,
+                 stepOrTreeName : str,
                  withUncertainties : bool,
+                 hasher : Any,
+                 local : bool,
+                 cache : Optional[SimpleCache] = None,
+                 DataFrameClass=ROOT.RDataFrame,
+                 **kwargs):
+        ...
+
+    @overload
+    def __init__(self,
+                 parentOrSource : "_Branch",
+                 stepOrTreeName : FlowStep):
+        ...
+
+    def __init__(self,
+                 parentOrSource : "Union[_Branch, Source]",
+                 stepOrTreeName : Union[FlowStep, str],
+                 withUncertainties : Optional[bool] = None,
                  hasher : Optional[Any] = None,
                  local : Optional[bool] = None,
                  cache : Optional[SimpleCache] = None,
@@ -37,9 +56,12 @@ class _Branch(object):
             self.hasher = parentOrSource.hasher.copy()
             self.withUncertainties = parentOrSource.withUncertainties
             self.step = stepOrTreeName
+            self._cache = parentOrSource._cache
             stepOrTreeName._addToHash(self.hasher)  # pyright: ignore[reportPrivateUsage]
+            self._hasUncertainties = True if parentOrSource._hasUncertainties else None
         else:
-            assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str) and (hasher is not None)
+            assert isinstance(parentOrSource, Source) and isinstance(stepOrTreeName, str)
+            assert (withUncertainties is not None) and (hasher is not None) and (local is not None)
             self.source = parentOrSource
             self.sourceTreeName = stepOrTreeName
             self._local = local
@@ -49,11 +71,11 @@ class _Branch(object):
             self.hasher = hasher
             self.withUncertainties = withUncertainties
             self.step = None
+            self._cache = cache
+            self._hasUncertainties = None
         self.branches : list[_Branch] = []
         self.leaves : dict[Target, Any] = dict()
         self._rdfAndWeights : Optional[tuple[Any, list[str]]] = None
-        self._hasUncertainties = None
-        self._cache = cache
 
     def maybeBranch(self, step : FlowStep, verbose=False) -> "_Branch":
         for b in self.branches:
@@ -61,7 +83,7 @@ class _Branch(object):
                 if verbose:
                     print(" Re-used branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
                 return b
-        b = _Branch(self, step, self.withUncertainties)
+        b = _Branch(self, step)
         if verbose:
             print(" Created new branch for step %s: %s: %s" % (step.name, step, b.hasher.hexdigest()))
         self.branches.append(b)
@@ -154,7 +176,14 @@ class Processor(object):
         if source not in self._trees:
             if verbose:
                 print("Created new source tree for %s, local %s" % (source.longId(), self._local))
-            self._trees[source] = _Branch(source, treeName, withUncertainties, hasher=self._hasher.copy(), local=self._local, DataFrameClass=self.DataFrameClass, cache=self._cache, **self.DataFrameArgs)
+            self._trees[source] = _Branch(source,
+                                          treeName,
+                                          withUncertainties,
+                                          hasher=self._hasher.copy(),
+                                          local=self._local,
+                                          cache=self._cache,
+                                          DataFrameClass=self.DataFrameClass,
+                                          **self.DataFrameArgs)
         else:
             if verbose:
                 print("Reused source for %s" % source.longId())
@@ -370,7 +399,7 @@ class Processor(object):
             print("Booked %d targets in %.3fs" % (n1 - n0, t1 - t0))
         return self
 
-    def _runAllRaw(self, logPerformance=True, makeCutFlowReports=False, debug=False) -> MultiReport:
+    def _runAllRaw(self, logPerformance : bool = True, makeCutFlowReports : bool = False, debug : bool = False) -> MultiReport:
         """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
         self._state = Processor.State.Run
         if self._rawResults is None:
@@ -382,6 +411,7 @@ class Processor(object):
                 ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
             self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
             t0 = time.perf_counter()
+            r0 = resource.getrusage(resource.RUSAGE_SELF)
             n0 = len(self._futures)
             # run the graphs
             if self._futures:
@@ -393,9 +423,11 @@ class Processor(object):
                     print(f"Scheduling to run {n0} targets from {len(self._trees)} sources")
                 self.RunGraphs([fut[-2] for fut in self._futures])
                 print("")
-                t1 = time.perf_counter()
                 if logPerformance:
-                    print("Filled %d targets in %.3fs" % (n0, t1 - t0))
+                    t1 = time.perf_counter()
+                    r1 = resource.getrusage(resource.RUSAGE_SELF)
+                    cpuf = (r1.ru_utime + r1.ru_stime - r0.ru_utime - r0.ru_stime) / max(0.001, t1 - t0)
+                    print(f"Filled {n0} targets in {t1-t0:.3f}s ({cpuf:.2f} CPUs)")
             # finalize the plots
             ret = MultiReport()
             for (plotKey, proc, sample, target, future, fvars) in self._futures:
@@ -413,13 +445,47 @@ class Processor(object):
             self._rawResults = ret
         return self._rawResults
 
+    def runSourcesSequentially(self) -> None:
+        """Run all sources sequentially to produce a time report per source"""
+        """returns a MultiReport with value being (process,sample,target,future.GetValue(),vars)"""
+        if self._futures:
+            if not self._local:
+                assert self._executor
+                from CMGRDF.init import RunDistributedInitializer
+                RunDistributedInitializer(self._executor[1])
+                from CMGRDF.init import DistributedInitializerCode
+                ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
+            t0 = time.perf_counter()
+            n0 = len(self._trees)
+            print(f"I have a total of {n0} sources to process")
+            # Now we do a hack to force a JIT
+            ROOT.RDataFrame(10).Count().GetValue()
+            print(f"Initial JIT invocation took {time.perf_counter()-t0:.3f}s")
+            r0 = resource.getrusage(resource.RUSAGE_SELF)
+            rstart = r0
+            totev = 0
+            for (src, branch) in sorted(self._trees.items(), key=lambda p : p[0].longId()):
+                c0 = branch.rdf().Count()
+                tstart = time.perf_counter()
+                nentries = c0.GetValue()
+                totev += nentries
+                tend = time.perf_counter()
+                rend = resource.getrusage(resource.RUSAGE_SELF)
+                rate = nentries / max(0.001, tend - tstart) / 1e3
+                tcpu = (rend.ru_utime + rend.ru_stime - rstart.ru_utime - rstart.ru_stime)
+                cpuf = tcpu / (tend - tstart) if (tend - tstart > 0.2) else -1
+                rstart = rend
+                print(f"Processed {nentries:12,d} entries in {tend-tstart:6.1f}s ({rate:8.1f}kHz, {cpuf:6.2f} CPUs) for {src.longId()}", flush=True)
+            cpuf = (rstart.ru_utime + rstart.ru_stime - r0.ru_utime - r0.ru_stime) / max(0.001, time.perf_counter() - t0)
+            print(f"Processed a total of {n0} sources in {time.perf_counter()-t0:.1f}s, {totev:,} total entries, avg {cpuf:.2f} CPU")
+
     def printRawCutFlowReports(self) -> None:
         for source, report in sorted(self._reports, key=lambda p : p[0].longId()):
             print("Cut flow for %s" % source.longId())
             report.GetValue().Print()
             print("")
 
-    def runPlots(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs) -> MultiReport:
+    def runPlots(self, mergeEras : bool = False, mergeSamples : bool = True, logPerformance : bool = True, **kwargs : Any) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
@@ -471,7 +537,7 @@ class Processor(object):
             print("Merged %d plots in %.3fs" % (len(plots), time.perf_counter() - t0))
         return results
 
-    def runYields(self, mergeEras=False, mergeSamples=True, logPerformance=True, **kwargs) -> MultiReport:
+    def runYields(self, mergeEras : bool = False, mergeSamples : bool = True, logPerformance : bool = True, **kwargs : Any) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         t0 = time.perf_counter()
         plots = MultiReport()
@@ -513,7 +579,7 @@ class Processor(object):
             print("Merged %d yields in %.3fs" % (len(merged), time.perf_counter() - t0))
         return merged
 
-    def runSnapshots(self, logPerformance=True, hadd=True) -> MultiReport:
+    def runSnapshots(self, logPerformance : bool = True, hadd : bool = True) -> MultiReport:
         rawReport = self._runAllRaw(logPerformance=logPerformance)
         plots = MultiReport()
         for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:

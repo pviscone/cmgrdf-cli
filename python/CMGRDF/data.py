@@ -1,11 +1,13 @@
 # pyright: reportImportCycles=false
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union, TYPE_CHECKING, overload
 from collections.abc import Callable, Iterable, Mapping, Sequence
 import ROOT  # type: ignore
 import os
 import os.path
 import glob
 from CMGRDF.utils import recursiveHash, safeName, NormUncertainty, eosToUrl
+if TYPE_CHECKING:
+    from CMGRDF.flow import Hook
 
 ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
 ProgressBar = ROOT.ProgressBarManager()
@@ -114,6 +116,11 @@ class Source(object):
             return id(self) == id(o)
 
     def addMeta(self, field : str, value : Union[str, int, float]) -> None:
+        for mykey, myval in self._metas:
+            if mykey == field:
+                if myval != value:
+                    raise RuntimeError(f"Error, changing meta {field} from {myval!r} to {value!r} on source {self}")
+                return  # already there, don't re-add and don't invalidate hash
         self._metas.append((field, value))
         # invalidate hash
         self._bigHash = None
@@ -194,10 +201,10 @@ class Source(object):
 class MergedSource(Source):
     """Multiple sources merged into a single one, but with possibly different metadata"""
 
-    def __init__(self, name : str, sources : Sequence[Source]):
+    def __init__(self, name : str, sources : Sequence[Source], era : Optional[str]):
         self.name = name
         self.sources = list(sources[:])
-        self.era = sources[0].era
+        self.era = era
         self._bigHash = None
         self._bigHashNoFriends = None
 
@@ -248,11 +255,13 @@ class Sample(object):
        It can have hooks that modify the processing flow, and normalization uncertainties.
     """
 
+    #Signature for samples without eras
+    @overload
     def __init__(self,
                  name : str,
-                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
-                 hooks : Optional[list[Any]] = None,
-                 eras : Optional[list[str]] = None,
+                 source : Union[Source, str, list[str]],
+                 eras : None = None,
+                 hooks : Optional[Iterable['Hook']] = None,
                  subera : Optional[Union[str, int]] = None,
                  friends : Optional[list[str]] = None,
                  normUncertainty : Union[None,
@@ -263,11 +272,52 @@ class Sample(object):
                  suffix : str = "",
                  weight : Union[float, str] = 1,
                  **kwargs : Any):
-        """source can be any 4 of the following:
-             - a source object, if this sample doesn't have a list of eras
-             - a dict (era -> Source) if this sample has a list of eras.
-             - a string, being a file name or directory name or glob string, which may include {name} and/or {era} inside
-             - a dict (era -> String) if this sample has a list of eras
+        ...
+
+    #Signature for samples with eras
+    @overload
+    def __init__(self,
+                 name : str,
+                 source : Union[Mapping[str, Source], str, Mapping[str, str], Mapping[str, list[str]]],
+                 eras : list[str],
+                 hooks : Optional[Iterable['Hook']] = None,
+                 subera : Optional[Union[str, int]] = None,
+                 friends : Optional[list[str]] = None,
+                 normUncertainty : Union[None,
+                                         list[NormUncertainty],
+                                         float,
+                                         tuple[float, float],
+                                         dict[str, Union[float, tuple[float, float]]]] = None,
+                 suffix : str = "",
+                 weight : Union[float, str] = 1,
+                 **kwargs : Any):
+        ...
+
+    #Implementation
+    def __init__(self,
+                 name : str,
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
+                 eras : Optional[list[str]] = None,
+                 hooks : Optional[Iterable['Hook']] = None,
+                 subera : Optional[Union[str, int]] = None,
+                 friends : Optional[list[str]] = None,
+                 normUncertainty : Union[None,
+                                         list[NormUncertainty],
+                                         float,
+                                         tuple[float, float],
+                                         dict[str, Union[float, tuple[float, float]]]] = None,
+                 suffix : str = "",
+                 weight : Union[float, str] = 1,
+                 **kwargs : Any):
+        """For samples without eras, source can be any of the following:
+             - a source object
+             - a string, being a file name or directory name or glob string, which may include {name} inside
+             - a list of strings of filenames
+           For samples with eras, source can be any of the following:
+             - a string, being a file name or directory name or glob string, which may include {name} and should include {era} inside
+             - a dict (era -> Source)
+             - a dict (era -> string), or (era -> list[string])
+
            normUncertainty can be any of the following:
              - None
              - a list of NormUncertainty objects
@@ -277,7 +327,7 @@ class Sample(object):
            suffix is a suffix to the name, that is NOT used to identify the source. This is useful (and only used there) for the creation  of snapshots
         """
         self.name = name
-        self._hooks = hooks[:] if hooks else []
+        self._hooks = list(hooks) if hooks else []
         self.eras = eras
         self.subera = subera
         self.suffix = suffix
@@ -292,9 +342,16 @@ class Sample(object):
             else:
                 assert isinstance(source, dict)
                 friendFiles = dict((era, [f.format(name=name, era=era) for f in friends] if friends else None) for era in self.eras)
-                if isinstance(source[self.eras[0]], str):
+                firstsource = source[self.eras[0]]
+                if isinstance(firstsource, str):
+                    assert all(isinstance(source[era], str) for era in self.eras)
                     self._sources = dict((era, Source('', source[era].format(name=name, era=era), era=era, friends=friendFiles[era])) for era in self.eras)  # type: ignore
+                elif isinstance(firstsource, list):
+                    assert isinstance(firstsource[0], str)
+                    assert all(isinstance(source[era], list) for era in self.eras)
+                    self._sources = dict((era, Source('', source[era], era=era, friends=friendFiles[era])) for era in self.eras)  # type: ignore
                 else:
+                    assert all(isinstance(source[era], Source) for era in self.eras)
                     self._sources = dict((era, source[era]) for era in self.eras)
         elif isinstance(source, Source):
             assert (friends is None)  # should have been put in the Source object
@@ -352,15 +409,79 @@ class MCSample(Sample):
 
        For samples that area already weighted, specify genWeightName = None, xsec = None, weight = ... """
 
+    #Signature for samples without eras, and with gen weights to be normalized via sum of weights
+    @overload
+    def __init__(self,
+                 name : str,
+                 source : Union[Source, str, list[str]],
+                 eras : None = None,
+                 genWeightName : str = "genWeight",
+                 genWeightSum : Optional[float] = None,
+                 genSumWeightName : str = "_auto_",
+                 xsec : Union[float, str] = 1.0,
+                 **kwargs : Any):
+        """For samples without eras, and with gen weights to be normalized via sum of weights"""
+        ...
+
+    #Signature for samples without eras, and pre-computed weights (no sum-of-gen-weights normalization). You must also specify a weight!"""
+    @overload
     def __init__(self,
                  name : str,
                  source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
+                 eras : None = None,
+                 genWeightName : None = None,
+                 genWeightSum : None = None,
+                 genSumWeightName : Literal["_auto_"] = "_auto_",  # unused in this case
+                 xsec : None = None,
+                 **kwargs : Any):
+        """For samples without eras, and pre-computed weights (no sum-of-gen-weights normalization). You must also specify a weight!"""
+        ...
+
+    #Signature for samples with eras, and with gen weights to be normalized via sum of weights"""
+    @overload
+    def __init__(self,
+                 name : str,
+                 source : Union[Mapping[str, Source], str, Mapping[str, str], Mapping[str, list[str]]],
+                 eras : list[str],
+                 genWeightName : str = "genWeight",
+                 genWeightSum : Optional[float] = None,
+                 genSumWeightName : str = "_auto_",
+                 xsec : Union[float, str] = 1.0,
+                 **kwargs : Any):
+        """For samples with eras, and with gen weights to be normalized via sum of weights"""
+        ...
+
+    #Signature for samples with eras, and pre-computed weights (no sum-of-gen-weights normalization)"""
+    @overload
+    def __init__(self,
+                 name : str,
+                 source : Union[Mapping[str, Source], str, Mapping[str, str], Mapping[str, list[str]]],
+                 eras : list[str],
+                 genWeightName : None = None,
+                 genWeightSum : None = None,
+                 genSumWeightName : Literal["_auto_"] = "_auto_",  # unused in this case
+                 xsec : None = None,
+                 **kwargs : Any):
+        """For samples with eras, and pre-computed weights (no sum-of-gen-weights normalization)"""
+        ...
+
+    #actual implementation of all 4
+    def __init__(self,
+                 name : str,
+                 source : Union[Source, Mapping[str, Source], str, list[str], Mapping[str, str], Mapping[str, list[str]]],
+                 eras : Optional[list[str]] = None,
                  genWeightName : Optional[str] = "genWeight",
                  genWeightSum : Optional[float] = None,
                  genSumWeightName : str = "_auto_",
                  xsec : Union[float, str, None] = 1.0,
                  **kwargs : Any):
-        super().__init__(name, source, **kwargs)
+        if eras is not None:
+            assert isinstance(source, str) or isinstance(source, dict)
+            super().__init__(name, source, eras=eras, **kwargs)
+        else:
+            assert not isinstance(source, dict)
+            super().__init__(name, source, **kwargs)
+
         assert ((xsec is None) == (genWeightName is None))
         assert ((genWeightName is not None) or ('weight' in kwargs))
         self.genWeightName = genWeightName
@@ -447,20 +568,22 @@ def _mergeEras(samples : Iterable[Sample]) -> Optional[list[str]]:
         return list(sorted(set([e for s in samples for e in s.eras])))  # type: ignore
 
 
-def _mergeSources(name : str, samples : Iterable[Sample]) -> Union[MergedSource, dict[str, MergedSource]]:
+def _mergeErasAndSources(name : str, samples : Iterable[Sample]) -> Union[tuple[None, MergedSource], tuple[list[str], dict[str, MergedSource]]]:
     eras = _mergeEras(samples)
-    if eras is None:
-        eras = [None]
-    sources = dict()
-    for e in eras:
+    eralist = eras if eras is not None else [None]
+    sourcemap = dict()
+    for e in eralist:
         sourcesThisEra = []
         for s in samples:
             src = s.source(e)
             if src is None:
                 continue
             sourcesThisEra.append(src)
-        sources[e] = MergedSource(name, sourcesThisEra)
-    return sources if eras != [None] else sources[None]
+        sourcemap[e] = MergedSource(name, sourcesThisEra, era=e)
+    if eras is None:
+        return (eras, sourcemap[None])
+    else:
+        return (eras, sourcemap)
 
 
 class MCGroup(Sample):
@@ -472,16 +595,22 @@ class MCGroup(Sample):
     def __init__(self,
                  name : str,
                  samples : list[MCSample],
-                 moreHooks : Optional[list[Any]] = None,
+                 moreHooks : Optional[Iterable['Hook']] = None,
                  extraWeight : Optional[Union[str, float]] = None):
-        super().__init__(name, _mergeSources(name, samples), eras=_mergeEras(samples))
+        eras, source = _mergeErasAndSources(name, samples)
+        if eras is None:
+            assert isinstance(source, MergedSource)
+            super().__init__(name, source)
+        else:
+            assert isinstance(source, dict)
+            super().__init__(name, source, eras=eras)
         self.samples = samples
-        self.moreHooks = moreHooks[:] if moreHooks else []
+        self.moreHooks = list(moreHooks) if moreHooks else []
         self.extraWeight = extraWeight
         self._hooks = samples[0]._hooks[:]
         for s in samples[1:]:
             assert (s._hooks == self._hooks)
-        self._hooks += self.moreHooks[:]
+        self._hooks += self.moreHooks
         self.genWeightName = samples[0].genWeightName
         assert all((s.genWeightName == self.genWeightName) for s in samples[1:])
         self.weight = samples[0].weight

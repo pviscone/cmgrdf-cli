@@ -352,7 +352,8 @@ class PlotSetPrinter(object):
         opts.declare("stack", True, bool, help="Whether different contributions should be stacked")
         opts.declare("plotFormats", "png,pdf,root,txt", help="Output format for plots")
         opts.declare("noStackSignals", False, bool, help="Don't include signals in the stack")
-        opts.declare("showErrors", False, bool, help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines")
+        opts.declare("showErrors", False, bool,
+                     help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines")
         opts.declare("extraLabel", help="Additional label to put in the plots")
         opts.declare("topLeftText", "#bf{CMS} #it{Internal}", help="Text on the top left of the canvas")
         opts.declare("topRightText", "", help="Text on the top right of the canvas")

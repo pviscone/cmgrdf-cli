@@ -49,7 +49,7 @@ class Options(object):
 
     def addToParser(self, parser : Any) -> None:
         for (name, default, opttype, cmdline, kwargs) in self._declarations:
-            if opttype == bool:
+            if opttype is bool:
                 if not cmdline:
                     cmdline = ["--no" + name] if default else ["--" + name]
                 action = "store_false" if default else "store_true"

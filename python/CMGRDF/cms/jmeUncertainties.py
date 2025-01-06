@@ -214,7 +214,7 @@ class JetVetoMapCut(Cut):
             raise RuntimeError("You can only call JetVetoMapCut for one era")
         self.era = options['eras'][0]
 
-        super().__init__(cutName, f"passesJetVetoMap_{self.era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
+        super().__init__(cutName, f"passesJetVetoMap_{self.era}(Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
 
         self._fname = jsonMap[self.era] + '/jetvetomaps.json.gz'
         self._corrName = jetVetoTags[self.era]
@@ -222,10 +222,10 @@ class JetVetoMapCut(Cut):
 
     def init(self):
         vetoMapId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
-        Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
-                                                                  const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
-                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
-                                                                  const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
+        Declare('''bool passesJetVetoMap_<era>(const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
+                                                    const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
+                                                    const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
+                                                    const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand) {
         bool ret=true;
         for (int ijet=0; ijet<Jet_pt.size(); ++ijet){
              if (<correctionname>->evaluate({"jetvetomap", TMath::Max( -5.0f, TMath::Min(5.0f, Jet_eta.at(ijet))), TMath::Max( -3.14f, TMath::Min(3.14f, Jet_phi.at(ijet)))}) == 0) continue;
@@ -271,7 +271,11 @@ class JetPuIDSF(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
         Declare('''
-        double weight_jetPUId_<ERA>(const ROOT::RVec<float> & pt, const ROOT::RVec<float> & eta, const ROOT::RVec<int> & idx, const std::string & wp, const std::string & choice = "nom") {
+        double weight_jetPUId_<ERA>(const ROOT::RVec<float> & pt,
+                                    const ROOT::RVec<float> & eta,
+                                    const ROOT::RVec<int> & idx,
+                                    const std::string & wp,
+                                    const std::string & choice = "nom") {
         double ret=1.;
         for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
             if ( (idx.at(i) < 0) || (pt.at(i) > 50)) continue;

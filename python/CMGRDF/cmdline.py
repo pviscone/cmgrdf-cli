@@ -6,14 +6,16 @@ from CMGRDF.data import Source
 from CMGRDF.processor import Processor
 
 
-def processorFromCommandLineArgs(parser : Optional[argparse.ArgumentParser] = None) -> Processor:
-
+def processorFromCommandLineArgs(parser : Optional[argparse.ArgumentParser] = None) -> tuple[Processor, argparse.Namespace]:
     parser = parser if parser is not None else argparse.ArgumentParser()
     parser.add_argument("--mode", help="how to run", default="local", choices=("local", "dask"))
     parser.add_argument("--dask", help="shortcut for --mode dask", dest="mode", action="store_const", const="dask")
-    parser.add_argument("-u", "--with-systematics", "--syst", help="enable systematics by default", dest="withSystematics", action="store_const", const=True, default=None)
-    parser.add_argument("--stat", "--without-systematics,", help="disabqle systematics by default", dest="withSystematics", action="store_const", const=False, default=None)
-    parser.add_argument("-f", "--flush-cache", dest="flushCache", help="flush the cache at the start of the job. Use it once to flush just the plot cache, twice (-ff) to fush also the sums cache", action='count', default=0)
+    parser.add_argument("-u", "--with-systematics", "--syst", dest="withSystematics", action="store_const", const=True, default=None,
+                        help="enable systematics by default")
+    parser.add_argument("--stat", "--without-systematics,", dest="withSystematics", action="store_const", const=False, default=None,
+                        help="disable systematics by default")
+    parser.add_argument("-f", "--flush-cache", dest="flushCache", action='count', default=0,
+                        help=("flush the cache at the start of the job. Use it once to flush just the plot cache, twice (-ff) to fush also the sums cache"))
     parser.add_argument("-n", "--nocache", help="skip cache", action="store_true")
     parser.add_argument("-c", "--cluster", help="cluster url / connection (needed if dask is specified)")
     parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
@@ -49,4 +51,4 @@ def processorFromCommandLineArgs(parser : Optional[argparse.ArgumentParser] = No
     if args.batch:
         from CMGRDF.data import ProgressBar
         ProgressBar.Disable()
-    return maker
+    return (maker, args)
