@@ -1,5 +1,6 @@
 # pyright: reportImportCycles=false
-from typing import Any, Literal, Optional, Union, TYPE_CHECKING, overload
+import copy
+from typing import Any, Literal, Optional, TypeVar, Union, TYPE_CHECKING, overload
 from collections.abc import Callable, Iterable, Mapping, Sequence
 import ROOT  # type: ignore
 import os
@@ -248,6 +249,8 @@ class MergedSource(Source):
         )
 
 
+TSample = TypeVar("TSample", bound="Sample")
+
 class Sample(object):
     """A set of files, possibly era-dependent, to be processed homogeneously.
        This is just a base class, users should normally use the subclasses MCSample, DataSample or DataDrivenSample
@@ -398,6 +401,15 @@ class Sample(object):
         else:
             return str(self._source)
 
+    def clone(self : TSample,
+              hooks : Optional[Iterable['Hook']] = None,
+              postfix : Optional[str] = None) -> TSample:
+        cloned = copy.deepcopy(self)
+        if hooks:
+            cloned._hooks += hooks
+        if postfix:
+            cloned.name += "_" + postfix
+        return cloned
 
 class MCSample(Sample):
     """A MC sample.

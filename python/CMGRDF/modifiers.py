@@ -1,26 +1,29 @@
-from typing import Optional
+import copy
+from collections.abc import Iterable
+from typing import Optional, Union
 from CMGRDF.flow import Flow, FlowStep, Hook
+from CMGRDF.data import Sample
 
 
 class Append(Hook):
-    def __init__(self, *steps : FlowStep):
-        self.steps = list(steps)
+    def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]]):
+        self.steps = Flow._flatten(steps)
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
         return flow.append(self.steps)
 
 
 class Prepend(Hook):
-    def __init__(self, *steps : FlowStep):
-        self.steps = list(steps)
+    def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]]):
+        self.steps = Flow._flatten(steps)
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
         return flow.prepend(self.steps)
 
 
 class Replace(Hook):
-    def __init__(self, *steps : FlowStep, name):
-        self.steps = list(steps)
+    def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]], name):
+        self.steps = Flow._flatten(steps)
         self.name = name
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
@@ -37,10 +40,10 @@ class Remove(Hook):
 
 class Insert(Hook):
     def __init__(self,
-                 *steps : FlowStep,
+                 *steps : Union[FlowStep, Iterable[FlowStep]],
                  before : Optional[str] = None,
                  after : Optional[str] = None):
-        self.steps = list(steps)
+        self.steps = Flow._flatten(steps)
         if before is not None:
             assert (after is None)
             self.when = ("before", before)
