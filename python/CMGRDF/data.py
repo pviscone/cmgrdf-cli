@@ -14,7 +14,7 @@ ROOT.gInterpreter.ProcessLine('#include <progressBarManager.h>')
 ProgressBar = ROOT.ProgressBarManager()
 
 
-class Source(object):
+class Source:
     """Base class that wraps a list of files from which an RDF can be created"""
 
     useDefinePerSample = True
@@ -252,7 +252,7 @@ class MergedSource(Source):
 TSample = TypeVar("TSample", bound="Sample")
 
 
-class Sample(object):
+class Sample:
     """A set of files, possibly era-dependent, to be processed homogeneously.
        This is just a base class, users should normally use the subclasses MCSample, DataSample or DataDrivenSample
 
@@ -707,7 +707,7 @@ class DataSample(DataDrivenSample):
         return f"DataSample({self.name}, {self._sourcesAsString()})"
 
 
-class Process(object):
+class Process:
     """A group of one or more samples that are added up together as a single entry in plots or datacards.
        You can specify a more pretty label for it (by default it uses the computer-friendly name of it)
        It can have addional nomalization uncertainties, specified as in the Sample class."""

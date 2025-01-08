@@ -9,7 +9,7 @@ import os
 import subprocess
 
 
-class DASEngine(object):
+class DASEngine:
     """Main class responsible for executing and interpreting a DAS query"""
 
     def __init__(self,

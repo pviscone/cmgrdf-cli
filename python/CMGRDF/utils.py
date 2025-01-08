@@ -10,7 +10,7 @@ import re
 import fnmatch
 
 
-class OptionDecl(object):
+class OptionDecl:
     def __init__(self,
                  name : str,
                  default : Any = None,
@@ -25,7 +25,7 @@ class OptionDecl(object):
         self.kwargs = kwargs
 
 
-class Options(object):
+class Options:
     def __init__(self, *optionDeclarations : OptionDecl):
         super().__init__()
         self._values: dict[str, Any] = dict()
@@ -108,7 +108,7 @@ class Options(object):
         return ret
 
 
-class MultiKey(object):
+class MultiKey:
     """A multi-field key to identify results, e.g. a histogram by its selection flow, variable name, and sample used"""
 
     def __init__(self, **kwargs : Any):
@@ -182,7 +182,7 @@ class MultiKey(object):
         return "MultiKey(%s)" % (",".join("%s=%r" % (k, self._values[k]) for k in self._keys))
 
 
-class MultiReport(object):
+class MultiReport:
     """A list of pairs (multi-key, object) with some convenience methods for extracting them."""
 
     def __init__(self, *items : tuple[MultiKey, Any]):
@@ -326,7 +326,7 @@ def selectColumns(rdf : Any, columnSel : Collection[str], columnVeto : Collectio
     return ret
 
 
-class NormUncertainty(object):
+class NormUncertainty:
     def __init__(self, name : str, value : "Union[float, tuple[float, float]]", eras : Optional[list[str]] = None):
         super().__init__()
         self.name = name

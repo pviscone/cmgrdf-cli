@@ -66,7 +66,7 @@ jetVetoTags = {
 }
 
 
-class JMEFactory(object):
+class JMEFactory:
     _ids = dict()
 
     @classmethod

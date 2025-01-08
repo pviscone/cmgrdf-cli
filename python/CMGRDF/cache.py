@@ -10,7 +10,7 @@ import ROOT  # type: ignore
 from CMGRDF.data import Source
 
 
-class SumCache(object):
+class SumCache:
     def __init__(self, jsonFileName : str):
         self._fileName = jsonFileName
         self._cache = self._maybeRead()
@@ -47,7 +47,7 @@ class SumCache(object):
         return dict()
 
 
-class CacheLayer(object):
+class CacheLayer:
     def __init__(self, root, ttl=None, touch=True, verbose=False) -> None:
         self._root = root
         self._ttl = ttl
@@ -95,7 +95,7 @@ class CacheLayer(object):
                 shutil.rmtree(os.path.join(self._root, f))
 
 
-class SimpleCache(object):
+class SimpleCache:
     def __init__(self,
                  root : str = "__auto__",
                  cacheSums : bool = True,

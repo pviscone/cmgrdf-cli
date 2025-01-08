@@ -8,7 +8,7 @@ from CMGRDF.histoWithNuisances import listAllNuisances, mergePlots
 from CMGRDF.utils import MultiKey, Options, MultiReport
 
 
-class DatacardWriter(object):
+class DatacardWriter:
     @staticmethod
     def defaultOptions() -> Options:
         opts = Options()

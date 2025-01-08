@@ -9,7 +9,7 @@ from CMGRDF.data import Sample
 from CMGRDF.utils import recursiveAddToHash, safeName
 
 
-class FlowStep(object):
+class FlowStep:
     """A generic step to the processing flow.
 
        Subclasses should implement the following methods:
@@ -433,7 +433,7 @@ class Marker(FlowStep):
         return rdf
 
 
-class Flow(object):
+class Flow:
     """A sequence of steps, with a name."""
 
     def __init__(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]], **options : Any):
@@ -549,7 +549,7 @@ class Hook(ABC):
         raise NotImplementedError
 
 
-class Target(object):
+class Target:
     """An endpoint of the graph, e.g. a plot, yield, or similar."""
 
     def __init__(self, name : str, mcOnly : bool = False):

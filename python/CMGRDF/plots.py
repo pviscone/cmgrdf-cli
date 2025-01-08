@@ -194,7 +194,7 @@ class Plot(Target):
         return "%s-%s" % (safeName(self), self.bigHash())
 
 
-class PlotResult(object):
+class PlotResult:
     """A plot, with the specifications, the histograms with all the individual components and possibly some totals"""
 
     def __init__(self,
@@ -345,7 +345,7 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     return ret
 
 
-class PlotSetPrinter(object):
+class PlotSetPrinter:
     @staticmethod
     def defaultOptions() -> Options:
         opts = Options()

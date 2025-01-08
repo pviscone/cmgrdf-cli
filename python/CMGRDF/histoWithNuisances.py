@@ -105,7 +105,7 @@ def _isNullHistogram(h) -> bool:
     return False
 
 
-class RooFitContext(object):
+class RooFitContext:
     def __init__(self, workspace):
         self.workspace = workspace
         self._import = getattr(workspace, 'import')
@@ -201,7 +201,7 @@ class RooFitContext(object):
         return x
 
 
-class PostFitSetup(object):
+class PostFitSetup:
     def __init__(self, params=None, constraints=None, fitResult=None, throwPreFitToys=0, throwPostFitToys=0):
         self.params = (params if params is not None else (fitResult.floatParsFinal() if fitResult else None))
         self.constraints = constraints
@@ -275,7 +275,7 @@ class PostFitSetup(object):
         return log
 
 
-class YieldWithNuisances(object):
+class YieldWithNuisances:
     def __init__(self,
                  name : str,
                  value_central : float,
@@ -530,7 +530,7 @@ class YieldWithNuisances(object):
             self += scaledCopy
 
 
-class HistoWithNuisances(object):
+class HistoWithNuisances:
     def __init__(self, histo_central : Any, reset : bool = False):
         if isinstance(histo_central, HistoWithNuisances):
             raise RuntimeError("Created with HWN instead of THn or TGraph")

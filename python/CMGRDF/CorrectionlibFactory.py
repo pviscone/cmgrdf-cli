@@ -6,7 +6,7 @@ import correctionlib  # type: ignore
 correctionlib.register_pyroot_binding()
 
 
-class CorrectionlibFactory(object):
+class CorrectionlibFactory:
     _ids: dict[str, str] = dict()
 
     @classmethod

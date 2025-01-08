@@ -17,7 +17,7 @@ from CMGRDF.snapshot import Snapshot, mergeSnapshot
 from CMGRDF.cache import SimpleCache
 
 
-class _Branch(object):
+class _Branch:
     @overload
     def __init__(self,
                  parentOrSource : Source,
@@ -125,7 +125,7 @@ class _Branch(object):
         return self._hasUncertainties
 
 
-class Processor(object):
+class Processor:
     State = Enum("State", ["Clean", "Booked", "Run"])
 
     def __init__(self,
