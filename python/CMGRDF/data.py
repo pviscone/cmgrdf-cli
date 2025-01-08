@@ -25,10 +25,7 @@ class Source:
                  era : Optional[str] = None,
                  friends : Optional[Sequence[Union[str, tuple[str, str]]]] = None):
         if isinstance(files, str):
-            if "*" in files:
-                files = glob.glob(files)
-            else:
-                files = [files]
+            files = glob.glob(files) if '*' in files else [files]
         else:
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
@@ -102,10 +99,9 @@ class Source:
         if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
             nevents = self._getEntriesFromSample(sample, cache=cache)
             ProgressBar.AddDataFrame(ret, nevents)
-        if DataFrameClass != ROOT.RDataFrame:
-            if Source.useDefinePerSample:
-                print("Will not use DefinePerSample to handle xsec and gen weights as it's not yet supported in DistRDF")
-                Source.useDefinePerSample = False
+        if DataFrameClass != ROOT.RDataFrame and Source.useDefinePerSample:
+            print("Will not use DefinePerSample to handle xsec and gen weights as it's not yet supported in DistRDF")
+            Source.useDefinePerSample = False
         if Source.useDefinePerSample:
             ret = Source._addDefinesFromMetas(ret, self._metas)
         return ret
@@ -375,7 +371,7 @@ class Sample:
     def source(self, era : Optional[str] = None) -> Source:
         if era is not None:
             assert (self.eras is not None)
-            return self._sources[era] if era in self._sources else None  # type: ignore
+            return self._sources.get(era, None)  # type: ignore
         else:
             assert (self.eras is None)
             return self._source
@@ -523,10 +519,10 @@ class MCSample(Sample):
         if self.genWeightName:
             if Source.useDefinePerSample:
                 return flow2.prepend(
-                    AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, self.weight)))
+                    AddWeight("mcSampleWeight", f"{self.genWeightName}*_xsec*{luminosity * 1000}*({self.weight})/genWeightSum"))
             else:
                 return flow2.prepend(
-                    AddWeight("mcSampleWeight", "{0}*({1})*({2})*({3})".format(self.genWeightName, self.xsec, luminosity * 1000 / self._genWeightSum[era], self.weight)))  # type: ignore
+                    AddWeight("mcSampleWeight", f"{self.genWeightName}*({self.xsec})*({luminosity * 1000 / self._genWeightSum[era]})*({self.weight})"))  # type: ignore
         else:
             assert (self.weight is not None)
             return flow2.prepend(AddWeight("weight", str(self.weight)))
@@ -640,7 +636,7 @@ class MCGroup(Sample):
         from CMGRDF.flow import AddWeight
         if self.genWeightName:
             return flow2.prepend(
-                AddWeight("mcSampleWeight", "{0}*{1}*{2}*({3})/genWeightSum".format(self.genWeightName, "_xsec", luminosity * 1000, self.weight)))
+                AddWeight("mcSampleWeight", f"{self.genWeightName}*_xsec*{luminosity * 1000}*({self.weight})/genWeightSum"))
         else:
             return flow2.prepend(AddWeight("weight", str(self.weight)))
 

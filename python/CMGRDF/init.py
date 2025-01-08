@@ -127,7 +127,7 @@ def RunDistributedInitializer(daskClient : Any) -> None:
         if nocmgrdf_workers:
             hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
             #print(f"Worker hashes: {hashes}")
-            all_workers = [w for w in hashes.keys() if w not in cmgrdf_workers]
+            all_workers = [w for w in hashes if w not in cmgrdf_workers]
             done_workers = [w for w in all_workers if hashes[w] == current_config]
             todo_workers = [w for w in all_workers if hashes[w] is None]
             other_workers = [w for w in all_workers if hashes[w] not in (current_config, None)]

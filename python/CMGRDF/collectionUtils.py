@@ -188,9 +188,7 @@ class DefinePairs(Define):
                  **options):
         if kind is None:
             expr = f"allPairs(n{coll})"
-        elif kind in ("OS", "SS"):
-            expr = f"pairs{kind}({coll}_{pdgId})"
-        elif kind in ("SFOS", "SFSS", "DFOS"):
+        elif kind in ("OS", "SS", "SFOS", "SFSS", "DFOS"):
             expr = f"pairs{kind}({coll}_{pdgId})"
         else:
             raise RuntimeError("kind can only be None, 'OS', 'SS', 'SFOS', 'SFSS', 'DFOS'")
@@ -207,9 +205,7 @@ class DefineMinMass(Define):
                  **options):
         if kind is None:
             pairs = f"allPairs(n{coll})"
-        elif kind in ("OS", "SS"):
-            pairs = f"pairs{kind}({coll}_{pdgId})"
-        elif kind in ("SFOS", "SFSS", "DFOS"):
+        elif kind in ("OS", "SS", "SFOS", "SFSS", "DFOS"):
             pairs = f"pairs{kind}({coll}_{pdgId})"
         else:
             raise RuntimeError("kind can only be None, 'OS', 'SS', 'SFOS', 'SFSS', 'DFOS'")

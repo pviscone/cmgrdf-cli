@@ -695,13 +695,8 @@ class PlotSetPrinter:
                           align=32, textSize=textSize)
 
     def doLegend(self, c1, plot, total, totalError, opts, locvars) -> None:
-        if opts.stack:
-            if opts.noStackSignals:
-                mcStyle = ("L", "F")
-            else:
-                mcStyle = ("F", "F")
-        else:
-            mcStyle = ("L", "L")
+        mcStyleB = ("F" if opts.stack else "L")
+        mcStyleS = ("F" if opts.stack and not opts.noStackSignals else "L")
         corner = plot.getOpt("legend", "TR")
         if corner in ("none", "off"):
             return
@@ -715,11 +710,11 @@ class PlotSetPrinter:
             elif proc.isSignal:
                 if hist.Integral() < opts.legendCutOffSignals * totvalue:
                     continue
-                sigEntries.append((hist.raw(), proc.label, mcStyle[0]))
+                sigEntries.append((hist.raw(), proc.label, mcStyleS))
             else:
                 if hist.Integral() < opts.legendCutOffBackgrounds * totvalue:
                     continue
-                bgEntries.append((hist.raw(), proc.label, mcStyle[1]))
+                bgEntries.append((hist.raw(), proc.label, mcStyleB))
         entries = dataEntries + sigEntries + bgEntries
         if totalError:
             entries.append((totalError, "Total unc.", "F"))

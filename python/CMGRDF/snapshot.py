@@ -38,18 +38,16 @@ class Snapshot(Target):
             if os.path.exists(metafile) and os.path.getmtime(metafile) > os.path.getmtime(outname):
                 try:
                     meta = json.load(open(metafile))
-                    if meta['sourceid'] == sourceid:
-                        if meta['branchid'] == branchid:
-                            if meta['id'] == selfid:
-                                if verbose:
-                                    print(f"Not remaking snapshot {outname} for {sample.name}")
-                                ret = ROOT.RDataFrame(self.treeName, outname)
-                                ret.fname = outname
-                                ret.entries = meta['entries']
-                                ret.size = meta['size']
-                                ret.sample = sample.name
-                                ret.era = era
-                                return ret
+                    if meta['sourceid'] == sourceid and meta['branchid'] == branchid and meta['id'] == selfid:
+                        if verbose:
+                            print(f"Not remaking snapshot {outname} for {sample.name}")
+                        ret = ROOT.RDataFrame(self.treeName, outname)
+                        ret.fname = outname
+                        ret.entries = meta['entries']
+                        ret.size = meta['size']
+                        ret.sample = sample.name
+                        ret.era = era
+                        return ret
                 except BaseException:  # noqa: B036
                     # if the cache is not readable or corrupted we just ignore it
                     pass

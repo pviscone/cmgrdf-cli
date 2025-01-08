@@ -83,10 +83,7 @@ def _isNullHistogram(h) -> bool:
     if h.Integral() != 0:
         return False
     if "TH1" in h.ClassName():
-        for b in range(0, h.GetNbinsX() + 2):
-            if h.GetBinContent(b) != 0:
-                return False
-        return True
+        return all(h.GetBinContent(b) == 0 for b in range(0, h.GetNbinsX() + 2))
     elif "TH2" in h.ClassName():
         for bx in range(1, h.GetNbinsX() + 1):
             for by in range(1, h.GetNbinsY() + 1):
@@ -329,9 +326,8 @@ class YieldWithNuisances:
         self._rooFit["scaleFactors"][roofunc.GetName()] = roofunc
 
     def rooFitScaleFactors(self) -> dict[str, Any]:
-        if self._rooFit:
-            if "scaleFactors" in self._rooFit:
-                return self._rooFit["scaleFactors"]
+        if self._rooFit and "scaleFactors" in self._rooFit:
+            return self._rooFit["scaleFactors"]
         return {}
 
     def raw(self) -> float:
@@ -634,9 +630,8 @@ class HistoWithNuisances:
         self._rooFit["scaleFactors"][roofunc.GetName()] = roofunc
 
     def rooFitScaleFactors(self) -> dict[str, Any]:
-        if self._rooFit:
-            if "scaleFactors" in self._rooFit:
-                return self._rooFit["scaleFactors"]
+        if self._rooFit and "scaleFactors" in self._rooFit:
+            return self._rooFit["scaleFactors"]
         return {}
 
     def raw(self) -> Any:
@@ -1145,9 +1140,7 @@ class HistoWithNuisances:
         if self.central == self.nominal and x.central != x.nominal:
             self.nominal = _cloneNoDir(self.central, self.central.GetName())
         adder(self.central, x.central)
-        if self.central != self.nominal:
-            adder(self.nominal, x.nominal)
-        elif x.central != x.nominal:
+        if self.central != self.nominal or x.central != x.nominal:
             adder(self.nominal, x.nominal)
         for var in set(list(vars1.keys()) + list(vars2.keys())):
             for idx in range(2):
@@ -1508,14 +1501,14 @@ class ParametricHistoWN(HistoWithNuisances):
         norm0 = self.central.Integral()
         normfactor = ROOT.ProcessNormalization("%s_norm" % self.central.GetName(), "", norm0)
         for i in range(1, self.central.GetNbinsX() + 1):
-            binVar = "{n}_semipar_bin{i}".format(n=self._nuisancePrefixName or self.central.GetName(), i=i)
+            binVar = f"{self._nuisancePrefixName or self.central.GetName()}_semipar_bin{i}"
             if w.function(binVar):
                 if not self._nuisancePrefixName:
                     print("Warning: reusing %s in building %s" % (binVar, self.central.GetName()))
                 arg = w.function(binVar)
             else:
                 v0 = self.central.GetBinContent(i) / norm0 / self.central.GetXaxis().GetBinWidth(i)
-                arg = roofitContext.factory("expr::{binVar}(\"{val} * exp(@0)\", {binVar}_nuis[0,{nmin},{nmax}])".format(binVar=binVar, val=v0, nmin=self._binRange[0], nmax=self._binRange[1]))
+                arg = roofitContext.factory(f"expr::{binVar}(\"{v0} * exp(@0)\", {binVar}_nuis[0,{self._binRange[0]},{self._binRange[1]}])")
                 if i == self._binToFix or v0 == 0 or self._binRange[0] == self._binRange[1]:
                     w.var(binVar + "_nuis").setConstant(True)
             nuisances.add(arg)

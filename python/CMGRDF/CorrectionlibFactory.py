@@ -41,15 +41,14 @@ class CorrectionlibFactory:
     def loadCorrector(cls, filename : str, corrector : str, fileHint=None, corrHint=None, check=False, access_method="at") -> tuple[str, Any]:
         if (filename, corrector) not in cls._correctors:
             corrSetId, corrSet = cls._loadSet(filename, hint=fileHint, check=check)
-            if check:
-                if corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
-                    raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " +
-                                       ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
+            if check and corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
+                raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " +
+                                   ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
             corrId = cls._strToId(corrector + filename, corrSetId + "_corr_", hint=corrHint)
             Declare(f'auto {corrId} = {corrSetId}->{access_method}("{corrector}");')
-            if access_method == "at":
-                corr = corrSet[corrector] if check else None
+            if check:
+                corr = corrSet[corrector] if access_method == "at" else corrSet.compound[corrector]
             else:
-                corr = corrSet.compound[corrector] if check else None
+                corr = None
             cls._correctors[(filename, corrector)] = (corrId, corr)
         return cls._correctors[(filename, corrector)]

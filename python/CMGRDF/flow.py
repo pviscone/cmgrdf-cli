@@ -345,7 +345,7 @@ class AddWeightUncertainty(FlowStep):
         if exprDown is not None:
             self.vars = (exprDown, exprUp)
         else:
-            self.vars = ("({0})*({0})/({1})".format(nominal, exprUp), exprUp)
+            self.vars = (f"({nominal})*({nominal})/({exprUp})", exprUp)
         self.nuisName = nuisName or name
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
@@ -603,11 +603,11 @@ class Yield(Target):
         sum2 = self.attachSumw2(future._rdf)
         return (sum2, VariationsFor(future))
 
-    def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> dict[Any, Any]:
+    def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> dict[str, Any]:
         ret = dict()
         if isinstance(varfuture, tuple):
             sum2, systs = varfuture
-            ret = dict((k, systs[k]) for k in systs.GetKeys())
+            ret = dict((str(k), systs[k]) for k in systs.GetKeys())
             ret[""] = sum2.GetValue()
         else:
             ret[""] = varfuture.GetValue()

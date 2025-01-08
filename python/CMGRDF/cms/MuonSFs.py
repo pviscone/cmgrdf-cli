@@ -6,7 +6,7 @@ from CMGRDF.flow import Define
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 from CMGRDF.cms.eras import run2eras
 
-muonSFPath = os.environ["MUON_SF_PATH"] if "MUON_SF_PATH" in os.environ else "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO"
+muonSFPath = os.environ.get("MUON_SF_PATH", "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO")
 muonPOGEras = {"2016APV": "2016preVFP_UL", "2016": "2016postVFP_UL", "2017": "2017_UL", "2018": "2018_UL"}
 
 

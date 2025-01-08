@@ -494,7 +494,7 @@ class Processor:
                 continue  # there may be other stuff depending on book
             hist = HistoWithNuisances(hraw)
             if hvars:
-                for k in hvars.keys():
+                for k in hvars:
                     if ":" in k:
                         (var, sign) = str(k).split(":")
                         hist.addVariation(var, sign, hvars[k])
@@ -546,7 +546,7 @@ class Processor:
                 continue  # there may be other stuff depending on book
             hist = YieldWithNuisances(plot.name, evyield)
             if yvars:
-                for k in yvars.keys():
+                for k in yvars:
                     if ":" in k:
                         (var, sign) = str(k).split(":")
                         assert (sign in ("up", "down"))
