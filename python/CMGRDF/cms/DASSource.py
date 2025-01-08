@@ -1,4 +1,5 @@
 #pyright: reportUninitializedInstanceVariable=false
+import contextlib
 from typing import Any, Optional, Union
 from CMGRDF.data import DataSample, MCSample, Source
 from CMGRDF.skimFilters import JsonFilter
@@ -26,11 +27,8 @@ class DASEngine:
         fname = dataset.strip("/").replace("/", ".") + ".json"
         data = None
         if os.path.exists(self._cacheDir + "/" + fname):
-            try:
+            with contextlib.suppress(BaseException):  # if the cache is not readable or corrupted we just ignore it
                 data = json.load(open(self._cacheDir + "/" + fname))
-            except BaseException:  # noqa: B036
-                # if the cache is not readable or corrupted we just ignore it
-                pass
         if not data:
             ret = subprocess.run([self.dasgoclient, "-json", "-query", f"file dataset={dataset}"], stdout=subprocess.PIPE)
             data = json.loads(ret.stdout)

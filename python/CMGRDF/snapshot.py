@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 from typing import Any, Optional, Union
@@ -36,7 +37,7 @@ class Snapshot(Target):
         if os.path.exists(outname):
             metafile = outname.replace(".root", "") + ".meta.json"
             if os.path.exists(metafile) and os.path.getmtime(metafile) > os.path.getmtime(outname):
-                try:
+                with contextlib.suppress(BaseException):
                     meta = json.load(open(metafile))
                     if meta['sourceid'] == sourceid and meta['branchid'] == branchid and meta['id'] == selfid:
                         if verbose:
@@ -48,9 +49,6 @@ class Snapshot(Target):
                         ret.sample = sample.name
                         ret.era = era
                         return ret
-                except BaseException:  # noqa: B036
-                    # if the cache is not readable or corrupted we just ignore it
-                    pass
         return None
 
     def toCache(self, snapshot : Any, k3 : tuple[str, str, str], verbose=False) -> None:

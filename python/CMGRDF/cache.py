@@ -1,3 +1,4 @@
+import contextlib
 import os
 import time
 import json
@@ -39,11 +40,8 @@ class SumCache:
 
     def _maybeRead(self) -> dict[str, tuple[Union[float, int], float]]:
         if os.path.isfile(self._fileName):
-            try:
+            with contextlib.suppress(BaseException):
                 return json.load(open(self._fileName))
-            except BaseException:  # noqa: B036
-                # if the cache is not readable or corrupted we just ignore it
-                pass
         return dict()
 
 

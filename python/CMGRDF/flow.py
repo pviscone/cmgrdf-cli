@@ -210,9 +210,8 @@ class ReDefine(SimpleExprFlowStep):
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
-            if self.defineIfMissing:
-                if self.name not in rdf.GetColumnNames():
-                    return rdf.Define(self.name, self.expr)
+            if self.defineIfMissing and (self.name not in rdf.GetColumnNames()):
+                return rdf.Define(self.name, self.expr)
             return rdf.Redefine(self.name, self.expr)
         except BaseException:
             print(f"ERROR attaching ReDefine({self.name}, {self.expr}")
