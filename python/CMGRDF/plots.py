@@ -29,7 +29,7 @@ class Plot(Target):
                  mcOnly : bool = False,
                  cut : Optional[str] = None,
                  **options):
-        super(Plot, self).__init__(name, mcOnly=mcOnly)
+        super().__init__(name, mcOnly=mcOnly)
         for k, v in options.items():
             setattr(self, k, v)
         self.type = typ

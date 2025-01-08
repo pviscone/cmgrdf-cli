@@ -21,7 +21,7 @@ class Snapshot(Target):
                  columnVeto : Optional[Union[str, list[str]]] = None,
                  compression : Optional[tuple[str, int]] = ("ZLIB", 1),
                  treeName="Events"):
-        super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
+        super().__init__(os.path.basename(filename).replace(".root", ""))
         self.filename = filename
         self.treeName = treeName
         self.columnSel = ([] if columnSel is None else ([columnSel] if isinstance(columnSel, str) else list(columnSel)))

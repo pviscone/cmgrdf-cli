@@ -588,7 +588,7 @@ class Yield(Target):
     """Computes an event yield (sum of the weights), with optional stat and syst uncertainties"""
 
     def __init__(self, name : str, weight : str = "weight", mcOnly : bool = False):
-        super(Yield, self).__init__(name, mcOnly=mcOnly)
+        super().__init__(name, mcOnly=mcOnly)
         self.weight = weight
 
     def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:

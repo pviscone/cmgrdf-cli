@@ -733,5 +733,5 @@ class Data(Process):
     """The data process, containing all the data samples"""
 
     def __init__(self, samples, label="Data", **options):
-        super(Data, self).__init__("data", samples, label=label, **options)
+        super().__init__("data", samples, label=label, **options)
         self.isData = True
