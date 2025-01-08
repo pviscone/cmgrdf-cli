@@ -437,17 +437,17 @@ class Flow:
 
     def __init__(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]], **options : Any):
         self.name = name
-        self.steps = Flow._flatten(steps)
+        self.steps = Flow.flatten(steps)
         for k, v in options.items():
             setattr(self, k, v)
         self._from = None
 
     @staticmethod
-    def _flatten(steps: Iterable[Union[FlowStep, Iterable[FlowStep]]]) -> list[FlowStep]:
+    def flatten(steps: Iterable[Union[FlowStep, Iterable[FlowStep]]]) -> list[FlowStep]:
         ret: list[FlowStep] = []
         for s in steps:
             if isinstance(s, list):
-                ret += Flow._flatten(s)
+                ret += Flow.flatten(s)
             else:
                 assert isinstance(s, FlowStep)
                 ret.append(s)
@@ -484,11 +484,11 @@ class Flow:
         return self
 
     def prepend(self, *steps) -> "Flow":
-        self.steps[0:0] = Flow._flatten(steps)
+        self.steps[0:0] = Flow.flatten(steps)
         return self
 
     def append(self, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
-        self.steps += Flow._flatten(steps)
+        self.steps += Flow.flatten(steps)
         return self
 
     def replace(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
@@ -496,7 +496,7 @@ class Flow:
         if len(matches) != 1:
             raise RuntimeError(f"Looking for step {name} in flow {self.name}, found {matches}")
         idx = matches[0]
-        self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx + 1:]
+        self.steps = self.steps[:idx] + Flow.flatten(steps) + self.steps[idx + 1:]
         return self
 
     def remove(self, *names : str) -> "Flow":
@@ -516,10 +516,10 @@ class Flow:
         found = True
         for s in self.steps:
             if s.name == name and when == "before":
-                newSteps += Flow._flatten(steps)
+                newSteps += Flow.flatten(steps)
             newSteps.append(s)
             if s.name == name and when == "after":
-                newSteps += Flow._flatten(steps)
+                newSteps += Flow.flatten(steps)
         self.steps = newSteps
         if not found:
             raise RuntimeError("Not found step %s in flow %s" % (name, self.name))

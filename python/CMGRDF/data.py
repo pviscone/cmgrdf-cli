@@ -386,10 +386,7 @@ class Sample:
 
     def customizeFlow(self, flow : Any, era : Optional[str]) -> Any:
         for h in self._hooks:
-            flow2 = h.customizeFlow(flow, era=era)
-            if flow2 != flow:
-                flow2._from = flow
-                flow = flow2
+            flow = h.customizeFlow(flow, era=era)
         return flow.filterSteps(lambda s : s.appliesTo(self, era))
 
     def _sourcesAsString(self) -> str:

@@ -5,7 +5,7 @@ from CMGRDF.flow import Flow, FlowStep, Hook
 
 class Append(Hook):
     def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]]):
-        self.steps = Flow._flatten(steps)
+        self.steps = Flow.flatten(steps)
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
         return flow.append(self.steps)
@@ -13,7 +13,7 @@ class Append(Hook):
 
 class Prepend(Hook):
     def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]]):
-        self.steps = Flow._flatten(steps)
+        self.steps = Flow.flatten(steps)
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
         return flow.prepend(self.steps)
@@ -21,7 +21,7 @@ class Prepend(Hook):
 
 class Replace(Hook):
     def __init__(self, *steps : Union[FlowStep, Iterable[FlowStep]], name):
-        self.steps = Flow._flatten(steps)
+        self.steps = Flow.flatten(steps)
         self.name = name
 
     def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
@@ -41,7 +41,7 @@ class Insert(Hook):
                  *steps : Union[FlowStep, Iterable[FlowStep]],
                  before : Optional[str] = None,
                  after : Optional[str] = None):
-        self.steps = Flow._flatten(steps)
+        self.steps = Flow.flatten(steps)
         if before is not None:
             assert (after is None)
             self.when = ("before", before)

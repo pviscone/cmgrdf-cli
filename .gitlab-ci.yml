@@ -113,8 +113,23 @@ code-checks-dev3:
   artifacts:
     expose_as: 'code-format patch dev3'
     paths:
-      - code-format-dev3.patch
+      - code-format.patch
     when: always
+
+code-checks-ruff:
+  stage: build
+  image:
+    name: ghcr.io/astral-sh/ruff:0.8.6-alpine
+  before_script:
+    - cd $CI_PROJECT_DIR
+    - ruff --version
+  script:
+    - ruff check --output-format=gitlab > code-quality-report.json
+  artifacts:
+    reports:
+      codequality: $CI_PROJECT_DIR/code-quality-report.json
+    when: always
+  allow_failure: true
 
 code-checks-pyright:
   image: node:18-slim
