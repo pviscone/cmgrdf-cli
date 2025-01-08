@@ -251,6 +251,7 @@ class MergedSource(Source):
 
 TSample = TypeVar("TSample", bound="Sample")
 
+
 class Sample(object):
     """A set of files, possibly era-dependent, to be processed homogeneously.
        This is just a base class, users should normally use the subclasses MCSample, DataSample or DataDrivenSample
@@ -410,6 +411,7 @@ class Sample(object):
         if postfix:
             cloned.name += "_" + postfix
         return cloned
+
 
 class MCSample(Sample):
     """A MC sample.

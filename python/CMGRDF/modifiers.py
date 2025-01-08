@@ -1,8 +1,6 @@
-import copy
 from collections.abc import Iterable
 from typing import Optional, Union
 from CMGRDF.flow import Flow, FlowStep, Hook
-from CMGRDF.data import Sample
 
 
 class Append(Hook):
