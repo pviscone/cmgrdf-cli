@@ -21,6 +21,7 @@ def processorFromCommandLineArgs(parser : Optional[argparse.ArgumentParser] = No
     parser.add_argument("-j", "--njobs", type=int, help="number of threads or processes")
     parser.add_argument("-v", "--verbose", action='count', default=0)
     parser.add_argument("-b", "--batch", help="batch mode (don't show progress bars)", default=False, action="store_true")
+    parser.add_argument("--split-mcgroups", dest="forceSplit", help="Split MCGrouped samples", default=False, action="store_true")
     args = parser.parse_args()
     executor : Optional[tuple[str, Any]] = None
     if args.mode == "local":
@@ -44,7 +45,8 @@ def processorFromCommandLineArgs(parser : Optional[argparse.ArgumentParser] = No
         executor = (args.mode, client)
     cache = None if args.nocache else SimpleCache(flush=args.flushCache)
     maker = Processor(cache=cache, executor=executor, withUncertainties=args.withSystematics)
-    maker.commandlineArgs = args  # type: ignore # in case they're used downstream
+    if args.forceSplit:
+        maker.forceSplit = True
     if args.verbose:
         level = [ROOT.Experimental.ELogLevel.kInfo, ROOT.Experimental.ELogLevel.kDebug, ROOT.Experimental.ELogLevel.kDebug + 20][min(args.verbose, 2)]
         maker._rdfVerbosity = ROOT.Experimental.RLogScopedVerbosity(ROOT.Detail.RDF.RDFLogChannel(), level)  # type: ignore

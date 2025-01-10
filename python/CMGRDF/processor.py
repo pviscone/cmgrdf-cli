@@ -142,8 +142,10 @@ class Processor:
         self._toCache : dict[MultiKey, tuple[str, str, str]] = dict()
         self._executor = executor
         self.withUncertainties = withUncertainties
+        self.forceSplit = False
         if executor is not None:
             self._local = False
+            self.forceSplit = True  # MCGroups not supported yet
             self.RunGraphs = ROOT.RDF.Experimental.Distributed.RunGraphs
             self.VariationsFor = ROOT.RDF.Experimental.Distributed.VariationsFor
             if executor[0] == "dask":
@@ -220,7 +222,7 @@ class Processor:
             print(f"Computed sum weights for {n} samples in {t1 - t0:.3f}s")
 
     def _samplesForProc(self, proc : Process) -> list[Sample]:
-        if self._local:
+        if self._local and not self.forceSplit:
             return proc.samples
         ret : list[Sample] = []
         for sample in proc.samples:

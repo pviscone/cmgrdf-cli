@@ -563,6 +563,37 @@ class HistoWithNuisances:
         self._postFit = None
         self._usePostFit = True
 
+    def toJSON(self) -> dict[str, Any]:
+        """Convert to something serializeable as JSON"""
+        ret = {'name': self.central.GetName(), 'variations': {}}
+
+        def axis(axis : Any, nbins : int):
+            return {'title': axis.GetTitle(), 'bins': [float(axis.GetBinLowEdge(b)) for b in range(1, nbins + 2)]}
+        if str(self.central.ClassName()).startswith("TH1"):
+            ret['axes'] = {'x': axis(self.central.GetXaxis(), self.central.GetNbinsX()),
+                           'y': {'title': self.central.GetYaxis().GetTitle()}}
+
+            def _toJSON(h):
+                return dict(values=[h.GetBinContent(b) for b in range(0, h.GetNbinsX() + 2)],
+                            errors=[h.GetBinError(b) for b in range(0, h.GetNbinsX() + 2)])
+        elif str(self.central.ClassName()).startswith("TH2"):
+            ret['axes'] = {'x': axis(self.central.GetXaxis(), self.central.GetNbinsX()),
+                           'y': axis(self.central.GetYaxis(), self.central.GetNbinsY()),
+                           'z': {'title': self.central.GetZaxis().GetTitle()}}
+
+            def _toJSON(h):
+                return dict(values=[h.GetBinContent(bx, by) for bx in range(1, h.GetNbinsX() + 1) for by in range(1, h.GetNbinsY() + 1)],
+                            errors=[h.GetBinError(bx, by) for bx in range(1, h.GetNbinsX() + 1) for by in range(1, h.GetNbinsY() + 1)])
+        else:
+            raise NotImplementedError(f"No toJSONStruct for central {self.central.GetName()} of type {self.central.ClassName()}")
+        ret['central'] = _toJSON(self.central)
+        if self.nominal != self.central:
+            ret['nominal'] = _toJSON(self.nominal)
+        if len(self.variations):
+            for (x, (v1, v2)) in self.variations.items():
+                ret['variations'][x] = {'up': _toJSON(v1), 'down': _toJSON(v2)}
+        return ret
+
     def __getattr__(self, name : str) -> Any:
         if name in self.__dict__:
             return self.__dict__[name]

@@ -1,4 +1,5 @@
 from math import hypot, ceil
+import json
 import re
 import os
 import os.path
@@ -215,6 +216,9 @@ class PlotResult:
     def __getattr__(self, key : str) -> Any:
         return getattr(self.spec, key)
 
+    def toJSON(self) -> dict[str, Any]:
+        return dict(name=self.name, histos=dict((p.name, h.toJSON()) for (p, h) in self.histos))
+
     def histByProcName(self, procName) -> Optional[HistoWithNuisances]:
         for (p, h) in self.histos:
             if p.name == procName:
@@ -350,7 +354,7 @@ class PlotSetPrinter:
     def defaultOptions() -> Options:
         opts = Options()
         opts.declare("stack", True, bool, help="Whether different contributions should be stacked")
-        opts.declare("plotFormats", "png,pdf,root,txt", help="Output format for plots")
+        opts.declare("plotFormats", "png,pdf,root,txt,json", help="Output format for plots")
         opts.declare("noStackSignals", False, bool, help="Don't include signals in the stack")
         opts.declare("showErrors", False, bool,
                      help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines")
@@ -648,6 +652,8 @@ class PlotSetPrinter:
                     c1.Print("%s/%s.%s" % (path, outputName, ext))
                     ROOT.gErrorIgnoreLevel = savErrorLevel
 
+            elif ext == "json":
+                json.dump(plot.toJSON(), open("%s/%s.%s" % (path, outputName, ext), "w"))
             elif ext == "root":
                 pass  # already being done
             elif ext == "jupyter":
