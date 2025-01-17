@@ -2,7 +2,6 @@ import contextlib
 import json
 import os
 from typing import Any, Optional, Union
-from collections.abc import Callable
 
 import ROOT  # type: ignore
 from CMGRDF.data import Sample, MCSample, MCGroup, DataDrivenSample, DataSample
@@ -94,7 +93,7 @@ class Snapshot(Target):
         rdf.era = era
         return rdf
 
-    def bookVariations(self, future : Any, VariationsFor : Callable) -> None:
+    def bookVariations(self, future : Any) -> None:
         return None
 
     def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> None:

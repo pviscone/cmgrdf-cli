@@ -26,7 +26,6 @@ class _Branch:
                  hasher : Any,
                  local : bool,
                  cache : Optional[SimpleCache] = None,
-                 DataFrameClass=ROOT.RDataFrame,
                  **kwargs):
         ...
 
@@ -43,14 +42,12 @@ class _Branch:
                  hasher : Optional[Any] = None,
                  local : Optional[bool] = None,
                  cache : Optional[SimpleCache] = None,
-                 DataFrameClass=ROOT.RDataFrame,
                  **kwargs):
         if isinstance(parentOrSource, _Branch):
             assert isinstance(stepOrTreeName, FlowStep)
             self.source = parentOrSource.source
             self.sourceTreeName = parentOrSource.sourceTreeName
             self._local = parentOrSource._local
-            self.DataFrameClass = parentOrSource.DataFrameClass
             self.DataFrameArgs = parentOrSource.DataFrameArgs
             self.parentBranch = parentOrSource
             self.hasher = parentOrSource.hasher.copy()
@@ -65,7 +62,6 @@ class _Branch:
             self.source = parentOrSource
             self.sourceTreeName = stepOrTreeName
             self._local = local
-            self.DataFrameClass = DataFrameClass
             self.DataFrameArgs = dict(**kwargs)
             self.parentBranch = None
             self.hasher = hasher
@@ -95,7 +91,7 @@ class _Branch:
     def rdfAndWeights(self) -> tuple[Any, list[str]]:
         if self._rdfAndWeights is None:
             if self.parentBranch is None:
-                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, self.DataFrameClass, cache=self._cache, **self.DataFrameArgs), [])
+                self._rdfAndWeights = (self.source.createRDF(self.sourceTreeName, distributed=not (self._local), cache=self._cache, **self.DataFrameArgs), [])
                 self._hasUncertainties = False
             else:
                 assert (self.step)
@@ -146,16 +142,10 @@ class Processor:
         if executor is not None:
             self._local = False
             self.forceSplit = True  # MCGroups not supported yet
-            self.RunGraphs = ROOT.RDF.Experimental.Distributed.RunGraphs
-            self.VariationsFor = ROOT.RDF.Experimental.Distributed.VariationsFor
             if executor[0] == "dask":
-                self.DataFrameClass = ROOT.RDF.Experimental.Distributed.Dask.RDataFrame
-                self.DataFrameArgs = dict(daskclient=executor[1])
+                self.DataFrameArgs = dict(executor=executor[1])
         else:
             self._local = True
-            self.RunGraphs = ROOT.RDF.RunGraphs
-            self.VariationsFor = ROOT.RDF.Experimental.VariationsFor
-            self.DataFrameClass = ROOT.RDataFrame
             self.DataFrameArgs = {}
         self._hasher = HasherFromGlobalConfig()
         self._state = Processor.State.Clean
@@ -184,7 +174,6 @@ class Processor:
                                           hasher=self._hasher.copy(),
                                           local=self._local,
                                           cache=self._cache,
-                                          DataFrameClass=self.DataFrameClass,
                                           **self.DataFrameArgs)
         else:
             if verbose:
@@ -316,7 +305,7 @@ class Processor:
                             if self._cache and (tid is not None):
                                 self._toCache[plotKey] = (srcid, branchid, tid)
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            futvars = t.bookVariations(fut, self.VariationsFor)
+            futvars = t.bookVariations(fut)
             self._futures.append((plotKey, proc, sample, t, fut, futvars))
         n1 = len(self._futures)
         t1 = time.perf_counter()
@@ -393,7 +382,7 @@ class Processor:
                                         if self._cache:
                                             self._toCache[plotKey] = k3
         for (plotKey, proc, sample, t, fut) in futuresToVary:
-            fvars = self.VariationsFor(fut)
+            fvars = t.bookVariations(fut)
             self._futures.append((plotKey, proc, sample, t, fut, fvars))
         t1 = time.perf_counter()
         n1 = len(self._futures)
@@ -423,7 +412,7 @@ class Processor:
                         ROOT.RDF.SaveGraph(fut[-2], f'{name}.dot')
                 if logPerformance:
                     print(f"Scheduling to run {n0} targets from {len(self._trees)} sources")
-                self.RunGraphs([fut[-2] for fut in self._futures])
+                ROOT.RDF.RunGraphs([fut[-2] for fut in self._futures])
                 print("")
                 if logPerformance:
                     t1 = time.perf_counter()

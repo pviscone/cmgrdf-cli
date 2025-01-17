@@ -444,6 +444,15 @@ class Flow:
 
     @staticmethod
     def flatten(steps: Iterable[Union[FlowStep, Iterable[FlowStep]]]) -> list[FlowStep]:
+        """
+        Flattens a nested iterable of FlowStep objects into a single list of FlowStep objects.
+
+        Args:
+            steps (Iterable[Union[FlowStep, Iterable[FlowStep]]]): An iterable containing FlowStep objects or nested iterables of FlowStep objects.
+
+        Returns:
+            list[FlowStep]: A flattened list containing all FlowStep objects from the input iterable.
+        """
         ret: list[FlowStep] = []
         for s in steps:
             if isinstance(s, list):
@@ -558,9 +567,9 @@ class Target:
     def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         raise RuntimeError("Must be implemented by subclass")
 
-    def bookVariations(self, future : Any, VariationsFor : Callable) -> Any:
+    def bookVariations(self, future : Any) -> Any:
         """Calls RDF.Experimental.VariationsFor or any customization of it"""
-        return VariationsFor(future)
+        return ROOT.RDF.Experimental.VariationsFor(future)
 
     def finish(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
         """Performs any post-processing of the nominal value returned by the RDF future.
@@ -598,9 +607,9 @@ class Yield(Target):
     def attachSumw2(self, rdf: Any) -> Any:
         return rdf.Define(self.weight + "2", self.weight + "*" + self.weight).Sum(self.weight + "2")
 
-    def bookVariations(self, future : Any, VariationsFor : Callable) -> tuple[Any, Any]:
+    def bookVariations(self, future : Any) -> tuple[Any, Any]:
         sum2 = self.attachSumw2(future._rdf)
-        return (sum2, VariationsFor(future))
+        return (sum2, ROOT.RDF.Experimental.VariationsFor(future))
 
     def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> dict[str, Any]:
         ret = dict()

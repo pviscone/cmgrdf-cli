@@ -1,7 +1,7 @@
 # pyright: reportImportCycles=false
 import copy
 from typing import Any, Literal, Optional, TypeVar, Union, TYPE_CHECKING, overload
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 import ROOT  # type: ignore
 import os
 import os.path
@@ -84,22 +84,40 @@ class Source:
             rdf._from = src
         return rdf
 
-    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache : Any = None, **kwargs : Any) -> Any:
+    def createRDF(self, treeName : str = "Events", distributed : bool = False, cache : Any = None, **kwargs : Any) -> Any:
+        """
+        Create a ROOT RDataFrame or a custom DataFrame from a given tree name.
+
+        Args:
+            treeName (str): The name of the tree to create the DataFrame from. Defaults to "Events".
+            distributed (bool): True for distributed execution.
+            cache (Any): Optional cache to use for retrieving entries.
+            **kwargs (Any): Additional keyword arguments to pass to the DataFrameClass.
+
+        Returns:
+            Any: The created DataFrame.
+
+        Notes:
+            - If `treeName` is "Events", global friends are added to the dataset specification.
+            - If distributed is true and "npartitions" is not in kwargs, the number of partitions is calculated based on the number of events.
+            - If distributed is true and  and `Source.useDefinePerSample` is True, it is set to False with a warning message.
+            - If `Source.useDefinePerSample` is True, defines from metas are added to the DataFrame.
+        """
         sample = self._createRSample(treeName)
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         spec.AddSample(sample)
         if treeName == "Events":
             self._addGlobalFriends(spec)
-        if DataFrameClass != ROOT.RDataFrame and "npartitions" not in kwargs:
+        if distributed and ("npartitions" not in kwargs):
             kwargs = dict(**kwargs)
             nevents = self._getEntriesFromSample(sample, cache=cache)
             kwargs['npartitions'] = min(max(2, int((nevents / 1e4)**0.5)), 16)
             print(f"Will use {kwargs['npartitions']} partitions for {self.name}, era {self.era}, events {nevents}")
-        ret = DataFrameClass(spec, **kwargs)
-        if DataFrameClass == ROOT.RDataFrame and ProgressBar.Enabled():
+        ret = ROOT.RDataFrame(spec, **kwargs)
+        if not (distributed) and ProgressBar.Enabled():
             nevents = self._getEntriesFromSample(sample, cache=cache)
             ProgressBar.AddDataFrame(ret, nevents)
-        if DataFrameClass != ROOT.RDataFrame and Source.useDefinePerSample:
+        if distributed and Source.useDefinePerSample:
             print("Will not use DefinePerSample to handle xsec and gen weights as it's not yet supported in DistRDF")
             Source.useDefinePerSample = False
         if Source.useDefinePerSample:
@@ -123,9 +141,27 @@ class Source:
         self._bigHash = None
 
     def hasMeta(self, key : str) -> bool:
+        """
+        Check if a metadata key exists.
+
+        Args:
+            key (str): The metadata key to check.
+
+        Returns:
+            bool: True if the key exists in the metadata, False otherwise.
+        """
         return any(m[0] == key for m in self._metas)
 
     def hasCompatibleMeta(self, otherSource : "Source") -> bool:
+        """
+        Check if the metadata of this source is compatible with another source.
+
+        Args:
+            otherSource (Source): The other source to compare metadata with.
+
+        Returns:
+            bool: True if the metadata of both sources are compatible, False otherwise.
+        """
         if len(otherSource._metas) != len(self._metas):
             return False
         for m1, m2 in zip(self._metas, otherSource._metas):
@@ -188,6 +224,23 @@ class Source:
 
     @staticmethod
     def _autoName(files: list[str]) -> str:
+        """
+        Generate a name based on the provided list of file paths.
+
+        Args:
+            files (list[str]): A list of file paths.
+
+        Returns:
+            str: A generated name based on the file paths.
+
+        Raises:
+            AssertionError: If the list of files is empty.
+
+        Notes:
+            - If the list contains more than one file or the first file ends with "/*.root",
+              the name will be the basename of the directory containing the first file.
+            - Otherwise, the name will be the basename of the first file with "*" and ".root" removed.
+        """
         assert (len(files) != 0)
         if len(files) > 1 or files[0].endswith("/*.root"):
             return os.path.basename(os.path.dirname(files[0]))
@@ -205,8 +258,8 @@ class MergedSource(Source):
         self._bigHash = None
         self._bigHashNoFriends = None
 
-    def createRDF(self, treeName : str = "Events", DataFrameClass : Callable = ROOT.RDataFrame, cache : Any = None, **kwargs : Any) -> Any:
-        if DataFrameClass != ROOT.RDataFrame:
+    def createRDF(self, treeName : str = "Events", distributed : bool = False, cache : Any = None, **kwargs : Any) -> Any:
+        if distributed:
             raise RuntimeError("MergedSource only supported in plain non-distributed RDataFrame for now")
         spec = ROOT.RDF.Experimental.RDatasetSpec()
         for src in self.sources:
@@ -215,7 +268,7 @@ class MergedSource(Source):
         if treeName == "Events":
             for src in self.sources:
                 src._addGlobalFriends(spec)
-        ret = DataFrameClass(spec, **kwargs)
+        ret = ROOT.RDataFrame(spec, **kwargs)
         if len(self.sources) > 1 and not any(self.sources[0].hasCompatibleMeta(s2) for s2 in self.sources[1:]):
             metadumps = "\n".join((s.name + ':' + ', '.join(m[0] + "=" + repr(m[1]) for m in s._metas)) for s in self.sources)
             raise RuntimeError(f"Incompatible metadata in components of merged source {self}: {metadumps}")
@@ -385,6 +438,16 @@ class Sample:
             return True
 
     def customizeFlow(self, flow : Any, era : Optional[str]) -> Any:
+        """
+        Customizes the given flow by applying a series of hooks and filtering steps based on the sample and era.
+
+        Args:
+            flow (Any): The initial flow object to be customized.
+            era (Optional[str]): The era to be considered for customization. Can be None.
+
+        Returns:
+            Any: The customized flow object after applying hooks and filtering steps.
+        """
         for h in self._hooks:
             flow = h.customizeFlow(flow, era=era)
         return flow.filterSteps(lambda s : s.appliesTo(self, era))
@@ -396,8 +459,17 @@ class Sample:
             return str(self._source)
 
     def clone(self : TSample,
+
               hooks : Optional[Iterable['Hook']] = None,
               postfix : Optional[str] = None) -> TSample:
+        """
+        Create a copy of the current sample instance with optional modifications.
+
+        Args:
+            hooks (Optional[Iterable['Hook']]): An optional iterable of Hook objects to be added to the cloned instance's hooks.
+            postfix (Optional[str]): An optional string to be appended to the cloned instance's name.
+
+        """
         cloned = copy.deepcopy(self)
         if hooks:
             cloned._hooks += hooks
