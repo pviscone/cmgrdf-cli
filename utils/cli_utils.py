@@ -1,6 +1,5 @@
 import importlib
 import types
-import typing
 
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import SimpleExprFlowStep

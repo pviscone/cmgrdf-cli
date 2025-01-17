@@ -5,14 +5,13 @@ import re
 import sys
 
 from rich.console import Console
-from rich.table import Table
 from rich import print as pprint
 import typer
-from typing import Tuple, List
+from typing import Tuple
 from typing_extensions import Annotated
 
 import ROOT
-from CMGRDF import Processor, PlotSetPrinter, Flow, Range, Cut, SimpleCache, MultiKey, Snapshot
+from CMGRDF import Processor, PlotSetPrinter, Flow, Range, SimpleCache, MultiKey, Snapshot
 from CMGRDF.cms.eras import lumis as lumi
 from CMGRDF.stat import DatacardWriter
 
@@ -31,7 +30,7 @@ def run_analysis(
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
     eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
-    flows    : List[str]  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] object. Multiple flow at once can be runned", rich_help_panel="Configs"),
+    flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] object. Multiple flow at once can be runned", rich_help_panel="Configs"),
     plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs"),
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
     mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
@@ -94,11 +93,11 @@ def run_analysis(
         os.environ["PYTHONBREAKPOINT"] = "0"
 
     if verbose==1:
-        verbosity = ROOT.Experimental.RLogScopedVerbosity(
+        ROOT.Experimental.RLogScopedVerbosity(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
         )
     elif verbose==2:
-        verbosity = ROOT.Experimental.RLogScopedVerbosity(
+        ROOT.Experimental.RLogScopedVerbosity(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
         )
 
@@ -123,7 +122,10 @@ def run_analysis(
     DataDict      = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
     all_processes = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
     mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
-    plots         = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+    try:
+        plots     = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+    except ValueError:
+        plots     = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print_configs(console, ncpu, nevents, outfolder, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
@@ -134,7 +136,13 @@ def run_analysis(
     print_dataset(console, processtable, datatable, MCtable, eras)
 
     #! -------------- Print flows table and parse flows -------------------- !#
-    flows, flow_modules, flow_kwarges, flow_list = print_and_parse_flow(console, flows)
+    flow_list = print_and_parse_flow(console, flow)
+
+    #If plots is a single list, make a list of list to make the same plots at each plotting step
+    if plots is not None and isinstance(plots, list) and not isinstance(plots[0], list):
+        plots = [plots]*len(flow_list)
+    if plots is not None and isinstance(plots, list):
+        assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
     #! ---------------------- Print MCCs -------------------------- !#
     print_mcc(console, mccFlow)
@@ -151,10 +159,7 @@ def run_analysis(
     maker = Processor(cache=cache)
 
     #! ---------------------- LOOP ON FLOWS -------------------------- !#
-    for _i in range(len(flows)):
-        flow_module = flow_modules[_i]
-        flow_kwargs = flow_kwarges[_i]
-        flow = flow_list[_i]
+    for _i, flow in enumerate(flow_list):
 
         if nevents != -1:
             flow.prepend(Range(nevents))
@@ -189,7 +194,11 @@ def run_analysis(
         maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
         if plots is not None:
-            maker.book(all_data, lumi, flow, plots, eras=eras, withUncertainties=True)
+            if isinstance(plots, dict):
+                plot = plots.get(flow.name.split("_")[-1], plots["main"])
+            else:
+                plot = plots[_i]
+            maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
 
         #! ---------------------- BOOK SNAPSHOT ----------------------!#
         if snapshot:

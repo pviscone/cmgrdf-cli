@@ -183,10 +183,19 @@ The MCC config file must contain a list of flowsteps or a function that return a
 
 ### Flows
 The flow config file contains the analysis flow.
-It must contain a Flow object or a function that return a Flow object called `flow`
+It must contain a Flow object or a function that return a Flow object called `flow`.
+
+Each stepflow can have a keyboard argument `plot` (e.g. `Cut("nEle>1", "nEle">1, plot="1ele")`) that allow to make plots at different point of the cutflow.
+
 
 ### Plots
-The plot config file contains the list of plots to plot.
+The plot config file contains a list of plots or a list of list of plots or a dict of list of plots or a function that returns one of these objects.
+
+In case you want to make plots at different steps of the cutflow:
+- if `plots` is a list of plots then at each step all the plots are plotted
+- if `plots` is a list of list of plots then `len(plots)` must be equal to the number of flowstep with the flowstep `plot` argument
+- if `plots` is a dict of list of plots, each list of plots is plotted at the step that has the flowstep `plot` argument equal to the dict key. You can define a key `"main"` that is plotted by default if no key is specified for a given flowstep `plot` argument
+
 Currently only 1D and 2D histograms are supported (e.g. no TEfficiency)
 
 Instead of using `Plot` objects from CMGRDF, you can use `Hist` (for 1D) and `Hist2D` (for 2D).
@@ -294,7 +303,7 @@ In the outfolder, the CLI will save:
 
 > To visualize correctly `report.txt` on WEBEOS you have to add `AddDefaultCharset utf-8` to your .htaccess
 
-> To be able to use the web TBrowser on your web browser on WEBEOS you have to add the following block to yout `.htacces` 
+> To be able to use the web TBrowser on your web browser on WEBEOS you have to add the following block to yout `.htacces`
 ```
 AuthType None
 Order allow,deny

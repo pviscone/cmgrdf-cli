@@ -1,5 +1,4 @@
-from CMGRDF import Flow, Define, Cut, AddWeight, AddWeightUncertainty
-from CMGRDF.collectionUtils import DefineP4
+from CMGRDF import Flow, Define, Cut, AddWeightUncertainty
 from flows.SFs.electronSS import electronSmearing
 from flows.SFs.electronID import electronID
 
@@ -22,7 +21,8 @@ flow = Flow(
 
 
     #! Cut flow
-    Cut("2wp90PFEle","nWp90Ele >= 2"),
+    Cut("1wp90PFEle","nWp90Ele >= 1", plot="nWp90Ele1"),
+    Cut("2wp90PFEle","nWp90Ele >= 2", plot="nWp90Ele2"),
 
     #! Event weights/syst
     electronID("electronIDSF_wp90noiso_", "wp90noiso", "Wp90Ele_eta", "Wp90Ele_pt", "Wp90Ele_phi"),
