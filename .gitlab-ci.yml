@@ -28,6 +28,13 @@ variables:
     LIBS_EXTRA: ""
     THISROOT_PATH: "/usr/local/bin"
 
+.el9-docker-test:
+  image: gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el9-root-test-base:latest
+  variables:
+    LCG_REL_PATH: ""
+    LIBS_EXTRA: ""
+    THISROOT_PATH: "/usr/local/bin"
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -75,6 +82,9 @@ compile-el9-dev3:
 compile-el9-docker:
   extends: [.compile, .el9-docker]
 
+compile-el9-docker-test:
+  extends: [.compile, .el9-docker-test]
+
 code-checks:
   tags: [ k8s-cvmfs ]
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
@@ -103,8 +113,42 @@ code-checks-dev3:
   artifacts:
     expose_as: 'code-format patch dev3'
     paths:
-      - code-format-dev3.patch
+      - code-format.patch
     when: always
+
+code-checks-ruff:
+  stage: build
+  image:
+    name: ghcr.io/astral-sh/ruff:0.8.6-alpine
+  before_script:
+    - cd $CI_PROJECT_DIR
+    - ruff --version
+  script:
+    - ruff check --output-format=gitlab > code-quality-report.json
+  artifacts:
+    reports:
+      codequality: $CI_PROJECT_DIR/code-quality-report.json
+    when: always
+  allow_failure: true
+
+code-checks-pyright:
+  image: node:18-slim
+  stage: build
+  before_script:
+    - npm i -g pyright
+    - npm i -g pyright-to-gitlab-ci
+  script:
+   - pyright python/CMGRDF --outputjson > report_raw.json || true
+  after_script:
+   - pyright-to-gitlab-ci --src report_raw.json --output report.json --base_path .
+  artifacts:
+    when: always
+    paths:
+      - report_raw.json
+      - report.json
+    reports:
+      codequality: report.json
+  allow_failure: true
 
 .run-tests:
   tags: [ k8s-cvmfs ]
@@ -159,6 +203,10 @@ run-tests-base-el9-docker:
   extends: [.run-tests, .el9-docker]
   needs: [compile-el9-docker]
 
+run-tests-base-el9-docker-test:
+  extends: [.run-tests, .el9-docker-test]
+  needs: [compile-el9-docker-test]
+
 .run-tests-cards:
   extends: .run-tests
   before_script:
@@ -196,13 +244,19 @@ run-tests-cards-el9-dev3:
   before_script:
     - echo "Fixing Combine compilation issue in ROOT master until https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033 is merged"
     - pushd externals/HiggsAnalysis/CombinedLimit
-    - curl -L -s -o- https://patch-diff.githubusercontent.com/raw/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033.patch | patch -p1
+    - curl -L -s -o- https://patch-diff.githubusercontent.com/raw/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033.patch | git apply
     - popd
     - !reference [.run-tests-cards, before_script]
 
 run-tests-cards-el9-docker:
   extends: [.run-tests-cards, .el9-docker]
   needs: [compile-el9-docker]
+  before_script:  
+    - echo "Fixing Combine compilation issue in ROOT master until https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033 is merged"
+    - pushd externals/HiggsAnalysis/CombinedLimit
+    - curl -L -s -o- https://patch-diff.githubusercontent.com/raw/cms-analysis/HiggsAnalysis-CombinedLimit/pull/1033.patch | git apply
+    - popd
+    - !reference [.run-tests-cards, before_script]
 
 .run-tests-SFs:
   extends: .run-tests
@@ -239,6 +293,10 @@ run-tests-SFs-el9-docker:
   extends: [.run-tests-SFs, .el9-docker]
   needs: [compile-el9-docker]
 
+run-tests-SFs-el9-docker-test:
+  extends: [.run-tests-SFs, .el9-docker-test]
+  needs: [compile-el9-docker-test]
+
 .run-tests-snapshot:
   extends: .run-tests
   script:
@@ -265,6 +323,10 @@ run-tests-snapshot-el9-106a:
 run-tests-snapshot-el9-dev3:
   extends: [.run-tests-snapshot, .el9-dev3]
   needs: [compile-el9-dev3]
+
+run-tests-snapshot-el9-docker-test:
+  extends: [.run-tests-snapshot, .el9-docker-test]
+  needs: [compile-el9-docker-test]
 
 .run-tests-dask-base:
   extends: [.run-tests]
@@ -300,7 +362,7 @@ run-tests-snapshot-el9-dev3:
         python3 $SCRIPT -n -j $JOBS --dask -c tcp://localhost:11111 --batch | grep -v '% Completed' || exit 1;
         sha256sum -c $REF --quiet $CHECKOPTS && echo 'All outputs match' || exit 1;
       fi
-  timeout: 30m
+  timeout: 60m
   artifacts:
     paths:
       - examples/plots

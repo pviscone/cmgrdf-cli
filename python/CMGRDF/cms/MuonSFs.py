@@ -1,19 +1,30 @@
 import os
+from typing import Any, Union
 
 from CMGRDF.init import Declare
 from CMGRDF.flow import Define
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 from CMGRDF.cms.eras import run2eras
 
-muonSFPath = os.environ["MUON_SF_PATH"] if "MUON_SF_PATH" in os.environ else "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO"
+muonSFPath = os.environ.get("MUON_SF_PATH", "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO")
 muonPOGEras = {"2016APV": "2016preVFP_UL", "2016": "2016postVFP_UL", "2017": "2017_UL", "2018": "2018_UL"}
 
 
 class MuonIDSFDefine(Define):
-    def __init__(self, idName, era, onData=False, onDataDriven=False, den="genTracks", nuisName="CMS_eff_m", ptRange=(15, 249.999), **options):
+    def __init__(self,
+                 idName : str,
+                 era : str,
+                 onData : bool = False,
+                 onDataDriven : bool = False,
+                 den : str = "genTracks",
+                 nuisName : str = "CMS_eff_m",
+                 ptRange : tuple[float, float] = (15, 249.999),
+                 **options):
         super().__init__(f'Muon_SF_{idName}Id',
                          f'muonIDSF_{idName}_{era}(Muon_pt, {ptRange[0]}, {ptRange[1]}, Muon_eta)',
-                         onData=onData, onDataDriven=onDataDriven, **options)
+                         onData=onData,
+                         onDataDriven=onDataDriven,
+                         **options)
         self.era = era
         self.idName = idName
         self.nuisName = nuisName
@@ -26,7 +37,8 @@ class MuonIDSFDefine(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         Declare('''
-        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
+        ROOT::RVec<float> muonIDSF_<ID>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                              const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
@@ -51,13 +63,17 @@ class MuonIDSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if not self._init:
             self.init()
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
-            if self.nuisName:
+            rdf._from = src
+            if self.nuisName and withUncertainties:
+                src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")
@@ -65,10 +81,21 @@ class MuonIDSFDefine(Define):
 
 
 class MuonIDIsoSFDefine(Define):
-    def __init__(self, idName, isoName, era, onData=False, onDataDriven=False, den="genTracks", nuisName="CMS_eff_m", ptRange=(15, 249.999), **options):
+    def __init__(self,
+                 idName : str,
+                 isoName : str,
+                 era : str,
+                 onData : bool = False,
+                 onDataDriven : bool = False,
+                 den : str = "genTracks",
+                 nuisName : str = "CMS_eff_m",
+                 ptRange : tuple[float, float] = (15, 249.999),
+                 **options):
         super().__init__(f'Muon_SF_{idName}Id_{isoName}Iso',
                          f'muonIDIsoSF_{idName}_{isoName}_{era}(Muon_pt, {ptRange[0]}, {ptRange[1]}, Muon_eta)',
-                         onData=onData, onDataDriven=onDataDriven, **options)
+                         onData=onData,
+                         onDataDriven=onDataDriven,
+                         **options)
         self.era = era
         self.idName = idName
         self.isoName = isoName
@@ -79,11 +106,13 @@ class MuonIDIsoSFDefine(Define):
         self._isoCorrName = f"NUM_{isoName}{isoKind}_DEN_{idName}ID"
         self._init = False
 
-    def init(self):
+    def init(self) -> None:
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._idCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.idName, check=True)[0]
         corrIso = CorrectionlibFactory.loadCorrector(self._fname, self._isoCorrName, fileHint=f"muonSF_{self.era}", corrHint=self.isoName, check=True)[0]
         Declare('''
-        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta, const std::string & choice = "nominal") {
+        ROOT::RVec<float> muonIDIsoSF_<ID>_<ISO>_<ERA>(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                                       const ROOT::RVec<float> & eta,
+                                                       const std::string & choice = "nominal") {
             ROOT::RVec<float> sf(pt.size(), 1.0);
             for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
                 double eta_i = std::min<double>(std::abs(eta[i]),2.3999);
@@ -92,7 +121,8 @@ class MuonIDIsoSFDefine(Define):
             }
             return sf;
         }
-        ROOT::RVec<ROOT::RVec<float>> muonIDIsoSF_<ID>_<ISO>_<ERA>_syst(const ROOT::RVec<float> & pt, float ptMin, float ptMax, const ROOT::RVec<float> & eta) {
+        ROOT::RVec<ROOT::RVec<float>> muonIDIsoSF_<ID>_<ISO>_<ERA>_syst(const ROOT::RVec<float> & pt, float ptMin, float ptMax,
+                                                                        const ROOT::RVec<float> & eta) {
             ROOT::RVec<ROOT::RVec<float>> sf(2);
             sf[0].resize(pt.size(), 1.0);
             sf[1].resize(pt.size(), 1.0);
@@ -108,20 +138,25 @@ class MuonIDIsoSFDefine(Define):
         '''.replace("<ID>", self.idName).replace("<ISO>", self.isoName).replace("<ERA>", self.era).replace("<CORRID>", corrId).replace("<CORRISO>", corrIso).replace("<POGERA>", muonPOGEras[self.era]))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if not self._init:
             self.init()
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
-            if self.nuisName:
+            rdf._from = src
+            if self.nuisName and withUncertainties:
+                src = rdf
                 rdf = rdf.Vary(self.name, self.expr.replace('(', '_syst('), variationTags=["down", "up"], variationName=self.nuisName)
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")
             raise
 
 
-MuonSFs = dict()
+MuonSFs : dict[Union[str, tuple[str, str]],
+               Union[MuonIDSFDefine, MuonIDIsoSFDefine, list[MuonIDSFDefine], list[MuonIDIsoSFDefine]]] = dict()
 for muid in "Loose", "Medium", "MediumPrompt":
     for era in run2eras:
         MuonSFs[(f"{muid}Id", era)] = MuonIDSFDefine(muid, era)

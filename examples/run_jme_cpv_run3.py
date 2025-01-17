@@ -79,8 +79,8 @@ plots = [
 ]
 
 if __name__ == "__main__":
-    from CMGRDF.utils import processorFromCommandLineArgs
-    maker = processorFromCommandLineArgs()
+    from CMGRDF.cmdline import processorFromCommandLineArgs
+    maker, args = processorFromCommandLineArgs()
     printer = PlotSetPrinter(topRightText="L = %(lumi).1f fb^{-1} (13.6 TeV)", showRatio=True, maxRatioRange=(0, 2.49))
     maker.book(processes_MC + processes_Data, lumis, cuts, plots, eras=eras, withUncertainties=True)
     result_plots = maker.runPlots()

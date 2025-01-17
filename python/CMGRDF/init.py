@@ -1,7 +1,8 @@
 import hashlib
 import os.path
 import sys
-import ROOT
+from typing import Any, Optional
+import ROOT  # type: ignore
 
 _codelines = []
 _includepaths = set()
@@ -10,7 +11,7 @@ _dynlibs = []
 _hasher = hashlib.sha256()
 
 
-def _makePreprocessorGuard(code):
+def _makePreprocessorGuard(code : str) -> str:
     if code.startswith("#ifndef"):
         return code
     hasher = hashlib.sha256()
@@ -19,7 +20,7 @@ def _makePreprocessorGuard(code):
     return f"#ifndef {symbol}\n#define {symbol}\n{code}\n#endif"
 
 
-def ProcessLine(code):
+def ProcessLine(code : str) -> None:
     global _codelines, _hasher
     shortcode = code.strip()[:70]  # noqa: F841
     code = code if code[0] == "." else _makePreprocessorGuard(code)  # don't wrap CLING magic codes
@@ -29,7 +30,7 @@ def ProcessLine(code):
     #print(f"Global hash is now {_hasher.hexdigest()} after processline {shortcode!r}")
 
 
-def Declare(code):
+def Declare(code : str) -> None:
     global _codelines, _hasher
     shortcode = code.strip()[:70]  # noqa: F841
     code = _makePreprocessorGuard(code)
@@ -39,7 +40,7 @@ def Declare(code):
     #print(f"Global hash is now {_hasher.hexdigest()} after declaring {shortcode!r}")
 
 
-def _hashFile(role, filename, filepath):
+def _hashFile(role : str, filename : str, filepath : str) -> None:
     global _hasher
     if filepath:
         filepath = os.path.expandvars(filepath)
@@ -47,13 +48,13 @@ def _hashFile(role, filename, filepath):
             raise RuntimeError(f"Error, could not find {role} {filename} in path {filepath}x)")
         with open(filepath + "/" + filename, "rb") as f:
             if hasattr(hashlib, 'file_digest'):
-                hashlib.file_digest(f, lambda : _hasher)
+                hashlib.file_digest(f, lambda : _hasher)  # type: ignore
             else:
                 size = os.stat(filepath + "/" + filename).st_size
                 _hasher.update(f.read(size))
 
 
-def AddHeader(header : str, includepath="${CMGRDF}/include", extraIncludePaths=None):
+def AddHeader(header : str, includepath : str = "${CMGRDF}/include", extraIncludePaths : Optional[list[str]] = None) -> None:
     global _codelines, _includepaths, _hasher
     paths = ([includepath] if includepath else []) + (extraIncludePaths if extraIncludePaths else [])
     for p in paths:
@@ -67,7 +68,7 @@ def AddHeader(header : str, includepath="${CMGRDF}/include", extraIncludePaths=N
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {header}")
 
 
-def LoadLibrary(library : str, filepath="${CMGRDF}/lib", extraPaths=None):
+def LoadLibrary(library : str, filepath : str = "${CMGRDF}/lib", extraPaths : Optional[list[str]] = None) -> None:
     global _dynpaths, _dynlibs, _hasher
     paths = ([filepath] if filepath else []) + (extraPaths if extraPaths else [])
     for p in paths:
@@ -81,12 +82,12 @@ def LoadLibrary(library : str, filepath="${CMGRDF}/lib", extraPaths=None):
     #print(f"Global hash is now {_hasher.hexdigest()} after loading {library}")
 
 
-def HasherFromGlobalConfig():
+def HasherFromGlobalConfig() -> Any:
     global _hasher
     return _hasher.copy()
 
 
-def GlobalConfigHash():
+def GlobalConfigHash() -> str:
     global _hasher
     return _hasher.hexdigest()
 
@@ -97,7 +98,7 @@ _modules_and_inits = [
 ]
 
 
-def RunDistributedInitializer(daskClient):
+def RunDistributedInitializer(daskClient : Any) -> None:
     global _modules_and_inits
     current_config = _hasher.hexdigest()
     #print(f"Requested hash is now {current_config}")
@@ -126,7 +127,7 @@ def RunDistributedInitializer(daskClient):
         if nocmgrdf_workers:
             hashes = daskClient.run(eval, 'sys._xoptions.get("_CMGRDF_global_hash", None)', workers=nocmgrdf_workers)
             #print(f"Worker hashes: {hashes}")
-            all_workers = [w for w in hashes.keys() if w not in cmgrdf_workers]
+            all_workers = [w for w in hashes if w not in cmgrdf_workers]
             done_workers = [w for w in all_workers if hashes[w] == current_config]
             todo_workers = [w for w in all_workers if hashes[w] is None]
             other_workers = [w for w in all_workers if hashes[w] not in (current_config, None)]
@@ -148,7 +149,7 @@ def RunDistributedInitializer(daskClient):
         break
 
 
-def DistributedInitializerCode():
+def DistributedInitializerCode() -> str:
     global _codelines, _includepaths, _dynpaths, _dynlibs, _modules_and_inits, _hasher
     current_config = _hasher.hexdigest()
     code = "import os, sys\n"

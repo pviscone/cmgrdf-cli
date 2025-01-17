@@ -1,6 +1,7 @@
 import os
+from typing import Optional
 
-from CMGRDF.flow import Define, ReDefine, Vary
+from CMGRDF.flow import FlowStep, Define, ReDefine, Vary
 from CMGRDF.cms.eras import run2eras
 
 roccorPath = os.path.expandvars("${CMGRDF}/externals/RoccoR")
@@ -18,7 +19,9 @@ for _era in "2016aUL 2016bUL 2017UL 2018UL".split():
     """.replace("<PATH>", roccorPath).replace("<ERA>", _era))
 
 
-def _corrPt(RocEra, eras=None, collection="Muon"):
+def _corrPt(RocEra : str,
+            eras : Optional[list[str]] = None,
+            collection : str = "Muon") -> list[FlowStep]:
     return [Define(f"{collection}_pt_uncorr",
                    f"{collection}_pt",
                    eras=eras),

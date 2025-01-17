@@ -1,6 +1,7 @@
 # flake8: noqa: F401
+# pyright: reportUnusedImport=false
 import os
-import ROOT
+import ROOT  # type: ignore
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
