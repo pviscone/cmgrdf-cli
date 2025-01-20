@@ -13,7 +13,7 @@ histo2d_defaults = {}
 # TODO xTitle like a regex pattern?
 name1d_defaults = {
     ".*_pt.*": dict(
-        bins=(50, 0, 30),
+        bins=(50, 0, 50),
     ),
     ".*_mass.*": dict(
         bins=(30, 2.7, 3.3),
