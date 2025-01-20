@@ -85,6 +85,8 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
         for group_dict in groups_list:
             group_name = group_dict["name"]
             samples = group_dict["samples"]
+            group_samples_path = group_dict.get("path", False)
+            group_friends_path = group_dict.get("friends_path", False)
             cut = getattr(group_dict, "cut", "1")
             #If eras is not defined in the group but is defined in the process, inherit it
             if "eras" in process_dict and "eras" not in group_dict:
@@ -113,8 +115,16 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
             hook = Prepend(*hook_steps)
 
             #! Loop over all samples
-            for sample in samples:
-                sample_name, xsec = sample if isinstance(sample, tuple | list) else (sample, "xsec")
+            for sample_name in samples:
+                sample_dict = samples[sample_name]
+                xsec = sample_dict.get("xsec", "xsec")
+                samples_path = sample_dict.get("path", False)
+                friends_path = sample_dict.get("friends_path", False)
+                if not samples_path:
+                    samples_path = group_samples_path
+                if not friends_path:
+                    friends_path = group_friends_path
+
                 MCtable.add_row("", "", sample_name, str(xsec), "", "")
 
                 #! Loop over all eras
@@ -124,7 +134,11 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                     if "eras" in group_dict and era not in group_dict["eras"]:
                         continue
 
-                    P0, samples_path, friends_path = paths
+                    if not samples_path:
+                        _, samples_path, _ = paths
+                    if not friends_path:
+                        _, _, friends_path = paths
+                    P0, _, _ = paths
                     samples_path = os.path.join(P0, samples_path)
                     friends_path = os.path.join(P0, friends_path)
 
@@ -145,7 +159,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                         )
                     )
             process_list.append(MCGroup(group_name, mcgroup_samples))
-  
+
         MCtable.add_section()
         process_kwargs = {
             key: value

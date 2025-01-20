@@ -120,7 +120,7 @@ You can use as placeholder for era, sample name and subera the following strings
 
 ### Sample definition
 
-The definition of the samples is in the `data` directory.
+The definition of the samples is in the `data` directory and is JSON-like.
 
 The format of the data dictionary is the following
 
@@ -141,11 +141,12 @@ dicts={
     "process_name" : {
     "groups" :[
         "name": "group_name",
-        "samples": [
-            "nameSample1", #if string, xsec = xsec in friends
-            ("nameSample2", 87.31484), #if tuple, xsec is the second element
+        "samples": {
+            "nameSample1":{}, #if empty dict, xsec = xsec in friends
+            "nameSample2": {"xsec": 42.42}, # declaring the xsec
+            "nameSample3": {"xsec": 666.666, "path": "weirdest/path/ever/chosen/in/history/{name}_{era}.root"}, #declaring xsec and manual imposing the full path of the sample (to append to P0 defined in era_sample_MC)
             ...#other samples
-        ],
+        },
         "cut":  "cut_string"
         "eras": era_list #OPTIONAL, eras where the sample is present
     ]
