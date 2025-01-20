@@ -88,6 +88,9 @@ def run_analysis(
     if data is None and mc is None:
         raise typer.BadParameter("You must provide at least one of the data or mc file")
 
+    if data is None:
+        noRatio = True
+
     #! ---------------------- Debug and verbosity ----------------------- !#
     if disableBreakpoints:
         os.environ["PYTHONBREAKPOINT"] = "0"
@@ -139,9 +142,9 @@ def run_analysis(
     flow_list = print_and_parse_flow(console, flow)
 
     #If plots is a single list, make a list of list to make the same plots at each plotting step
-    if plots is not None and isinstance(plots, list) and not isinstance(plots[0], list):
+    if plots and isinstance(plots, list) and not isinstance(plots[0], list):
         plots = [plots]*len(flow_list)
-    if plots is not None and isinstance(plots, list):
+    if plots and isinstance(plots, list):
         assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
     #! ---------------------- Print MCCs -------------------------- !#
@@ -157,6 +160,9 @@ def run_analysis(
         cachepath = -1
         cache = None
     maker = Processor(cache=cache)
+
+    #! ---------------------- PRINT THE FLOW ----------------------- !#
+    print_flow(console, flow_list[-1])
 
     #! ---------------------- LOOP ON FLOWS -------------------------- !#
     for _i, flow in enumerate(flow_list):
@@ -186,16 +192,13 @@ def run_analysis(
                 else:
                     flow.steps[idx]=new_steps[0]
 
-        #! ---------------------- PRINT THE FLOW ----------------------- !#
-        print_flow(console, flow)
-
         #! ---------------------- BOOK Plots and cutflow ----------------------- !#
         pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
         maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
-        if plots is not None:
+        if plots:
             if isinstance(plots, dict):
-                plot = plots.get(flow.name.split("_")[-1], plots["main"])
+                plot = [*plots.get(flow.name.split("_")[-1], []), *plots.get("main", [])]
             else:
                 plot = plots[_i]
             maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
@@ -216,7 +219,7 @@ def run_analysis(
 
     #!---------------------- PRINT Plots ---------------------- !#
     pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
-    if plots is not None:
+    if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
             topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio, noStackSignals=True, showErrors=True
@@ -224,9 +227,8 @@ def run_analysis(
 
     yields = maker.runYields(mergeEras=True)
     #!---------------------- PRINT YIELDS ---------------------- !#
-    console.print("[bold red]###################################################################### YIELDS ######################################################################-[/bold red]")
-    for f in flow_list:
-        print_yields(yields, all_data, f, console=console)
+    console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
+    print_yields(yields, all_data, flow_list[-1], console=console)
     write_log(outfolder, command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
