@@ -180,6 +180,7 @@ def print_yields(yields, all_data, flow, console=Console()):
         table.add_column("Pass (+- stat.)", justify="center")
         table.add_column("eff. (+- stat.)", justify="center")
         table.add_column("cumulative eff. (+- stat.)", justify="center")
+        table.add_column("Plot", justify="center")
 
         started = False
         for cut in flow:
@@ -211,6 +212,7 @@ def print_yields(yields, all_data, flow, console=Console()):
                 f"{y.central:.0f} +- {y.stat:.0f}",
                 f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
                 f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
+                "\u2713" if hasattr(cut, "plot") else "",
             )
             started = True
         console.print(table)
