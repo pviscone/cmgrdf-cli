@@ -5,9 +5,12 @@ MCDict={
         "groups" : [
             {
             "name": "JPsi",
-            "samples": [
-                ("BParkingNANO_JPsi", 0.666),
-            ],
+            "samples": {
+                "BParkingNANO_JPsi":
+                    {
+                    "xsec":0.666,
+                    },
+                },
             "cut":"1",
             },
         ],
