@@ -1,5 +1,6 @@
 # Check if the script is being sourced in bash, otherwise raise an error
 MAIN_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+export PYTHONPATH=$MAIN_DIR/scripts:$PYTHONPATH
 CURRENT_SHELL=$(ps -p $$ -o comm=)
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     echo "ZSH can't source the cvmfs scripts. You must source it in bash and then return to zsh" >&2
