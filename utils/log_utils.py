@@ -171,9 +171,9 @@ def print_flow(console, flow):
 
 
 def print_yields(yields, all_data, flows, outfolder, console=Console()):
-    for flow in flows:
-        console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
-        for proc in all_data:
+    for proc in all_data:
+        for flow in flows:
+            console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
             print()
             table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
             table.add_column("Cut", style="bold red")
@@ -217,13 +217,13 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
                     "\u2713" if hasattr(cut, "plot") else "",
                 )
                 started = True
-        with open(os.path.join(outfolder,f"flow_{flow.name}/table.txt"), "wt") as report_file:
+        with open(os.path.join(outfolder,f"flow_{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
                 flow_console = Console(file=report_file)
                 flow_console.print(table)
-    console.print(table)
-    console.print(
-        "[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]"
-    )
+        console.print(table)
+        console.print(
+            "[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]"
+        )
 
 
 def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern):
