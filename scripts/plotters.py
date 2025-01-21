@@ -109,7 +109,7 @@ class BasePlotter:
         cmstext="",
         cmstextsize=None,
         lumitextsize=None,
-        legendpos=None,
+        legend_kwargs={},
         cmsloc=0,
         rebin=1,
         **kwargs,
@@ -160,7 +160,7 @@ class BasePlotter:
         else:
             self.rebin = [Rebin(r) for r in rebin]
 
-        self.legendpos = legendpos
+        self.legend_kwargs = legend_kwargs
 
     def add_text(self, *args, **kwargs):
         self.ax.text(*args, **kwargs)
@@ -173,7 +173,7 @@ class BasePlotter:
         else:
             self.ax.plot(x, y, **kwargs)
         sys.stderr = open(os.devnull, "w")
-        self.ax.legend(bbox_to_anchor=self.legendpos)
+        self.ax.legend(**self.legend_kwargs)
         sys.stderr = sys.__stderr__
 
     def save(self, filename, *args, **kwargs):
@@ -216,7 +216,7 @@ class TH1(BasePlotter):
         hist = hist[self.rebin]
         hep.histplot(hist, ax=self.ax, clip_on=True, **kwargs)
         sys.stderr = open(os.devnull, "w")
-        self.ax.legend(bbox_to_anchor=self.legendpos)
+        self.ax.legend(**self.legend_kwargs)
         sys.stderr = sys.__stderr__
 
         if kwargs.get("histtype") == "fill":
@@ -235,7 +235,7 @@ class TH2(BasePlotter):
             kwargs["norm"] = colors.LogNorm(vmin=self.zlim[0], vmax=self.zlim[1])
         hep.hist2dplot(hist, ax=self.ax, **kwargs)
         sys.stderr = open(os.devnull, "w")
-        self.ax.legend(bbox_to_anchor=self.legendpos)
+        self.ax.legend(**self.legend_kwargs)
         sys.stderr = sys.__stderr__
 
 
@@ -279,5 +279,5 @@ class TEfficiency(BasePlotter):
                 self.ax.errorbar(centers, eff, yerr=err, xerr=xerr, fmt="none", color=self.ax.lines[-1].get_color(), **err_kwargs)
 
         sys.stderr = open(os.devnull, "w")
-        self.ax.legend(bbox_to_anchor=self.legendpos)
+        self.ax.legend(**self.legend_kwargs)
         sys.stderr = sys.__stderr__
