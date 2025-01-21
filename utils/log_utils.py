@@ -44,9 +44,9 @@ def write_log(outfolder, command, cachepath):
     # Write the command string to file
     os.makedirs(f"{outfolder}/log", exist_ok=True)
     os.system(
-        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
+        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
     )
-    os.system(f'echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
+    os.system(f'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "log/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
     # get abs path to outfolder
     abs_outfolder = os.path.abspath(outfolder)
 
@@ -170,52 +170,57 @@ def print_flow(console, flow):
     console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
 
-def print_yields(yields, all_data, flow, console=Console()):
-    console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
-    for proc in all_data:
-        print()
-        table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
-        table.add_column("Cut", style="bold red")
-        table.add_column("Expr", style="bold red")
-        table.add_column("Pass (+- stat.)", justify="center")
-        table.add_column("eff. (+- stat.)", justify="center")
-        table.add_column("cumulative eff. (+- stat.)", justify="center")
-        table.add_column("Plot", justify="center")
+def print_yields(yields, all_data, flows, outfolder, console=Console()):
+    for flow in flows:
+        console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
+        for proc in all_data:
+            print()
+            table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
+            table.add_column("Cut", style="bold red")
+            table.add_column("Expr", style="bold red")
+            table.add_column("Pass (+- stat.)", justify="center")
+            table.add_column("eff. (+- stat.)", justify="center")
+            table.add_column("cumulative eff. (+- stat.)", justify="center")
+            table.add_column("Plot", justify="center")
 
-        started = False
-        for cut in flow:
-            if type(cut) != Cut:
-                continue
-            y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
-            if not started:
-                nMC_events = (y.central**2) / (y.stat**2)
+
+            started = False
+            for cut in flow:
+                if type(cut) != Cut:
+                    continue
+                y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
+                if not started:
+                    nMC_events = (y.central**2) / (y.stat**2)
+                    oldMC_passed = (y.central**2) / (y.stat**2)
+
+                mc_passed = (y.central**2) / (y.stat**2)
+                eff = mc_passed / oldMC_passed
+                eff_err = ratio_uncertainty(mc_passed, oldMC_passed, uncertainty_type="efficiency")
+                cumulative_eff = mc_passed / nMC_events
+                cumulative_eff_err = ratio_uncertainty(mc_passed, nMC_events, uncertainty_type="efficiency")
                 oldMC_passed = (y.central**2) / (y.stat**2)
 
-            mc_passed = (y.central**2) / (y.stat**2)
-            eff = mc_passed / oldMC_passed
-            eff_err = ratio_uncertainty(mc_passed, oldMC_passed, uncertainty_type="efficiency")
-            cumulative_eff = mc_passed / nMC_events
-            cumulative_eff_err = ratio_uncertainty(mc_passed, nMC_events, uncertainty_type="efficiency")
-            oldMC_passed = (y.central**2) / (y.stat**2)
+                subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
+                superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
 
-            subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
-            superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
+                eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
+                eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
+                cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
+                cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
 
-            eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
-            eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
-            cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
-            cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
-
-            table.add_row(
-                cut.name,
-                cut.expr,
-                f"{y.central:.0f} +- {y.stat:.0f}",
-                f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
-                f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
-                "\u2713" if hasattr(cut, "plot") else "",
-            )
-            started = True
-        console.print(table)
+                table.add_row(
+                    cut.name,
+                    cut.expr,
+                    f"{y.central:.0f} +- {y.stat:.0f}",
+                    f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
+                    f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
+                    "\u2713" if hasattr(cut, "plot") else "",
+                )
+                started = True
+        with open(os.path.join(outfolder,f"flow_{flow.name}/table.txt"), "wt") as report_file:
+                flow_console = Console(file=report_file)
+                flow_console.print(table)
+    console.print(table)
     console.print(
         "[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]"
     )

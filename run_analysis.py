@@ -228,8 +228,10 @@ def run_analysis(
     yields = maker.runYields(mergeEras=True)
     #!---------------------- PRINT YIELDS ---------------------- !#
     console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
-    print_yields(yields, all_data, flow_list[-1], console=console)
+    print_yields(yields, all_data, flow_list, outfolder, console=console)
     write_log(outfolder, command, cachepath)
+    for flow in flow_list:
+        os.system(f'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"flow_{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"flow_{flow.name}/command.sh")}')
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
@@ -251,6 +253,8 @@ def run_analysis(
 
     sys.settrace(None)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
+    for flow in flow_list:
+        os.system(f'cp {os.path.join(outfolder, "log/report.txt")} {os.path.join(outfolder, f"flow_{flow.name}/report.txt")}')
 
 if __name__ == "__main__":
     app()
