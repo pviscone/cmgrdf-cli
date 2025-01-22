@@ -1,8 +1,6 @@
-from CMGRDF import Flow, Define, Cut, AddWeightUncertainty
-from flows.SFs.electronSS import electronSmearing
-from flows.SFs.electronID import electronID
+from CMGRDF import Flow, Define, Cut
 
-from CMGRDF.collectionUtils import DefineSkimmedCollection
+from CMGRDF.collectionUtils import DefineSkimmedCollection, DefineP4
 
 
 def flow(pair="PFPF"):
@@ -19,8 +17,6 @@ def flow(pair="PFPF"):
                 mask = "(Take(Electron_isLowPt, MatchedDiEle_l1idx) && Take(Electron_isPF, MatchedDiEle_l2idx)) || (Take(Electron_isPF, MatchedDiEle_l1idx) && Take(Electron_isLowPt, MatchedDiEle_l2idx))"
                 )
 
-
-
     return Flow(
         "efficiency",
         [
@@ -30,11 +26,25 @@ def flow(pair="PFPF"):
 
         #! ------------------------ SanityChecks ----------------------- #
         Cut("1GenZd", "nGenZd==1"),
-        Cut("2GenEle", "nGenEle==2", plot="NoCut"),
+        Cut("2GenEle", "nGenEle==2"),
+
+        #! --------------------------- GenZd reco ---------------------- #
+        DefineP4("GenEle"),
+        Define("GenZd_invMass","(GenEle_p4[0]+GenEle_p4[1]).mass()"),
+        Define("GenZd_invPt","(GenEle_p4[0]+GenEle_p4[1]).pt()"),
+        Cut("noCut", "1",  plot="NoCut"),
 
         #! -------------------------- Matching ------------------------- #
         Cut("nDiEle", "nDiElectron>0"),
-        DefineSkimmedCollection("MatchedDiEle", "DiElectron", mask="match_mask(DiElectron_eta, DiElectron_phi, GenZd_eta[0], GenZd_phi[0]) && !Take(Electron_isPFoverlap,DiElectron_l1idx) && !Take(Electron_isPFoverlap,DiElectron_l2idx)"),
+        Define("Electron_matchMask1", "match_mask(Electron_eta, Electron_phi, GenEle_eta[0], GenEle_phi[0])"),
+        Define("Electron_matchMask2", "match_mask(Electron_eta, Electron_phi, GenEle_eta[1], GenEle_phi[1])"),
+        DefineSkimmedCollection("MatchedDiEle", "DiElectron",
+            mask="""
+            !Take(Electron_isPFoverlap,DiElectron_l1idx) && !Take(Electron_isPFoverlap,DiElectron_l2idx) &&
+            (
+                (Take(Electron_matchMask1,DiElectron_l1idx) && Take(Electron_matchMask2,DiElectron_l2idx)) ||
+                (Take(Electron_matchMask2,DiElectron_l1idx) && Take(Electron_matchMask1,DiElectron_l2idx))
+            )"""),
         Cut("1MatchedDiEle", "nMatchedDiEle>0", plot="GenMatching"),
 
         #! --------------------------- pair type cut ---------------------------- #
