@@ -178,8 +178,6 @@ class BasePlotter:
 
     def save(self, filename, *args, **kwargs):
         pprint(f"Saving {filename}")
-        if ".pdf" not in filename:
-            raise ValueError("For god's sake, save it as a pdf file!")
         self.fig.savefig(filename, *args, **kwargs)
         plt.close(self.fig)
 
