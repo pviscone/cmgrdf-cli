@@ -36,7 +36,7 @@ MCDict={
             "weight": "1",
             },
         ],
-        "label":"ZdM5",
+        "label":"ZdM3p1",
         "color": ROOT.kRed,
     },
     "HAHM_13p6TeV_M1" : {
@@ -55,7 +55,7 @@ MCDict={
             "weight": "1",
             },
         ],
-        "label":"ZdM5",
+        "label":"ZdM1",
         "color": ROOT.kGreen,
     }
 }
