@@ -166,6 +166,7 @@ def run_analysis(
     print_flow(console, flow_list[-1])
 
     #! ---------------------- LOOP ON FLOWS -------------------------- !#
+    plot = plots.get("main", []) if isinstance(plots, dict) else []
     for _i, flow in enumerate(flow_list):
 
         if nevents != -1:
@@ -199,7 +200,7 @@ def run_analysis(
 
         if plots:
             if isinstance(plots, dict):
-                plot = [*plots.get(flow.name.split("_")[-1], []), *plots.get("main", [])]
+                plot.extend(plots.get(flow.name.split("_")[-1], []))
             else:
                 plot = plots[_i]
             maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
