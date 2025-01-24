@@ -46,7 +46,7 @@ def write_log(outfolder, command, cachepath):
     os.system(
         f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
     )
-    os.system(f'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "log/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
+    os.system(fr'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "log/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
     # get abs path to outfolder
     abs_outfolder = os.path.abspath(outfolder)
 

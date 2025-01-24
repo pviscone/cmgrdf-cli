@@ -83,7 +83,8 @@ def run_analysis(
     """
 
     sys.settrace(trace_calls)
-    command = " ".join(sys.argv)
+    command = " ".join(sys.argv).replace('"', r'\\\"')
+
     #! ------------------------- Sanity checks -------------------------- !#
     if data is None and mc is None:
         raise typer.BadParameter("You must provide at least one of the data or mc file")
@@ -231,7 +232,7 @@ def run_analysis(
     print_yields(yields, all_data, flow_list, outfolder, console=console)
     write_log(outfolder, command, cachepath)
     for flow in flow_list:
-        os.system(f'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"flow_{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"flow_{flow.name}/command.sh")}')
+        os.system(fr'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"flow_{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"flow_{flow.name}/command.sh")}')
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
