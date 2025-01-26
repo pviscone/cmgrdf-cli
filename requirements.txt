@@ -1,3 +1,5 @@
 typer
 rich
 hist
+pygraphviz
+#termvisage

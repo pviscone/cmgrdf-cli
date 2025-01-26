@@ -131,35 +131,6 @@ def print_dataset(console, processtable, datatable, MCtable, eras):
     console.print(MCtable)
 
 
-def print_and_parse_flow(console, flow_config):
-    flow_table = Table(title="Flows", show_header=True, header_style="bold black")
-    flow_table.add_column("Configs", style="bold red")
-    flow_table.add_column("Name")
-
-    if flow_config is not None:
-        flow_module, flow_kwargs = load_module(flow_config)
-        flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
-        flow_table.add_row(flow_config, flow_obj.name)
-        console.print(flow_table)
-    else:
-        flow_obj = Flow("empty", Cut("empty", "1"))
-
-    flow_list = []
-    plotted_steps=0
-    for step_idx, flow_step in enumerate(flow_obj):
-        if isinstance(flow_step, FlowStep) and hasattr(flow_step, "plot") and flow_step.plot:
-            flow_name = flow_obj.name + f"_{plotted_steps}"
-            if isinstance(flow_step.plot, str):
-                flow_name += f"_{flow_step.plot}"
-            plotted_steps+=1
-            flow_list.append(Flow(flow_name, flow_obj[:step_idx+1]))
-    if plotted_steps==0:
-        flow_list.append(flow_obj)
-    elif len(flow_list[-1].steps)<len(flow_obj.steps):
-        flow_list.append(Flow(f"{flow_obj.name}_{plotted_steps}_full", flow_obj.steps))
-    return flow_list
-
-
 def print_mcc(console, mccFlow):
     console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
     console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
@@ -217,13 +188,17 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
                     "\u2713" if hasattr(cut, "plot") else "",
                 )
                 started = True
-        with open(os.path.join(outfolder,f"flow_{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
-                flow_console = Console(file=report_file)
-                flow_console.print(table)
+        with open(os.path.join(outfolder,f"{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
+            flow_console = Console(file=report_file)
+            flow_console.print(table)
         console.print(table)
         console.print(
             "[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]"
         )
+    console.print(
+        "[bold green]------------------------------------------------------------------------------------------------------[/bold green]"
+    )
+
 
 
 def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern):

@@ -19,7 +19,8 @@ from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from flows.SFs import BranchCorrection
 import cpp_functions
 from utils.cli_utils import load_module, parse_function
-from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_and_parse_flow, print_mcc, print_flow, print_yields, print_snapshot
+from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
+from utils.flow_utils import parse_flows, clean_commons
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -47,12 +48,17 @@ def run_analysis(
     nevents : int = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
+    #! Flow options
+    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (comma separated)", rich_help_panel="Flow Options"),
+    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (comma separated)", rich_help_panel="Flow Options"),
+
     #! Plot options
     lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     noRatio      : bool        = typer.Option(False, "--noRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
     maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
+    plotformat   : str         = typer.Option("png,pdf,root,txt", "--plotformat", help="The format of the plots", rich_help_panel="Plot Options"),
 
     #! Datacard options
     datacards        : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
@@ -133,20 +139,13 @@ def run_analysis(
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print_configs(console, ncpu, nevents, outfolder, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
+    os.makedirs(outfolder, exist_ok=True)
+    os.system(f"cp $CMGRDF/externals/index.php {outfolder}/index.php")
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow, eras = eras)
     print_dataset(console, processtable, datatable, MCtable, eras)
-
-    #! -------------- Print flows table and parse flows -------------------- !#
-    flow_list = print_and_parse_flow(console, flow)
-
-    #If plots is a single list, make a list of list to make the same plots at each plotting step
-    if plots and isinstance(plots, list) and not isinstance(plots[0], list):
-        plots = [plots]*len(flow_list)
-    if plots and isinstance(plots, list):
-        assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
     #! ---------------------- Print MCCs -------------------------- !#
     print_mcc(console, mccFlow)
@@ -162,78 +161,93 @@ def run_analysis(
         cache = None
     maker = Processor(cache=cache)
 
-    #! ---------------------- PRINT THE FLOW ----------------------- !#
-    print_flow(console, flow_list[-1])
+    #! -------------- Print flows table and parse flows -------------------- !#
+    region_flows = parse_flows(console, flow, outfolder, enable=enableRegions.split(","), disable=disableRegions.split(","))
+    region_flows = clean_commons(region_flows)
+    for flow_list in region_flows:
+        #If plots is a single list, make a list of list to make the same plots at each plotting step
+        if plots and isinstance(plots, list) and not isinstance(plots[0], list):
+            plots = [plots]*len(flow_list)
+        if plots and isinstance(plots, list):
+            assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
-    #! ---------------------- LOOP ON FLOWS -------------------------- !#
-    plot = plots.get("main", []) if isinstance(plots, dict) else []
-    for _i, flow in enumerate(flow_list):
+        #! ---------------------- PRINT THE FLOW ----------------------- !#
+        print_flow(console, flow_list[-1])
 
-        if nevents != -1:
-            flow.prepend(Range(nevents))
+        #! ---------------------- LOOP ON FLOWS -------------------------- !#
+        plot = plots.get("main", []) if isinstance(plots, dict) else []
+        for _i, flow in enumerate(flow_list):
 
-        #! ------------------ Corrections handling ------------------------ !#
-        # Dirty workaround to handle corrections
+            if nevents != -1:
+                flow.prepend(Range(nevents))
 
-        for idx, step in enumerate(flow):
-            if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
-                new_steps = []
-                for era in eras:
-                    copy_step = copy.deepcopy(step)
-                    if noSyst:
-                        copy_step.doSyst  = False
-                    new_steps.append(copy_step.init(era=era))
-                    new_steps[-1]._init = True
-                    new_steps[-1].era   = era
-                    new_steps[-1].eras  = [era]
-                    new_steps[-1].nuisName = type(step).__name__
-                    if isinstance(new_steps[-1], BranchCorrection):
-                        new_steps[-1].doSyst = copy_step.doSyst
-                if len(eras)>1:
-                    flow.steps[idx:idx+1]=new_steps
+            #! ------------------ Corrections handling ------------------------ !#
+            # Dirty workaround to handle corrections
+
+            for idx, step in enumerate(flow):
+                if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
+                    new_steps = []
+                    for era in eras:
+                        copy_step = copy.deepcopy(step)
+                        if noSyst:
+                            copy_step.doSyst  = False
+                        new_steps.append(copy_step.init(era=era))
+                        new_steps[-1]._init = True
+                        new_steps[-1].era   = era
+                        new_steps[-1].eras  = [era]
+                        new_steps[-1].nuisName = type(step).__name__
+                        if isinstance(new_steps[-1], BranchCorrection):
+                            new_steps[-1].doSyst = copy_step.doSyst
+                    if len(eras)>1:
+                        flow.steps[idx:idx+1]=new_steps
+                    else:
+                        flow.steps[idx]=new_steps[0]
+
+            #! ---------------------- BOOK Plots and cutflow ----------------------- !#
+            pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
+            maker.bookCutFlow(all_data, lumi, flow, eras=eras)
+
+            if plots:
+                if isinstance(plots, dict):
+                    plot.extend(plots.get(flow.name.split("_")[-1], []))
                 else:
-                    flow.steps[idx]=new_steps[0]
+                    plot = plots[_i]
+                maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
 
-        #! ---------------------- BOOK Plots and cutflow ----------------------- !#
-        pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
-        maker.bookCutFlow(all_data, lumi, flow, eras=eras)
-
-        if plots:
-            if isinstance(plots, dict):
-                plot.extend(plots.get(flow.name.split("_")[-1], []))
-            else:
-                plot = plots[_i]
-            maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
-
-        #! ---------------------- BOOK SNAPSHOT ----------------------!#
-        if snapshot:
-            snap_list = []
-            for dat in all_data:
-                if dat.isData and noData:
-                    continue
-                if not dat.isData and noMC:
-                    continue
-                if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
-                    continue
-                snap_list.append(dat)
-            if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
-                maker.book(snap_list, lumi, flow, Snapshot(outfolder + "/snap/{name}_{era}_{flow}.root".replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+            #! ---------------------- BOOK SNAPSHOT ----------------------!#
+            if snapshot:
+                snap_list = []
+                for dat in all_data:
+                    if dat.isData and noData:
+                        continue
+                    if not dat.isData and noMC:
+                        continue
+                    if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
+                        continue
+                    snap_list.append(dat)
+                if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
+                    maker.book(snap_list, lumi, flow, Snapshot(outfolder + "/snap/{name}_{era}_{flow}.root".replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
     #!---------------------- PRINT Plots ---------------------- !#
     pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
-            topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange, showRatio=not noRatio, noStackSignals=True, showErrors=True
-        ).printSet(plotter, outfolder + "/flow_{flow}/")
+            topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange,
+            showRatio=not noRatio, noStackSignals=True, showErrors=True,
+            plotFormats=plotformat,
+        ).printSet(plotter, outfolder + "/{flow}/")
 
     yields = maker.runYields(mergeEras=True)
     #!---------------------- PRINT YIELDS ---------------------- !#
     console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
-    print_yields(yields, all_data, flow_list, outfolder, console=console)
-    write_log(outfolder, command, cachepath)
-    for flow in flow_list:
-        os.system(fr'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"flow_{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"flow_{flow.name}/command.sh")}')
+    for flow_list in region_flows:
+        if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
+            continue
+        print_yields(yields, all_data, flow_list, outfolder, console=console)
+        write_log(outfolder, command, cachepath)
+        for flow in flow_list:
+            os.system(fr'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"{flow.name}/command.sh")}')
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
@@ -255,8 +269,10 @@ def run_analysis(
 
     sys.settrace(None)
     console.save_text(os.path.join(outfolder, "log/report.txt"))
-    for flow in flow_list:
-        os.system(f'cp {os.path.join(outfolder, "log/report.txt")} {os.path.join(outfolder, f"flow_{flow.name}/report.txt")}')
+
+    for flow_list in region_flows:
+        for flow in flow_list:
+            os.system(f'cp {os.path.join(outfolder, "log/report.txt")} {os.path.join(outfolder, f"{flow.name}/report.txt")}')
 
 if __name__ == "__main__":
     app()

@@ -188,6 +188,31 @@ It must contain a Flow object or a function that return a Flow object called `fl
 
 Each stepflow can have a keyboard argument `plot` (e.g. `Cut("nEle>1", "nEle">1, plot="1ele")`) that allow to make plots at different point of the cutflow.
 
+In alternative to Flows, you can use also trees to run multiple region at once.
+First you have to import `Tree` from `flows` then, there it is a small example
+```python
+flow = Tree()
+main_flow_steps = [
+    step1,
+    step2,
+    ...
+]
+flow.add("main_flow", main_flow_steps)
+flow.add("SR",
+    Cut("SRcut", SR_expression), #Here flowstep or lists of flowsteps
+    parent="main_flow"
+)
+flow.add("CR1",
+    Cut("CR1cut", CR1_expression),
+    parent="main_flow"
+)
+flow.add("CR2",
+    Cut("CR2cut", CR2_expression),
+    parent="main_flow"
+)
+flow.add_to_all("Skim",Cut("object_selection", expr))
+```
+In this way you have 3 regions that have a first piece (main_flow) in common, then different selections (SR, CR1, CR2) that are appended to the `main_flow` node using the `add` method with the argument `parent` and then another selection appended at the end to the all regions using the method `add_to_all`
 
 ### Plots
 The plot config file contains a list of plots or a list of list of plots or a dict of list of plots or a function that returns one of these objects.
