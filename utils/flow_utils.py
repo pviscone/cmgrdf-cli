@@ -3,6 +3,7 @@ from CMGRDF import Flow, Cut
 from CMGRDF.flow import FlowStep
 from utils.cli_utils import load_module, parse_function
 from flows import Tree
+import re
 
 
 def split_at_plot(flow_obj):
@@ -61,7 +62,9 @@ def clean_commons(region_flows):
         flow_i = [region[i].steps for region in region_flows]
         if all(x==flow_i[0] for x in flow_i):
             name = region_flows[0][i].name
-            common_flows.append(Flow(f"0common_{name.split('_',1)[1]}", flow_i[0]))
+            re_match = re.search(r"_(\d+)_", name)
+            new_name = f"0common{re_match.group(0)}{name[re_match.end():]}" if re_match else f"0common_{name}"
+            common_flows.append(Flow(new_name, flow_i[0]))
         else:
             break
     region_flows = [region[i:] for region in region_flows]
