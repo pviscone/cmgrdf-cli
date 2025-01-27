@@ -32,7 +32,10 @@ class Tree:
     def add_to_all(self, name, obj):
         leaves = copy.deepcopy(self.leaves)
         for leaf in leaves:
-            segment_name = f"{name}{leaf}"
+            if "{leaf}" in name:
+                segment_name = name.format(leaf=leaf)
+            else:
+                segment_name = f"{name}{leaf}"
             self.add(segment_name, obj, parent = leaf)
 
     def to_lists(self):
