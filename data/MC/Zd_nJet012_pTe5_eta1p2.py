@@ -9,7 +9,7 @@ MCDict={
                 "HAHM_13p6TeV_M5":
                     {
                     "xsec":None,
-                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs/CRAB_UserFiles/crab_{name}/250107_182001/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan07_1.root"
+                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs_allnanoColl/CRAB_UserFiles/crab_{name}/250124_183927/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan24_1.root"
                     },
                 },
             "cut":"1",
@@ -28,7 +28,7 @@ MCDict={
                 "HAHM_13p6TeV_M3p1":
                     {
                     "xsec":None,
-                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs/CRAB_UserFiles/crab_{name}/250107_182017/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan07_1.root"
+                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs_allnanoColl/CRAB_UserFiles/crab_{name}/250124_203010/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan24_1.root"
                     },
                 },
             "cut":"1",
@@ -47,7 +47,7 @@ MCDict={
                 "HAHM_13p6TeV_M1":
                     {
                     "xsec":None,
-                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs/CRAB_UserFiles/crab_{name}/250107_182031/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan07_1.root"
+                    "path": "signalSamples/HAHM_DarkPhoton_13p6TeV_Nov2024/NANOAOD_noskim_allpairs_allnanoColl/CRAB_UserFiles/crab_{name}/250124_183942/0000/DoubleElectronNANO_Run3_{era}_mc_2025Jan24_1.root"
                     },
                 },
             "cut":"1",
