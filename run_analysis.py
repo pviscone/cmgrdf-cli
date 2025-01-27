@@ -268,11 +268,11 @@ def run_analysis(
         os.system(f"cp $CMGRDF/externals/index.php {outfolder}/snap/index.php")
 
     sys.settrace(None)
-    console.save_text(os.path.join(outfolder, "log/report.txt"))
+    console.save_text(os.path.join(outfolder, "zlog/report.txt"))
 
     for flow_list in region_flows:
         for flow in flow_list:
-            os.system(f'cp {os.path.join(outfolder, "log/report.txt")} {os.path.join(outfolder, f"{flow.name}/report.txt")}')
+            os.system(f'cp {os.path.join(outfolder, "zlog/report.txt")} {os.path.join(outfolder, f"{flow.name}/report.txt")}')
 
 if __name__ == "__main__":
     app()

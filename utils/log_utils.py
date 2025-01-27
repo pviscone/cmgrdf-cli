@@ -42,38 +42,38 @@ def write_log(outfolder, command, cachepath):
     else:
         cachestring = ""
     # Write the command string to file
-    os.makedirs(f"{outfolder}/log", exist_ok=True)
+    os.makedirs(f"{outfolder}/zlog", exist_ok=True)
     os.system(
-        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/command.sh')}"
+        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/command.sh')}"
     )
-    os.system(fr'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "log/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "log/command.sh")}')
+    os.system(fr'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "zlog/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "zlog/command.sh")}')
     # get abs path to outfolder
     abs_outfolder = os.path.abspath(outfolder)
 
     # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
     os.system(
-        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'log/cmgrdf_commit.txt')}"
+        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'zlog/cmgrdf_commit.txt')}"
     )
-    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(abs_outfolder, 'log/cmgrdf_commit.txt')}")
+    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(abs_outfolder, 'zlog/cmgrdf_commit.txt')}")
 
     # Copy all the accessed files to the log folder
     copy_imports(outfolder)
     # Always copy the cpp functions
-    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'log')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'zlog')}")
     # Always copy the command template
-    os.makedirs(os.path.join(outfolder, "log/utils"), exist_ok=True)
+    os.makedirs(os.path.join(outfolder, "zlog/utils"), exist_ok=True)
     os.system(
-        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'log/utils')}"
+        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/utils')}"
     )
     # Always copy the CLI file
-    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'log')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'zlog')}")
     return
 
 
 def copy_imports(outfolder):
     for file_path in accessed_files:
         relative_path = file_path.split(main_dir)[1]
-        newpath = os.path.join(outfolder, f"log/{os.path.dirname(relative_path)}")
+        newpath = os.path.join(outfolder, f"zlog/{os.path.dirname(relative_path)}")
         os.makedirs(newpath, exist_ok=True)
         os.system(f"cp -r --force {file_path} {newpath}")
 
