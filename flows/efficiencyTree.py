@@ -1,54 +1,98 @@
 from flows import Tree
 from CMGRDF import Define, Cut
 
-from CMGRDF.collectionUtils import DefineSkimmedCollection, DefineP4
+from CMGRDF.collectionUtils import DefineSkimmedCollection, DefineP4, DefineFromCollection
 
-main_flow = [
-        #! ---------------------- Gen definition ---------------------- #
-        DefineSkimmedCollection("GenZd", "GenPart", mask="GenPart_pdgId==32 && (GenPart_statusFlags & (1<<13)) && (GenPart_statusFlags & 1<<8)"),
-        DefineSkimmedCollection("GenEle", "GenPart", mask="abs(GenPart_pdgId)==11 && (GenPart_statusFlags & 1<<13) && (GenPart_statusFlags & 1<<8)"),
-        DefineP4("GenEle"),
-        DefineP4("Electron"),
+def flow(dR_genMatch = 0.1):
+    main_flow = [
+            #! ---------------------- Gen definition ---------------------- #
+            DefineSkimmedCollection("GenZd", "GenPart", mask="GenPart_pdgId==32 && (GenPart_statusFlags & (1<<13)) && (GenPart_statusFlags & 1<<8)"),
+            DefineSkimmedCollection("GenEle", "GenPart", mask="abs(GenPart_pdgId)==11 && (GenPart_statusFlags & 1<<13) && (GenPart_statusFlags & 1<<8)"),
+            DefineP4("GenEle"),
+            DefineP4("Electron"),
 
-        #! ------------------------ SanityChecks ----------------------- #
-        Cut("1GenZd", "nGenZd==1"),
-        Cut("2GenEle", "nGenEle==2"),
-        Cut("SameGenVtx", "deltaVtx(GenEle_vx[0],GenEle_vy[0],GenEle_vz[0], GenEle_vx[1],GenEle_vy[1],GenEle_vz[1])<0.001"),
+            #! ------------------------ SanityChecks ----------------------- #
+            Cut("1GenZd", "nGenZd==1"),
+            Cut("2GenEle", "nGenEle==2"),
+            Cut("SameGenVtx", "deltaVtx(GenEle_vx[0],GenEle_vy[0],GenEle_vz[0], GenEle_vx[1],GenEle_vy[1],GenEle_vz[1])<0.001"),
 
-        #! --------------------------- GenZd reco ---------------------- #
-        Define("GenZd_invMass","(GenEle_p4[0]+GenEle_p4[1]).mass()"),
-        Define("GenZd_invPt","(GenEle_p4[0]+GenEle_p4[1]).pt()"),
-        Cut("noCut", "1",  plot="NoCut"),
+            #! --------------------- DiEle categorization -------------------#
+            Define("_DiEle_mask","""
+                !Take(Electron_isPFoverlap,DiElectron_l1idx) &&
+                !Take(Electron_isPFoverlap,DiElectron_l2idx) &&
+                Take(Electron_convVeto,DiElectron_l1idx) &&
+                Take(Electron_convVeto,DiElectron_l2idx) &&
+                (Take(Electron_charge,DiElectron_l1idx) * Take(Electron_charge,DiElectron_l2idx)) == -1 &&
+                DiElectron_fitted_mass>0 &&
+                DiElectron_lep_deltaR > 0.05
+                """),
+            DefineSkimmedCollection("DiElectron", "DiElectron", mask="_DiEle_mask", redefine=True),
+            Define("DiElectron_isPFPF", "Take(Electron_isPF, DiElectron_l1idx) && Take(Electron_isPF, DiElectron_l2idx)"),
+            Define("DiElectron_isPFLP","""
+                (Take(Electron_isLowPt, DiElectron_l1idx) && Take(Electron_isPF, DiElectron_l2idx)) ||
+                (Take(Electron_isPF, DiElectron_l1idx) && Take(Electron_isLowPt, DiElectron_l2idx))"""
+            ),
+            Define("DiElectron_isLPLP", "Take(Electron_isLowPt, DiElectron_l1idx) && Take(Electron_isLowPt, DiElectron_l2idx)"),
+            Define("DiElectron_type", "DiElectron_isPFPF + 2*DiElectron_isPFLP + 3*DiElectron_isLPLP"),
 
-        #! -------------------------- Matching ------------------------- #
-        Cut("nDiEle", "nDiElectron>0"),
-        Define("Electron_matchMask1", "match_mask(Electron_eta, Electron_phi, GenEle_eta[0], GenEle_phi[0])"),
-        Define("Electron_matchMask2", "match_mask(Electron_eta, Electron_phi, GenEle_eta[1], GenEle_phi[1])"),
-        DefineSkimmedCollection("MatchedDiEle", "DiElectron",
-            mask="""
-            !Take(Electron_isPFoverlap,DiElectron_l1idx) && !Take(Electron_isPFoverlap,DiElectron_l2idx) &&
-            (
-                (Take(Electron_matchMask1,DiElectron_l1idx) && Take(Electron_matchMask2,DiElectron_l2idx)) ||
-                (Take(Electron_matchMask2,DiElectron_l1idx) && Take(Electron_matchMask1,DiElectron_l2idx))
-            )"""),
-        Cut("1MatchedDiEle", "nMatchedDiEle>0", plot="GenMatching"),
-    ]
+            #! ------------------------- GenMatching -------------------------#
+            DefineSkimmedCollection("MatchedDiEle", "DiElectron",
+                mask=f"""
+                    (match_mask(DiElectron_l1_postfit_eta, DiElectron_l1_postfit_phi, GenEle_eta[0], GenEle_phi[0], {dR_genMatch}) &&
+                    match_mask(DiElectron_l2_postfit_eta, DiElectron_l2_postfit_phi, GenEle_eta[1], GenEle_phi[1], {dR_genMatch})) ||
+                    (match_mask(DiElectron_l1_postfit_eta, DiElectron_l1_postfit_phi, GenEle_eta[1], GenEle_phi[1], {dR_genMatch}) &&
+                    match_mask(DiElectron_l2_postfit_eta, DiElectron_l2_postfit_phi, GenEle_eta[0], GenEle_phi[0], {dR_genMatch}))
+                """
+            ),
 
-flow = Tree()
-flow.add("matching", main_flow)
-flow.add("PFPF",
-    DefineSkimmedCollection("PairTypeMatchedDiEle", "MatchedDiEle",
-        mask = "Take(Electron_isPF, MatchedDiEle_l1idx) && Take(Electron_isPF, MatchedDiEle_l2idx)"),
-    parent="matching"
-)
-flow.add("lowPtlowPt",
-    DefineSkimmedCollection("PairTypeMatchedDiEle", "MatchedDiEle",
-        mask = "Take(Electron_isLowPt, MatchedDiEle_l1idx) && Take(Electron_isLowPt, MatchedDiEle_l2idx) "),
-    parent="matching"
-)
-flow.add("PFlowPt",
-    DefineSkimmedCollection("PairTypeMatchedDiEle", "MatchedDiEle",
-        mask = "(Take(Electron_isLowPt, MatchedDiEle_l1idx) && Take(Electron_isPF, MatchedDiEle_l2idx)) || (Take(Electron_isPF, MatchedDiEle_l1idx) && Take(Electron_isLowPt, MatchedDiEle_l2idx))"),
-    parent="matching"
-)
-flow.add_to_all("1PairType",Cut("1DiElePairType", "nPairTypeMatchedDiEle>0", plot="pairtype"))
+            #! --------------------------- GenZd reco ---------------------- #
+            Define("GenZd_invMass","(GenEle_p4[0]+GenEle_p4[1]).mass()"),
+            Define("GenZd_dR","ROOT::VecOps::DeltaR(GenEle_eta[0],GenEle_eta[1],GenEle_phi[0],GenEle_phi[1])"),
+            Cut("noCut", "1",  plot="NoCut"),
+            Cut("nDiEle", "nDiElectron>0"),
+
+            #! --------------------- Pair type collections -------------------#
+
+            DefineSkimmedCollection("PFPFMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isPFPF"),
+            DefineSkimmedCollection("PFLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isPFLP"),
+            DefineSkimmedCollection("LPLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isLPLP"),
+            DefineFromCollection("SelectedDiEle", "MatchedDiEle", index="ROOT::VecOps::ArgMin(ROOT::VecOps::pow(MatchedDiEle_fitted_mass-GenZd_invMass,2)/MatchedDiEle_fitted_massErr)"),
+
+            Cut("1MatchedDiEle", "nMatchedDiEle>0", plot="GenMatch"),
+        ]
+
+    tree = Tree()
+    tree.add("matching", main_flow)
+
+    tree.add("nPFPFgeq1", Cut("PFPFgeq1", "nPFPFMatchedDiEle>0"), parent = "matching")
+    tree.add("nPFLPgeq1", Cut("PFLPgeq1", "nPFLPMatchedDiEle>0"), parent = "matching")
+    tree.add("nLPLPgeq1", Cut("LPLPgeq1", "nLPLPMatchedDiEle>0"), parent = "matching")
+
+    tree.add("SelPFPF", Cut("SelPFPF", "SelectedDiEle_isPFPF", plot="SelPFPF"), parent = "nPFPFgeq1")
+    tree.add("SelPFLP", Cut("SelPFLP", "SelectedDiEle_isPFLP", plot="SelPFLP"), parent = "nPFLPgeq1")
+    tree.add("SelLPLP", Cut("SelLPLP", "SelectedDiEle_isLPLP", plot="SelLPLP"), parent = "nLPLPgeq1")
+
+    tree.add_to_all("{leaf}_postSelectionCuts",
+        [
+        Cut("dZ", "SelectedDiEle_lep_deltaVz<1", plot="dZ"),
+        Cut("QF", "SelectedDiEle_sv_prob>1.e-5 && SelectedDiEle_sv_chi2<998.", plot="QF"),
+        Cut("HLT",
+            """HLT_DoubleEle4_eta1p22_mMax6 ||
+            HLT_DoubleEle4p5_eta1p22_mMax6 ||
+            HLT_DoubleEle5_eta1p22_mMax6   ||
+            HLT_DoubleEle5p5_eta1p22_mMax6 ||
+            HLT_DoubleEle6_eta1p22_mMax6   ||
+            HLT_DoubleEle7_eta1p22_mMax6   ||
+            HLT_DoubleEle7p5_eta1p22_mMax6 ||
+            HLT_DoubleEle8_eta1p22_mMax6   ||
+            HLT_DoubleEle8p5_eta1p22_mMax6 ||
+            HLT_DoubleEle9_eta1p22_mMax6   ||
+            HLT_DoubleEle9p5_eta1p22_mMax6 ||
+            HLT_DoubleEle10_eta1p22_mMax6""", plot="HLT"),
+        Cut("TrgObjMatch", "Electron_isTriggering[SelectedDiEle_l1idx] && Electron_isTriggering[SelectedDiEle_l2idx]", plot="TrgObjMatch")
+        ]
+    )
+
+    return tree
+
+
