@@ -21,7 +21,25 @@ name1d_defaults = {
     ".*_(mass|invMass).*": dict(
         bins=(40, 0, 6),
     ),
+    ".*_dR.*": dict(
+        bins=(40, 0, 2),
+    ),
+    "n.*": dict(
+        bins=(15, 0, 15),
+    ),
+    ".*_type": dict(
+        bins=(3, 1, 4),
+    ),
 }
 
 # TODO Think of a smart way to define defaults for TH2
-name2d_defaults = {}
+name2d_defaults = {
+    ".*_(pt|invPt).*": dict(
+        bins=(50, 0, 50),
+    ),
+    ".*_eta.*": dict(
+        bins=(30, -2, 2),
+    ),
+    ".*_(mass|invMass).*": dict(
+        bins=(40, 0, 6),
+    ),}
