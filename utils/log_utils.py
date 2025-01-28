@@ -188,6 +188,7 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
                     "\u2713" if hasattr(cut, "plot") else "",
                 )
                 started = True
+        os.makedirs(os.path.join(outfolder, f"{flow.name}"), exist_ok=True)
         with open(os.path.join(outfolder,f"{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
             flow_console = Console(file=report_file)
             flow_console.print(table)
