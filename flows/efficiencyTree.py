@@ -34,6 +34,9 @@ def flow(dR_genMatch = 0.1):
             ),
             Define("DiElectron_isLPLP", "Take(Electron_isLowPt, DiElectron_l1idx) && Take(Electron_isLowPt, DiElectron_l2idx)"),
             Define("DiElectron_type", "DiElectron_isPFPF + 2*DiElectron_isPFLP + 3*DiElectron_isLPLP"),
+            Define("nPFPFDiEle", "Sum(DiElectron_isPFPF)"),
+            Define("nPFLPDiEle", "Sum(DiElectron_isPFLP)"),
+            Define("nLPLPDiEle", "Sum(DiElectron_isLPLP)"),
 
             #! ------------------------- GenMatching -------------------------#
             DefineSkimmedCollection("MatchedDiEle", "DiElectron",
@@ -64,13 +67,17 @@ def flow(dR_genMatch = 0.1):
     tree = Tree()
     tree.add("matching", main_flow)
 
-    tree.add("nPFPFgeq1", Cut("PFPFgeq1", "nPFPFMatchedDiEle>0"), parent = "matching")
-    tree.add("nPFLPgeq1", Cut("PFLPgeq1", "nPFLPMatchedDiEle>0"), parent = "matching")
-    tree.add("nLPLPgeq1", Cut("LPLPgeq1", "nLPLPMatchedDiEle>0"), parent = "matching")
+    tree.add("nPFPFgeq1", Cut("PFPFgeq1", "nPFPFDiEle>0"), parent = "matching")
+    tree.add("nPFLPgeq1", Cut("PFLPgeq1", "nPFLPDiEle>0"), parent = "matching")
+    tree.add("nLPLPgeq1", Cut("LPLPgeq1", "nLPLPDiEle>0"), parent = "matching")
 
-    tree.add("SelPFPF", Cut("SelPFPF", "SelectedDiEle_isPFPF", plot="SelPFPF"), parent = "nPFPFgeq1")
-    tree.add("SelPFLP", Cut("SelPFLP", "SelectedDiEle_isPFLP", plot="SelPFLP"), parent = "nPFLPgeq1")
-    tree.add("SelLPLP", Cut("SelLPLP", "SelectedDiEle_isLPLP", plot="SelLPLP"), parent = "nLPLPgeq1")
+    tree.add("nPFPFmatchgeq1", Cut("PFPFmatchgeq1", "nPFPFMatchedDiEle>0"), parent = "nPFPFgeq1")
+    tree.add("nPFLPmatchgeq1", Cut("PFLPmatchgeq1", "nPFLPMatchedDiEle>0"), parent = "nPFLPgeq1")
+    tree.add("nLPLPmatchgeq1", Cut("LPLPmatchgeq1", "nLPLPMatchedDiEle>0"), parent = "nLPLPgeq1")
+
+    tree.add("SelPFPF", Cut("SelPFPF", "SelectedDiEle_isPFPF", plot="SelPFPF"), parent = "nPFPFmatchgeq1")
+    tree.add("SelPFLP", Cut("SelPFLP", "SelectedDiEle_isPFLP", plot="SelPFLP"), parent = "nPFLPmatchgeq1")
+    tree.add("SelLPLP", Cut("SelLPLP", "SelectedDiEle_isLPLP", plot="SelLPLP"), parent = "nLPLPmatchgeq1")
 
     tree.add_to_all("{leaf}_postSelectionCuts",
         [

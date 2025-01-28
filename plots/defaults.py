@@ -22,13 +22,13 @@ name1d_defaults = {
         bins=(40, 0, 6),
     ),
     ".*_dR.*": dict(
-        bins=(40, 0, 2),
-    ),
-    "n.*": dict(
-        bins=(15, 0, 15),
+        bins=(40, 0, 1.5),
     ),
     ".*_type": dict(
         bins=(3, 1, 4),
+    ),
+    "n.*": dict(
+        bins=(10, 0, 10),
     ),
 }
 
