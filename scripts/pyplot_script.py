@@ -176,7 +176,6 @@ norm_th_kwargs = {
 
 def norm_plot(data):
     path, new_path = data
-    os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
     var_from_path = path.split("/")[-1].split(".root")[0]
@@ -193,6 +192,7 @@ pool_data=[]
 for path in glob.glob(f"{folder}/*/*.root"):
     norm_path = f"{path.rsplit('/',1)[0]}/normalized/"
     os.makedirs(norm_path, exist_ok=True)
+    os.system(f"cp {php_plots} {norm_path}")
     new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
     if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
         continue
@@ -212,7 +212,6 @@ norm_th_kwargs = {
 
 def log_plot(data):
     path, new_path = data
-    os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
     var_from_path = path.split("/")[-1].split(".root")[0]
@@ -228,6 +227,7 @@ pool_data=[]
 for path in glob.glob(f"{folder}/*/*.root"):
     norm_path = f"{path.rsplit('/',1)[0]}/logscale/"
     os.makedirs(norm_path, exist_ok=True)
+    os.system(f"cp {php_plots} {norm_path}")
     new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
     if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
         continue
@@ -247,7 +247,6 @@ norm_th_kwargs = {
 
 def norm_log(data):
     path, new_path = data
-    os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
     var_from_path = path.split("/")[-1].split(".root")[0]
@@ -264,6 +263,7 @@ pool_data=[]
 for path in glob.glob(f"{folder}/*/*.root"):
     norm_path = f"{path.rsplit('/',1)[0]}/normalizedlog/"
     os.makedirs(norm_path, exist_ok=True)
+    os.system(f"cp {php_plots} {norm_path}")
     new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
     if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
         continue
