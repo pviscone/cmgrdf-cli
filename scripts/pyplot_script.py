@@ -6,12 +6,13 @@ import uproot
 import glob
 sys.path.append("/afs/.cern.ch/work/p/pviscone/Analysis/dp-ee-main/scripts/utils")
 from plotters import TEfficiency, TH1
-
+import multiprocessing as mp
 
 #%%
 #! ---------------------- Settings ---------------------- #
-folder = "/eos/user/p/pviscone/www/dpee/efficiencyTree2/"
+folder = "/eos/user/p/pviscone/www/dpee/efficiencyTree/"
 php_plots = "/afs/.cern.ch/work/p/pviscone/Analysis/dp-ee-main/cmgrdf-prototype/externals/index.php"
+ncpu=16
 
 os.system(f"cp {php_plots} {folder}")
 
@@ -103,7 +104,26 @@ teff_kwargs = {
     "legend_kwargs": {"bbox_to_anchor":(0.5, -0.225),"loc":"lower center", "ncol":3, "fontsize":15}
 }
 
+def eff_plot(data):
+    denom, denom_label, num_dict, variable = data
+    os.makedirs(os.path.join(folder,f'zeff/{variable}_{denom_label}'), exist_ok=True)
+    os.system(f"cp {php_plots} {os.path.join(folder,f'zeff/{variable}_{denom_label}')}")
+    var_label = var_labels.get(variable,variable)
+    denom_file = uproot.open(f"{folder}{denom}/{variable}.root")
+    samples = [s.split(";")[0] for s in denom_file.keys() if "_total" not in s and "_stack" not in s and "_canvas" not in s]
+    for sample in samples:
+        if not replace and f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.png" in glob.glob(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}')}/*"):
+            continue
+        sample_label = sample_labels.get(sample.replace(";1",""),sample.replace(";1",""))
+        denom_h = denom_file[sample].to_hist()
+        eff = TEfficiency(xlabel=var_label, cmstext="Preliminary", lumitext=f"{sample_label} ({denom_label})", **teff_kwargs)
+        for num, num_label in num_dict.items():
+            num_h = uproot.open(f"{folder}{num}/{variable}.root")[sample].to_hist()
+            eff.add(num_h, denom_h, label=num_label)
+        eff.save(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.png")
+        eff.save(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.pdf")
 
+pool_data=[]
 os.makedirs(f"{folder}/zeff", exist_ok=True)
 for denom, eff_list in denom_nums.items():
     for tup in eff_list:
@@ -111,22 +131,10 @@ for denom, eff_list in denom_nums.items():
         variables = glob.glob(f"{folder}{denom}/*.root")
         variables = [v.split("/")[-1].split(".root")[0] for v in variables]
         for variable in variables:
-            os.makedirs(os.path.join(folder,f'zeff/{variable}_{denom_label}'), exist_ok=True)
-            os.system(f"cp {php_plots} {os.path.join(folder,f'zeff/{variable}_{denom_label}')}")
-            var_label = var_labels.get(variable,variable)
-            denom_file = uproot.open(f"{folder}{denom}/{variable}.root")
-            samples = [s.split(";")[0] for s in denom_file.keys() if "_total" not in s and "_stack" not in s and "_canvas" not in s]
-            for sample in samples:
-                if not replace and f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.png" in glob.glob(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}')}/*"):
-                    continue
-                sample_label = sample_labels.get(sample.replace(";1",""),sample.replace(";1",""))
-                denom_h = denom_file[sample].to_hist()
-                eff = TEfficiency(xlabel=var_label, cmstext="Preliminary", lumitext=f"{sample_label} ({denom_label})", **teff_kwargs)
-                for num, num_label in num_dict.items():
-                    num_h = uproot.open(f"{folder}{num}/{variable}.root")[sample].to_hist()
-                    eff.add(num_h, denom_h, label=num_label)
-                eff.save(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.png")
-                eff.save(f"{os.path.join(folder,f'zeff/{variable}_{denom_label}/{sample}')}.pdf")
+            pool_data.append([denom, denom_label, num_dict, variable])
+
+p=mp.Pool(ncpu)
+p.map(eff_plot, pool_data)
 
 
 #%%
@@ -136,9 +144,8 @@ th_kwargs = {
     "rebin": 1,
     "ylabel": "Events",
 }
-for path in glob.glob(f"{folder}/*/*.root"):
-    if not replace and f"{path.replace('.root','.png')}" in glob.glob(f"{path.rsplit('/',1)[0]}/*"):
-        continue
+
+def replace_plots(path):
     file = uproot.open(path)
     keys = file.keys()
     var_from_path = path.split("/")[-1].split(".root")[0]
@@ -150,6 +157,14 @@ for path in glob.glob(f"{folder}/*/*.root"):
     h.save(f"{path.replace('.root','.png')}")
     h.save(f"{path.replace('.root','.pdf')}")
 
+pool_data=[]
+for path in glob.glob(f"{folder}/*/*.root"):
+    if not replace and f"{path.replace('.root','.png')}" in glob.glob(f"{path.rsplit('/',1)[0]}/*"):
+        continue
+    pool_data.append(path)
+
+p=mp.Pool(ncpu)
+p.map(replace_plots, pool_data)
 # %%
 
 #! ---------------------- Normalized plots ---------------- #
@@ -158,12 +173,9 @@ norm_th_kwargs = {
     "rebin": 1,
     "ylabel": "Density",
 }
-for path in glob.glob(f"{folder}/*/*.root"):
-    norm_path = f"{path.rsplit('/',1)[0]}/normalized/"
-    os.makedirs(norm_path, exist_ok=True)
-    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
-    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
-        continue
+
+def norm_plot(data):
+    path, new_path = data
     os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
@@ -177,6 +189,18 @@ for path in glob.glob(f"{folder}/*/*.root"):
     h.save(f"{new_path.replace('.root','.png')}")
     h.save(f"{new_path.replace('.root','.pdf')}")
 
+pool_data=[]
+for path in glob.glob(f"{folder}/*/*.root"):
+    norm_path = f"{path.rsplit('/',1)[0]}/normalized/"
+    os.makedirs(norm_path, exist_ok=True)
+    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
+    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
+        continue
+    pool_data.append([path, new_path])
+
+p=mp.Pool(ncpu)
+p.map(norm_plot, pool_data)
+
 # %%
 #! ---------------------- log plots ---------------- #
 
@@ -185,12 +209,9 @@ norm_th_kwargs = {
     "ylabel": "Events",
     "log": "y",
 }
-for path in glob.glob(f"{folder}/*/*.root"):
-    norm_path = f"{path.rsplit('/',1)[0]}/logscale/"
-    os.makedirs(norm_path, exist_ok=True)
-    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
-    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
-        continue
+
+def log_plot(data):
+    path, new_path = data
     os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
@@ -203,6 +224,18 @@ for path in glob.glob(f"{folder}/*/*.root"):
     h.save(f"{new_path.replace('.root','.png')}")
     h.save(f"{new_path.replace('.root','.pdf')}")
 
+pool_data=[]
+for path in glob.glob(f"{folder}/*/*.root"):
+    norm_path = f"{path.rsplit('/',1)[0]}/logscale/"
+    os.makedirs(norm_path, exist_ok=True)
+    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
+    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
+        continue
+    pool_data.append([path, new_path])
+
+p=mp.Pool(ncpu)
+p.map(log_plot, pool_data)
+
 # %%
 #! ---------------------- Normalized log plots ---------------- #
 
@@ -211,12 +244,9 @@ norm_th_kwargs = {
     "ylabel": "Density",
     "log": "y",
 }
-for path in glob.glob(f"{folder}/*/*.root"):
-    norm_path = f"{path.rsplit('/',1)[0]}/normalizedlog/"
-    os.makedirs(norm_path, exist_ok=True)
-    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
-    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
-        continue
+
+def norm_log(data):
+    path, new_path = data
     os.system(f"cp {php_plots} {norm_path}")
     file = uproot.open(path)
     keys = file.keys()
@@ -229,5 +259,18 @@ for path in glob.glob(f"{folder}/*/*.root"):
 
     h.save(f"{new_path.replace('.root','.png')}")
     h.save(f"{new_path.replace('.root','.pdf')}")
+
+pool_data=[]
+for path in glob.glob(f"{folder}/*/*.root"):
+    norm_path = f"{path.rsplit('/',1)[0]}/normalizedlog/"
+    os.makedirs(norm_path, exist_ok=True)
+    new_path = os.path.join(norm_path, path.rsplit("/",1)[1])
+    if not replace and f"{new_path.replace('.root','.png')}" in glob.glob(f"{new_path.rsplit('/',1)[0]}/*"):
+        continue
+    pool_data.append([path,new_path])
+
+p=mp.Pool(ncpu)
+p.map(norm_log, pool_data)
+
 
 
