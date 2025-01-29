@@ -18,9 +18,12 @@ plots= {
         Hist("nLPLPDiEle", "nLPLPDiEle",),
         Hist("DiElectron_type", "DiElectron_type",),
         Hist("MatchedDiEle_type", "MatchedDiEle_type"),
+        Hist("nLHEJets","nLHEJets")
+
     ],
     "GenMatch":[
         Hist("SelectedDiEle_fitted_mass", "SelectedDiEle_fitted_mass"),
+        Hist("SelectedDiEle_pt", "SelectedDiEle_pt"),
         Hist("SelectedDiEle_type", "SelectedDiEle_type"),
     ],
 }

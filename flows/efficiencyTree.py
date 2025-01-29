@@ -10,6 +10,7 @@ def flow(dR_genMatch = 0.1):
             DefineSkimmedCollection("GenEle", "GenPart", mask="abs(GenPart_pdgId)==11 && (GenPart_statusFlags & 1<<13) && (GenPart_statusFlags & 1<<8)"),
             DefineP4("GenEle"),
             DefineP4("Electron"),
+            Define("nLHEJets", "LHEPart_pdgId[abs(LHEPart_pdgId)!=11 && LHEPart_status==1].size()"),
 
             #! ------------------------ SanityChecks ----------------------- #
             Cut("1GenZd", "nGenZd==1"),
