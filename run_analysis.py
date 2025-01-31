@@ -270,9 +270,6 @@ def run_analysis(
     sys.settrace(None)
     console.save_text(os.path.join(outfolder, "zlog/report.txt"))
 
-    for flow_list in region_flows:
-        for flow in flow_list:
-            os.system(f'cp {os.path.join(outfolder, "zlog/report.txt")} {os.path.join(outfolder, f"{flow.name}/report.txt")}')
 
 if __name__ == "__main__":
     app()
