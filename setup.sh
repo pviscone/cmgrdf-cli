@@ -14,7 +14,7 @@ if [[ ${BASH_SOURCE[0]} == $0 ]]; then
 fi
 
 # Check which platform is being used and source the correct cvmfs script
-SOS_ANALYSIS_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+export ANALYSIS_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 source /etc/os-release
 if [[ "$PLATFORM_ID" == "platform:el8" ]]; then
     echo "You are using el8. It should work, otherwise, use an el9 container:"
@@ -28,7 +28,7 @@ else
 fi
 
 CURRENT_PWD=$(pwd)
-cd $SOS_ANALYSIS_DIR/cmgrdf-prototype
+cd $ANALYSIS_DIR/cmgrdf-prototype
 # Check if the user wants to build cmgrdf
 if [[ "$1" == "build" ]]; then
     make clean
