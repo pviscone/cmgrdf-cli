@@ -83,17 +83,23 @@ def flow(dR_genMatch = 0.1):
         Cut("1MatchedDiEle", "nMatchedDiEle>0", plot="GenMatch")
     ], parent="base")
 
-    tree.add("nPFPFgeq1", Cut("PFPFgeq1", "nPFPFDiEle>0"), parent = "matching")
-    tree.add("nPFLPgeq1", Cut("PFLPgeq1", "nPFLPDiEle>0"), parent = "matching")
-    tree.add("nLPLPgeq1", Cut("LPLPgeq1", "nLPLPDiEle>0"), parent = "matching")
+    tree.add("PFPF",[
+        Cut("PFPFgeq1", "nPFPFDiEle>0"),
+        Cut("PFPFmatchgeq1", "nPFPFMatchedDiEle>0"),
+        Cut("SelPFPF", "SelectedDiEle_isPFPF", plot="SelPFPF")
+    ], parent="matching")
 
-    tree.add("nPFPFmatchgeq1", Cut("PFPFmatchgeq1", "nPFPFMatchedDiEle>0"), parent = "nPFPFgeq1")
-    tree.add("nPFLPmatchgeq1", Cut("PFLPmatchgeq1", "nPFLPMatchedDiEle>0"), parent = "nPFLPgeq1")
-    tree.add("nLPLPmatchgeq1", Cut("LPLPmatchgeq1", "nLPLPMatchedDiEle>0"), parent = "nLPLPgeq1")
+    tree.add("PFLP",[
+        Cut("PFLPgeq1", "nPFLPDiEle>0"),
+        Cut("PFLPmatchgeq1", "nPFLPMatchedDiEle>0"),
+        Cut("SelPFLP", "SelectedDiEle_isPFLP", plot="SelPFLP")
+    ], parent="matching")
 
-    tree.add("SelPFPF", Cut("SelPFPF", "SelectedDiEle_isPFPF", plot="SelPFPF"), parent = "nPFPFmatchgeq1")
-    tree.add("SelPFLP", Cut("SelPFLP", "SelectedDiEle_isPFLP", plot="SelPFLP"), parent = "nPFLPmatchgeq1")
-    tree.add("SelLPLP", Cut("SelLPLP", "SelectedDiEle_isLPLP", plot="SelLPLP"), parent = "nLPLPmatchgeq1")
+    tree.add("LPLP",[
+        Cut("LPLPgeq1", "nLPLPDiEle>0"),
+        Cut("LPLPmatchgeq1", "nLPLPMatchedDiEle>0"),
+        Cut("SelLPLP", "SelectedDiEle_isLPLP", plot="SelLPLP")
+    ], parent="matching")
 
     tree.add("{leaf}_postSelectionCuts",
         [
@@ -101,7 +107,7 @@ def flow(dR_genMatch = 0.1):
         Cut("QF", "SelectedDiEle_sv_prob>1.e-5 && SelectedDiEle_sv_chi2<998.", plot="QF"),
         Cut("HLT", hlt_or, plot="HLT"),
         Cut("TrgObjMatch", "Electron_isTriggering[SelectedDiEle_l1idx] && Electron_isTriggering[SelectedDiEle_l2idx]", plot="TrgObjMatch")
-        ], parent=["SelPFPF", "SelPFLP", "SelLPLP"]
+        ], parent=["PFPF", "PFLP", "LPLP"]
     )
 
     return tree
