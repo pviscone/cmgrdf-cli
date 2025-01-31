@@ -13,17 +13,19 @@ class Tree:
         if not isinstance(obj, list):
             obj = [obj]
 
+        if parent:
+            if "{leaf}" in name:
+                segment_name = name.format(leaf=parent)
+            else:
+                segment_name = name
+
         if isinstance(parent, list|set|tuple):
             for p in parent:
-                if "{leaf}" in name:
-                    segment_name = name.format(leaf=p)
-                else:
-                    segment_name = f"{name}{p}"
                 self.add(segment_name, obj, parent=p)
             return
 
-        assert name not in self.segments.keys()
-        segment = Segment(name, obj)
+        assert segment_name not in self.segments.keys()
+        segment = Segment(segment_name, obj)
         segment.parent = parent
         segment.isLeaf = True
         segment.isHead = False if parent else True
@@ -47,6 +49,7 @@ class Tree:
             else:
                 segment_name = f"{name}{leaf}"
             self.add(segment_name, obj, parent = leaf)
+            self.segments[segment_name].common_to_all = True
 
     def to_lists(self):
         res=[]
@@ -72,13 +75,22 @@ class Tree:
             self.get_chain(self.segments[leaf.parent], res)
         return res[::-1]
 
-    def graphviz(self, outfile):
+    def graphviz(self, outfile, clean_fn = lambda x: x):
         A = PG.AGraph(directed=True, strict=True, overlap=False, splines='ortho')
         for _, segment in self.segments.items():
             if not segment.isLeaf:
+                node_1 = clean_fn(Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", ""))
+                A.add_node(node_1)
                 for child in segment.children:
-                    A.add_edge(Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", ""),
-                               Flow(self.segments[child].name, self.segments[child].obj).__str__().replace("\033[1m", "").replace("\033[0m", ""))
+                    node_2 = clean_fn(Flow(self.segments[child].name, self.segments[child].obj).__str__().replace("\033[1m", "").replace("\033[0m", ""))
+                    if self.segments[child].common_to_all:
+                        A.add_node(node_2, fillcolor="#71d0ff61", style="filled")
+                    elif self.segments[child].isLeaf:
+                        A.add_node(node_2, fillcolor="#8fff7161", style="filled")
+                    else:
+                        A.add_node(node_2)
+                    A.add_edge(node_1, node_2, color = "#0032ff" if self.segments[child].common_to_all else "black")
+
         A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
         A.draw(f'{outfile}.pdf')
         os.system(f"pdftocairo {outfile}.pdf -png -r 200 {outfile}")
@@ -92,5 +104,6 @@ class Segment:
         self.obj = x
         self.children=set()
         self.parent = None
+        self.common_to_all = False
     def __repr__(self):
         return f"{self.name}: {self.obj}"

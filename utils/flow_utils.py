@@ -42,7 +42,9 @@ def parse_flows(console, flow_config, outfolder, enable=[""], disable=[""]):
                 flows_dict = {k: v for k, v in flows_dict.items() if k not in disable}
             for name in flows_dict:
                 flow_table.add_row(flow_config, name)
-            flow_obj.graphviz(f"{outfolder}/tree")
+            flow_obj.graphviz(f"{outfolder}/verbose_tree")
+            flow_obj.graphviz(f"{outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
+            flow_obj.graphviz(f"{outfolder}/cut_tree", clean_fn=lambda x : "\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
             return [
                 split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()
             ]
