@@ -12,6 +12,16 @@ class Tree:
     def add(self, name, obj, parent=None):
         if not isinstance(obj, list):
             obj = [obj]
+
+        if isinstance(parent, list|set|tuple):
+            for p in parent:
+                if "{leaf}" in name:
+                    segment_name = name.format(leaf=p)
+                else:
+                    segment_name = f"{name}{p}"
+                self.add(segment_name, obj, parent=p)
+            return
+
         assert name not in self.segments.keys()
         segment = Segment(name, obj)
         segment.parent = parent
