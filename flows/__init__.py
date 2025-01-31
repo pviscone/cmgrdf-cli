@@ -13,16 +13,15 @@ class Tree:
         if not isinstance(obj, list):
             obj = [obj]
 
-        if parent:
-            if "{leaf}" in name:
-                segment_name = name.format(leaf=parent)
-            else:
-                segment_name = name
-
         if isinstance(parent, list|set|tuple):
             for p in parent:
-                self.add(segment_name, obj, parent=p)
+                self.add(name, obj, parent=p)
             return
+
+        if parent and "{leaf}" in name:
+            segment_name = name.format(leaf=parent)
+        else:
+            segment_name = name
 
         assert segment_name not in self.segments.keys()
         segment = Segment(segment_name, obj)
