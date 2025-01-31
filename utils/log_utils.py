@@ -32,7 +32,7 @@ def trace_calls(frame, event, arg):
 
 def write_log(outfolder, command, cachepath):
     if cachepath is None:
-        cachestring = "--cachepath ../cache"
+        cachestring = "--cachepath ../zcache"
     elif isinstance(cachepath, str):
         # Strip cachepath from command
         command = command.replace(f" --cachepath {cachepath}", "")
@@ -44,9 +44,9 @@ def write_log(outfolder, command, cachepath):
     # Write the command string to file
     os.makedirs(f"{outfolder}/zlog", exist_ok=True)
     os.system(
-        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/command.sh')}"
+        f"cp {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/command.sh')}"
     )
-    os.system(fr'grep -Fxq "python {command} {cachestring}" {os.path.join(outfolder, "zlog/command.sh")} || echo "python {command} {cachestring}" >> {os.path.join(outfolder, "zlog/command.sh")}')
+    os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(outfolder, "zlog/command.sh")}')
     # get abs path to outfolder
     abs_outfolder = os.path.abspath(outfolder)
 
