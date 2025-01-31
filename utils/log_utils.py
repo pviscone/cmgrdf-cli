@@ -152,6 +152,7 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
             table.add_column("Pass (+- stat.)", justify="center")
             table.add_column("eff. (+- stat.)", justify="center")
             table.add_column("cumulative eff. (+- stat.)", justify="center")
+            table.add_column("xsec*eff. (+- stat.) [pb]", justify="center")
             table.add_column("Plot", justify="center")
 
 
@@ -179,13 +180,16 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
                 cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
                 cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
 
+                proc_xsec_err_minus = f"-{(proc.xsec*cumulative_eff_err[0]):.3f}".translate(subscripts) if proc.xsec is not None else ""
+                proc_xsec_err_plus = f"+{(proc.xsec*cumulative_eff_err[1]):.3f}".translate(superscripts) if proc.xsec is not None else ""
                 table.add_row(
                     cut.name,
-                    cut.expr,
+                    ' '.join(cut.expr.split()),
                     f"{y.central:.0f} +- {y.stat:.0f}",
                     f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
                     f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
-                    "\u2713" if hasattr(cut, "plot") else "",
+                    f"{cumulative_eff*proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}" if proc.xsec is not None else "",
+                    "\u2713" if hasattr(cut, "plot") else ""
                 )
                 started = True
         os.makedirs(os.path.join(outfolder, f"{flow.name}"), exist_ok=True)

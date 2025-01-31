@@ -114,10 +114,12 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                 hook_steps.append(Cut("Selection", cut))
             hook = Prepend(*hook_steps)
 
+            group_xsec = 0
             #! Loop over all samples
             for sample_name in samples:
                 sample_dict = samples[sample_name]
                 xsec = sample_dict.get("xsec", "xsec")
+                group_xsec = group_xsec + xsec if (xsec is not None and group_xsec is not None) else None
                 samples_path = sample_dict.get("path", False)
                 friends_path = sample_dict.get("friends_path", False)
                 if not samples_path:
@@ -158,7 +160,9 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                         **group_kwargs,
                         )
                     )
-            process_list.append(MCGroup(group_name, mcgroup_samples))
+            mc_group = MCGroup(group_name, mcgroup_samples)
+            mc_group.xsec = group_xsec
+            process_list.append(mc_group)
 
         MCtable.add_section()
         process_kwargs = {
@@ -167,4 +171,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
             if key not in ["groups", "eras", "label", "color"]
         }
         if len(process_list) > 0:
-            all_data.append(Process(process, process_list, label=label, fillColor=color, **process_kwargs))
+            process=Process(process, process_list, label=label, fillColor=color, **process_kwargs)
+            process_xsec = sum([group.xsec for group in process_list]) if None not in [group.xsec for group in process_list] else None
+            process.xsec = process_xsec
+            all_data.append(process)
