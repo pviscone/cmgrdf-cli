@@ -152,8 +152,8 @@ def run_analysis(
 
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
-        os.makedirs(os.path.join(outfolder, "cache"), exist_ok=True)
-        cache = SimpleCache(os.path.join(outfolder, "cache"))
+        os.makedirs(os.path.join(outfolder, "zcache"), exist_ok=True)
+        cache = SimpleCache(os.path.join(outfolder, "zcache"))
     elif nocache is False:
         cache = SimpleCache(cachepath)
     else:
