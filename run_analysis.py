@@ -246,8 +246,6 @@ def run_analysis(
             continue
         print_yields(yields, all_data, flow_list, outfolder, console=console)
         write_log(outfolder, command, cachepath)
-        for flow in flow_list:
-            os.system(fr'grep -Fxqs "python {command.replace(f" --cachepath {cachepath}", "")}" {os.path.join(outfolder, f"{flow.name}/command.sh")} || echo "python {command.replace(f" --cachepath {cachepath}", "")}" >> {os.path.join(outfolder, f"{flow.name}/command.sh")}')
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
