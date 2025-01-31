@@ -56,6 +56,12 @@ def write_log(outfolder, command, cachepath):
     )
     os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(abs_outfolder, 'zlog/cmgrdf_commit.txt')}")
 
+    # Write dp-ee-main commit hash and, eventually, git diff to dp-ee-main_commit.txt
+    os.system(
+        f"cd {os.environ['ANALYSIS_DIR']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}"
+    )
+    os.system(f"cd {os.environ['ANALYSIS_DIR']} && git diff >> {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}")
+
     # Copy all the accessed files to the log folder
     copy_imports(outfolder)
     # Always copy the cpp functions
