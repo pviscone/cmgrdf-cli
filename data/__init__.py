@@ -66,7 +66,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
         all_data.append(Data(data_datasets))
 
 #!Add table
-def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
+def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=False):
     if mccFlow is None:
         mcc_steps = []
     else:
@@ -118,7 +118,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
             #! Loop over all samples
             for sample_name in samples:
                 sample_dict = samples[sample_name]
-                xsec = sample_dict.get("xsec", "xsec")
+                xsec = sample_dict.get("xsec", "xsec") if not noXsec else None
                 group_xsec = group_xsec + xsec if (xsec is not None and group_xsec is not None) else None
                 samples_path = sample_dict.get("path", False)
                 friends_path = sample_dict.get("friends_path", False)
@@ -149,6 +149,11 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = []):
                         for key, value in group_dict.items()
                         if key not in ["name", "samples", "eras", "cut"]
                     }
+
+                    if noXsec:
+                        group_kwargs["genWeightName"] = None
+                        group_kwargs["weight"] = "1."
+
                     mcgroup_samples.append(
                         MCSample(
                         sample_name,
