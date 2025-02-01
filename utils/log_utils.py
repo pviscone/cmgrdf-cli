@@ -1,12 +1,9 @@
 import os
 
-from CMGRDF import Cut, MultiKey, Flow
-from CMGRDF.flow import FlowStep
+from CMGRDF import Cut, MultiKey
 from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
-
-from utils.cli_utils import load_module, parse_function
 
 import __main__
 
@@ -80,6 +77,8 @@ def write_log(outfolder, command, cachepath):
     # Always copy the flow.SFs module
     os.makedirs(os.path.join(outfolder, "zlog/flows"), exist_ok=True)
     os.system(f"cp -r --force {os.path.join(main_dir, 'flows/SFs')} {os.path.join(outfolder, 'zlog/flows/')}")
+    #Always copy the scripts folder
+    os.system(f"cp -r --force {os.path.join(main_dir, 'scripts')} {os.path.join(outfolder, 'zlog/')}")
     return
 
 
