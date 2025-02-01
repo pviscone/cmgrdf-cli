@@ -176,7 +176,7 @@ def run_analysis(
         print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
-        plot = plots.get("main", []) if isinstance(plots, dict) else []
+        plot = copy.deepcopy(plots.get("main", [])) if isinstance(plots, dict) else []
         for _i, flow in enumerate(flow_list):
 
             if nevents != -1:
