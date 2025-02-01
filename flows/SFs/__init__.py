@@ -1,7 +1,6 @@
 import hashlib
 
 from CMGRDF.flow import FlowStep
-from CMGRDF.utils import _recursiveAddToHash
 
 import ROOT
 
