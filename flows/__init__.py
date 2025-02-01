@@ -78,17 +78,19 @@ class Tree:
         A = PG.AGraph(directed=True, strict=True, overlap=False, splines='ortho')
         for _, segment in self.segments.items():
             if not segment.isLeaf:
-                node_1 = clean_fn(Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", ""))
-                A.add_node(node_1)
+                node1 = Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", "")
+                node1_label = clean_fn(node1)
+                A.add_node(node1, label=node1_label)
                 for child in segment.children:
-                    node_2 = clean_fn(Flow(self.segments[child].name, self.segments[child].obj).__str__().replace("\033[1m", "").replace("\033[0m", ""))
+                    node2 = Flow(self.segments[child].name, self.segments[child].obj).__str__().replace("\033[1m", "").replace("\033[0m", "")
+                    node2_label = clean_fn(node2)
                     if self.segments[child].common_to_all:
-                        A.add_node(node_2, fillcolor="#71d0ff61", style="filled")
+                        A.add_node(node2, label=node2_label, fillcolor="#71d0ff61", style="filled")
                     elif self.segments[child].isLeaf:
-                        A.add_node(node_2, fillcolor="#8fff7161", style="filled")
+                        A.add_node(node2, label=node2_label, fillcolor="#8fff7161", style="filled")
                     else:
-                        A.add_node(node_2)
-                    A.add_edge(node_1, node_2, color = "#0032ff" if self.segments[child].common_to_all else "black")
+                        A.add_node(node2)
+                    A.add_edge(node1, node2, color = "#0032ff" if self.segments[child].common_to_all else "black")
 
         A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
         A.draw(f'{outfile}.pdf')
