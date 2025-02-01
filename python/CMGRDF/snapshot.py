@@ -1,8 +1,10 @@
+import contextlib
 import json
 import os
-from typing import Union
+from typing import Any, Optional, Union
 
-import ROOT
+import ROOT  # type: ignore
+from CMGRDF.data import Sample, MCSample, MCGroup, DataDrivenSample, DataSample
 from CMGRDF.flow import Target
 from CMGRDF.utils import recursiveHash, selectColumns
 
@@ -15,11 +17,11 @@ class Snapshot(Target):
 
     def __init__(self,
                  filename : str,
-                 columnSel : 'Union[str, list[str], None]' = None,
-                 columnVeto : 'Union[str, list[str], None]' = None,
-                 compression : 'tuple[str, int]' = ("ZLIB", 1),
+                 columnSel : Optional[Union[str, list[str]]] = None,
+                 columnVeto : Optional[Union[str, list[str]]] = None,
+                 compression : Optional[tuple[str, int]] = ("ZLIB", 1),
                  treeName="Events"):
-        super(Snapshot, self).__init__(os.path.basename(filename).replace(".root", ""))
+        super().__init__(os.path.basename(filename).replace(".root", ""))
         self.filename = filename
         self.treeName = treeName
         self.columnSel = ([] if columnSel is None else ([columnSel] if isinstance(columnSel, str) else list(columnSel)))
@@ -28,32 +30,27 @@ class Snapshot(Target):
         self._hash = recursiveHash(filename, treeName, columnSel, columnVeto, compression)
         self.hadd = False
 
-    def fromCache(self, sample, era, k3, verbose=False):
+    def fromCache(self, sample : Sample, era : Optional[str], k3 : tuple[str, str, str], verbose : bool = False) -> Optional[Any]:
         outname = self.filename.format(era=era, name=sample.name, suffix=sample.suffix)
         sourceid, branchid, selfid = k3
         if os.path.exists(outname):
             metafile = outname.replace(".root", "") + ".meta.json"
             if os.path.exists(metafile) and os.path.getmtime(metafile) > os.path.getmtime(outname):
-                try:
+                with contextlib.suppress(BaseException):
                     meta = json.load(open(metafile))
-                    if meta['sourceid'] == sourceid:
-                        if meta['branchid'] == branchid:
-                            if meta['id'] == selfid:
-                                if verbose:
-                                    print(f"Not remaking snapshot {outname} for {sample.name}")
-                                ret = ROOT.RDataFrame(self.treeName, outname)
-                                ret.fname = outname
-                                ret.entries = meta['entries']
-                                ret.size = meta['size']
-                                ret.sample = sample.name
-                                ret.era = era
-                                return ret
-                except BaseException:  # noqa: B036
-                    # if the cache is not readable or corrupted we just ignore it
-                    pass
+                    if meta['sourceid'] == sourceid and meta['branchid'] == branchid and meta['id'] == selfid:
+                        if verbose:
+                            print(f"Not remaking snapshot {outname} for {sample.name}")
+                        ret = ROOT.RDataFrame(self.treeName, outname)
+                        ret.fname = outname
+                        ret.entries = meta['entries']
+                        ret.size = meta['size']
+                        ret.sample = sample.name
+                        ret.era = era
+                        return ret
         return None
 
-    def toCache(self, snapshot, k3, verbose=False):
+    def toCache(self, snapshot : Any, k3 : tuple[str, str, str], verbose=False) -> None:
         sourceid, branchid, selfid = k3
         metafile = snapshot.fname.replace(".root", "") + ".meta.json"
         meta = dict(sourceid=sourceid, branchid=branchid, id=selfid,
@@ -67,7 +64,7 @@ class Snapshot(Target):
             print(f"Error when saiving metadata in {metafile} for {k3}: {e}")
             pass
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         if ROOT.gROOT.GetVersionInt() >= 63400:
             comprAlgo = getattr(ROOT.RCompressionSetting.EAlgorithm, "k" + self.compression[0].upper())
         else:
@@ -81,7 +78,7 @@ class Snapshot(Target):
         future._fname = outname
         return future
 
-    def finishFuture(self, future, sample, era):
+    def finishFuture(self, future : Any, sample : Sample, era : Optional[str]) -> Any:
         """Receive a future for the nominal value, unwraps it and return the value.
            By defalut it just calls `finish(future.GetValue(), sample, era)`"""
         rdf = future.GetValue()
@@ -96,20 +93,20 @@ class Snapshot(Target):
         rdf.era = era
         return rdf
 
-    def bookVariations(self, future):
+    def bookVariations(self, future : Any) -> None:
         return None
 
-    def finishVarFuture(self, varfuture, sample, era):
+    def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> None:
         return None
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._hash)
 
-    def longId(self):
+    def longId(self) -> str:
         return "Snapshot-" + self._hash
 
 
-def mergeSnapshot(snap, verbose=False):
+def mergeSnapshot(snap : Any, verbose : bool = False) -> None:
     import subprocess
     try:
         out = subprocess.check_output(["hadd", "-ff", snap.fname] + snap.fnames, stderr=subprocess.STDOUT, encoding="utf-8")
@@ -127,3 +124,20 @@ def mergeSnapshot(snap, verbose=False):
     except subprocess.CalledProcessError as e:
         quoted_output = e.stdout.replace('\n', '\n>> ')
         print(f"ERROR when merging {snap.fnames} into {snap.fname}: {e}\n>> {quoted_output}\n")
+
+
+def remakeSampleFromSnapshot(sample : Sample, skimpath) -> Sample:
+    if sample.isMC:
+        # May need to remake mc groups if they were split for distributed processing
+        if isinstance(sample, MCGroup) and not os.path.isfile(skimpath.format(name=sample.name)):
+            files = [skimpath.format(name=sub.name) for sub in sample.samples]
+            if all(os.path.isfile(f) for f in files):
+                print(f"MC sample {sample.name} is split in {', '.join(sub.name for sub in sample.samples)}")
+                return MCSample(sample.name, files, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+        return MCSample(sample.name, skimpath, genWeightName=None, xsec=None, weight="weight", normUncertainties=sample.normUncertainties)
+    elif sample.isDataDriven:
+        return DataDrivenSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    elif sample.isData:
+        return DataSample(sample.name, skimpath, weight="weight", normUncertainties=sample.normUncertainties)
+    else:
+        raise RuntimeError(f"Can't load a sample {sample.name} of unsupported type {type(sample)} from a snapshot in {skimpath}")

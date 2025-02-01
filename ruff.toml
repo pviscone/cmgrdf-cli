@@ -1,0 +1,70 @@
+line-length = 160
+indent-width = 4
+
+# Assume Python 3.9
+target-version = "py39"
+
+exclude = [
+    'externals'
+]
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    ## flake8-simplify
+    "SIM",
+]
+
+ignore = [
+    #E741: ambiguous variable name 'l' (too pedantic! get a good font)
+    "E741",
+
+    #B007 Loop control variable `h` not used within loop body
+    "B007",
+
+    #E402 Module level import not at top of file
+    "E402",
+
+    #E501 Line too long (for now)
+    "E501",
+
+    #UP031 Use format specifiers instead of percent format); will fix later
+    "UP031",
+
+
+    # Most of these can result in less readable code, IMHO
+    #SIM101 Multiple `isinstance` calls, merge into a single call: less readable
+    #SIM102 Use a single `if` statement instead of nested `if` statements: sometimes less readable
+    #SIM103 Return the negated condition directly
+    #SIM108 Use ternary operator instead of `if`-`else`-block
+    "SIM101",
+    "SIM102",
+    "SIM103",
+    "SIM108",
+
+    #SIM115 Use a context manager for opening files
+    "SIM115",
+]
+
+[lint.per-file-ignores]
+"__init__.py" = [
+    #F401 `xxx` imported but unused
+    "F401", 
+
+    #E402: module level import not at top of file
+    "E402",
+]
+"**/examples/*" = [
+    #F403 `from CMGRDF import *` used; unable to detect undefined names
+    "F403",
+
+    #F405 `x` may be undefined, or defined from star imports
+    "F405", 
+]

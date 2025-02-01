@@ -1,15 +1,21 @@
 import copy
 import re
+from typing import Any, Literal, Optional, Union
+from collections.abc import Callable, Container, Iterable
+from abc import ABC, abstractmethod
+
+import ROOT  # type: ignore
 from CMGRDF.data import Sample
-from CMGRDF.utils import _recursiveAddToHash, safeName
+from CMGRDF.utils import recursiveAddToHash, safeName
 
 
-class FlowStep(object):
+class FlowStep:
     """A generic step to the processing flow.
 
        Subclasses should implement the following methods:
-          * _attach(self, rdf):
+          * _attach(self, rdf : Any, withUncertainties):
                 add any RDF processing instructions and return the tip of the new graph
+                includes a flag to override the computation of uncertainties
           * _getAdditionalWeights: (optional, the default returns None)
                 returns a list of column names of weights that are to be
                 multiplied together in the final event weight
@@ -28,7 +34,15 @@ class FlowStep(object):
 
     """
 
-    def __init__(self, name, onMC=True, onDataDriven=True, onData=True, eras=None, suberas=None, samplePattern=None, **options):
+    def __init__(self,
+                 name : str,
+                 onMC : bool = True,
+                 onDataDriven : bool = True,
+                 onData : bool = True,
+                 eras : Optional[Container[str]] = None,
+                 suberas : Optional[Container[Union[str, int]]] = None,
+                 samplePattern : Optional[str] = None,
+                 **options):
         """
         Args:
             name (str): The name of the flowstep.
@@ -50,7 +64,7 @@ class FlowStep(object):
         for k, v in options.items():
             setattr(self, k, v)
 
-    def appliesTo(self, sample : Sample, era) -> bool:
+    def appliesTo(self, sample : Sample, era : Optional[str]) -> bool:
         assert isinstance(sample, Sample)
         if sample.isMC:
             if not self.onMC:
@@ -69,30 +83,33 @@ class FlowStep(object):
             return False
         return True
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties : bool) -> Optional[list[str]]:
         return None
 
-    def attach(self, rdf, weights):
-        rdf2 = self._attach(rdf)
-        if rdf2 != rdf:
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        return rdf
+
+    def attach(self, rdf : Any, weights : list[str], withUncertainties : bool) -> tuple[Any, list[str]]:
+        rdf2 = self._attach(rdf, withUncertainties)
+        if rdf2 != rdf and not hasattr(rdf2, '_from'):
             rdf2._from = rdf
-        w = self._getAdditionalWeights()
+        w = self._getAdditionalWeights(withUncertainties)
         if w:
             weights = weights[:] + w
         return (rdf2, weights)
 
     @staticmethod
-    def _equals(obj1, obj2):
+    def _equals(obj1, obj2) -> bool:
         return (obj1.name == obj2.name and
                 obj1.onMC == obj2.onMC and
                 obj1.onData == obj2.onData and
                 obj1.onDataDriven == obj2.onDataDriven and
                 obj1.eras == obj2.eras)
 
-    def _addToHash(self, hasher):
-        _recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
+    def _addToHash(self, hasher) -> None:
+        recursiveAddToHash((self.__class__.__name__, self.name, self.onMC, self.onData, self.onDataDriven, self.eras), hasher)
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name})\033[0m\n"
         out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
         if self.eras:
@@ -109,9 +126,9 @@ class FlowStep(object):
 class SimpleExprFlowStep(FlowStep):
     """ A Flow step which is fully defined by a single expression.
         This base class implements the equality and hash tests, while it's
-        up to the subclass to implement _attach(self, rdf)"""
+        up to the subclass to implement _attach(self, rdf : Any, withUncertainties)"""
 
-    def __init__(self, name, expr, **options):
+    def __init__(self, name : str, expr : str, **options):
         super().__init__(name, **options)
         self.expr = expr
 
@@ -120,11 +137,11 @@ class SimpleExprFlowStep(FlowStep):
             return FlowStep._equals(self, other) and self.expr == other.expr
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.expr, hasher)
+        recursiveAddToHash(self.expr, hasher)
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = f"\033[1m{self.__class__.__name__}({self.name},{self.expr})\033[0m\n"
         out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
         if self.eras:
@@ -135,10 +152,10 @@ class SimpleExprFlowStep(FlowStep):
 
 
 class Cut(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
+    def __init__(self, name : str, expr : str, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             return rdf.Filter(self.expr, self.name)
         except BaseException:
@@ -147,25 +164,26 @@ class Cut(SimpleExprFlowStep):
 
 
 class Range(SimpleExprFlowStep):
-    def __init__(self, expr, **options):
-        super().__init__("Range", expr, **options)
+    def __init__(self, expr : Union[int, tuple[int, int], tuple[int, int, int], list[int]], **options):
+        super().__init__("Range", repr(expr), **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             if isinstance(self.expr, int):
                 return rdf.Range(self.expr)
-            elif isinstance(self.expr, tuple | list):
+            elif isinstance(self.expr, tuple) or isinstance(self.expr, list):
                 return rdf.Range(*(self.expr))
+            raise RuntimeError(f"Range must be an int or a tuple or list of two ints, got {self.expr} of type {type(self.expr)} instead")
         except BaseException:
             print(f"ERROR attaching Range({self.expr}")
             raise
 
 
 class Define(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
+    def __init__(self, name : str, expr : str, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             return rdf.Define(self.name, self.expr)
         except BaseException:
@@ -174,10 +192,10 @@ class Define(SimpleExprFlowStep):
 
 
 class Alias(SimpleExprFlowStep):
-    def __init__(self, name, column, **options):
+    def __init__(self, name : str, column : str, **options):
         super().__init__(name, column, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             return rdf.Alias(self.name, self.expr)
         except BaseException:
@@ -186,15 +204,14 @@ class Alias(SimpleExprFlowStep):
 
 
 class ReDefine(SimpleExprFlowStep):
-    def __init__(self, name, expr, defineIfMissing=False, **options):
+    def __init__(self, name : str, expr : str, defineIfMissing=False, **options):
         super().__init__(name, expr, **options)
         self.defineIfMissing = defineIfMissing
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
-            if self.defineIfMissing:
-                if self.name not in rdf.GetColumnNames():
-                    return rdf.Define(self.name, self.expr)
+            if self.defineIfMissing and (self.name not in rdf.GetColumnNames()):
+                return rdf.Define(self.name, self.expr)
             return rdf.Redefine(self.name, self.expr)
         except BaseException:
             print(f"ERROR attaching ReDefine({self.name}, {self.expr}")
@@ -202,10 +219,10 @@ class ReDefine(SimpleExprFlowStep):
 
 
 class DeDefinePerSamplefine(SimpleExprFlowStep):
-    def __init__(self, name, expr, **options):
+    def __init__(self, name : str, expr : str, **options):
         super().__init__(name, expr, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
             return rdf.DefinePerSample(self.name, self.expr)
         except BaseException:
@@ -216,14 +233,43 @@ class DeDefinePerSamplefine(SimpleExprFlowStep):
 class DefineDefault(SimpleExprFlowStep):
     """Defines a variable if it's not already present in the tree"""
 
-    def __init__(self, name, expr, **options):
-        super().__init__(name, expr, **options)
+    def __init__(self, name : str, expr : Union[str, float, int, bool], **options : Any):
+        super().__init__(name, str(expr), **options)
+        self.value = expr
+        self._converted = False
+        self._hasDefaultValueFor = False
 
-    def _attach(self, rdf):
-        # FIXME use DefinePerSample
-        if self.name in rdf.GetColumnNames():
-            return rdf
-        return rdf.Define(self.name, self.expr)
+    def _convert(self, hasDefaultValueFor : bool) -> None:
+        if hasDefaultValueFor:
+            if isinstance(self.value, str):
+                value = self.value.strip()
+                if value.lower() in ("true", "false"):
+                    self.value = (value.lower() == "true")
+                else:
+                    try:
+                        self.value = float(value) if "." in value else int(value)
+                    except ValueError:
+                        print(f"WARNING: using DefaultValueFor with a string value '{value}'")
+                        pass
+        else:
+            if not isinstance(self.value, str):
+                if isinstance(self.value, bool):
+                    self.value = "true" if self.value else "false"
+                else:
+                    self.value = repr(self.value)
+        self._converted = True
+        self._hasDefaultValueFor = hasDefaultValueFor
+
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        if not self._converted:
+            self._convert((ROOT.gROOT.GetVersionInt() >= 63400) and ("DistRDF" not in rdf.__module__))
+        if self._hasDefaultValueFor:
+            return rdf.DefaultValueFor(self.name, self.value)
+        else:
+            assert isinstance(self.value, str)
+            if self.name in rdf.GetColumnNames():
+                return rdf
+            return rdf.Define(self.name, self.value)
 
 
 class Vary(SimpleExprFlowStep):
@@ -236,17 +282,20 @@ class Vary(SimpleExprFlowStep):
        You can specify a nuisance name, if not it will be set to the column name
     """
 
-    def __init__(self, name, expr, variationTags=["down", "up"], nuisName=None, **options):
+    def __init__(self, name : str, expr : str, variationTags=("down", "up",), nuisName=None, **options):
         super().__init__(name, expr, **options)
-        self.variationTags = variationTags
+        self.variationTags = list(variationTags)
         self.nuisName = nuisName if nuisName else name
 
-    def _attach(self, rdf):
-        try:
-            return rdf.Vary(self.name, self.expr, variationTags=self.variationTags, variationName=self.nuisName)
-        except BaseException:
-            print(f"ERROR attaching Vary({self.name}, {self.expr}, variationTags={self.variationTags}, variationName={self.nuisName}")
-            raise
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        if withUncertainties:
+            try:
+                return rdf.Vary(self.name, self.expr, variationTags=self.variationTags, variationName=self.nuisName)
+            except BaseException:
+                print(f"ERROR attaching Vary({self.name}, {self.expr}, variationTags={self.variationTags}, variationName={self.nuisName}")
+                raise
+        else:
+            return rdf
 
 
 class AddWeight(SimpleExprFlowStep):
@@ -258,10 +307,10 @@ class AddWeight(SimpleExprFlowStep):
        **Note:** by default, weights are applied only on MC, not on data
     """
 
-    def __init__(self, name, expr="", onData=False, onDataDriven=False, **options):
-        super().__init__(name, expr, onData=onData, onDataDriven=onDataDriven, **options)
+    def __init__(self, name : str, expr : Optional[Union[str, float]] = None, onData=False, onDataDriven=False, **options):
+        super().__init__(name, str(expr) if expr else name, onData=onData, onDataDriven=onDataDriven, **options)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         if self.expr and (self.expr != self.name):
             try:
                 return rdf.Define(self.name, self.expr)
@@ -270,7 +319,7 @@ class AddWeight(SimpleExprFlowStep):
                 raise
         return rdf
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties : bool) -> list[str]:
         return [self.name]
 
 
@@ -283,21 +332,31 @@ class AddWeightUncertainty(FlowStep):
        **Note:** by default, weights are applied only on MC, not on data
     """
 
-    def __init__(self, name, exprUp, exprDown=None, nominal="1.0", nuisName=None, **options):
+    def __init__(self,
+                 name : str,
+                 exprUp : str,
+                 exprDown : Optional[str] = None,
+                 nominal : str = "1.0",
+                 nuisName : Optional[str] = None,
+                 **options):
         super().__init__(name, **options)
         self.nominal = nominal
         if exprDown is not None:
             self.vars = (exprDown, exprUp)
         else:
-            self.vars = ("({0})*({0})/({1})".format(nominal, exprUp), exprUp)
-        self.nuisName = nuisName if nuisName else name
+            self.vars = (f"({nominal})*({nominal})/({exprUp})", exprUp)
+        self.nuisName = nuisName or name
 
-    def _attach(self, rdf):
-        rdf = rdf.Define(self.name, str(self.nominal))
-        rdf = rdf.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down", "up"], variationName=self.nuisName)
-        return rdf
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        if not withUncertainties:
+            return rdf.Define(self.name, str(self.nominal)) if self.nominal != "1.0" else rdf
+        rdf2 = rdf.Define(self.name, str(self.nominal))
+        rdf2._from = rdf
+        return rdf2.Vary(self.name, "ROOT::RVecD{%s, %s}" % self.vars, variationTags=["down", "up"], variationName=self.nuisName)
 
-    def _getAdditionalWeights(self):
+    def _getAdditionalWeights(self, withUncertainties : bool) -> Optional[list[str]]:
+        if self.nominal == "1.0" and not withUncertainties:
+            return None
         return [self.name]
 
     def __eq__(self, other) -> bool:
@@ -305,27 +364,27 @@ class AddWeightUncertainty(FlowStep):
             return FlowStep._equals(self, other) and self.nominal == other.nominal and self.vars == other.vars
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
-        _recursiveAddToHash(self.nominal, hasher)
-        _recursiveAddToHash(self.vars, hasher)
+        recursiveAddToHash(self.nominal, hasher)
+        recursiveAddToHash(self.vars, hasher)
 
 
 class ComputeTotalWeight(SimpleExprFlowStep):
     """Computes the total weight, by issuing the necessary Define, Redefine or Alias"""
 
-    def __init__(self, weights=None, name="weight"):
+    def __init__(self, weights : Optional[list[str]] = None, name : str = "weight"):
         super().__init__(name, "__auto__" if weights is None else "*".join(weights))
         self.weights = weights
 
-    def attach(self, rdf, weights):
+    def attach(self, rdf : Any, weights : list[str], withUncertainties : bool) -> tuple[Any, list[str]]:
         operands = self.weights if self.weights is not None else weights
-        rdf2 = self._attach(rdf, operands)
+        rdf2 = self._attachNode(rdf, operands)
         if rdf2 != rdf:
             rdf2._from = rdf
         return (rdf2, weights)
 
-    def _attach(self, rdf, weights):
+    def _attachNode(self, rdf : Any, weights) -> Any:
         existing = self.name in rdf.GetColumnNames()
         expr = "*".join(weights)
         if len(weights) == 0:
@@ -357,7 +416,7 @@ class ComputeTotalWeight(SimpleExprFlowStep):
 class Marker(FlowStep):
     """ A Flow step that does nothing at all, but can be used as a marker in the cut flow"""
 
-    def __init__(self, name, doc="", **options):
+    def __init__(self, name : str, doc : str = "", **options):
         super().__init__(name, **options)
         self.doc = doc
 
@@ -366,34 +425,44 @@ class Marker(FlowStep):
             return FlowStep._equals(self, other) and self.doc == other.doc
         return id(self) == id(other)
 
-    def _addToHash(self, hasher):
+    def _addToHash(self, hasher) -> None:
         super()._addToHash(hasher)
 
-    def _attach(self, rdf):
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         return rdf
 
 
-class Flow(object):
+class Flow:
     """A sequence of steps, with a name."""
 
-    def __init__(self, name, *steps, **options):
+    def __init__(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]], **options : Any):
         self.name = name
-        self.steps = Flow._flatten(steps)  # type: list[FlowStep]
+        self.steps = Flow.flatten(steps)
         for k, v in options.items():
             setattr(self, k, v)
+        self._from = None
 
     @staticmethod
-    def _flatten(steps):
-        ret = []
+    def flatten(steps: Iterable[Union[FlowStep, Iterable[FlowStep]]]) -> list[FlowStep]:
+        """
+        Flattens a nested iterable of FlowStep objects into a single list of FlowStep objects.
+
+        Args:
+            steps (Iterable[Union[FlowStep, Iterable[FlowStep]]]): An iterable containing FlowStep objects or nested iterables of FlowStep objects.
+
+        Returns:
+            list[FlowStep]: A flattened list containing all FlowStep objects from the input iterable.
+        """
+        ret: list[FlowStep] = []
         for s in steps:
             if isinstance(s, list):
-                ret += Flow._flatten(s)
+                ret += Flow.flatten(s)
             else:
                 assert isinstance(s, FlowStep)
                 ret.append(s)
         return ret
 
-    def clone(self, newName=None):
+    def clone(self, newName : Optional[str] = None) -> "Flow":
         ret = copy.copy(self)
         if newName:
             ret.name = newName
@@ -401,8 +470,8 @@ class Flow(object):
         ret._from = self
         return ret
 
-    def upToStep(self, step, included=True):
-        newsteps = []
+    def upToStep(self, step : str, included=True) -> "Flow":
+        newsteps: list[FlowStep] = []
         for s in self.steps:
             newsteps.append(s)
             if s.name == step:
@@ -412,104 +481,113 @@ class Flow(object):
         self.steps = newsteps
         return self
 
-    def fromStep(self, step, included=True):
-        newsteps = []
+    def fromStep(self, step : str, included=True) -> "Flow":
+        newsteps: list[FlowStep] = []
         for s in reversed(self.steps):
             newsteps.append(s)
             if s.name == step:
                 if not included:
                     newsteps.pop()
                 break
-        self.steps = reversed(newsteps)
+        self.steps = list(reversed(newsteps))
         return self
 
-    def prepend(self, *steps):
-        self.steps[0:0] = Flow._flatten(steps)
+    def prepend(self, *steps) -> "Flow":
+        self.steps[0:0] = Flow.flatten(steps)
         return self
 
-    def append(self, *steps):
-        self.steps += Flow._flatten(steps)
+    def append(self, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
+        self.steps += Flow.flatten(steps)
         return self
 
-    def replace(self, name, *steps):
+    def replace(self, name : str, *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
         matches = [i for (i, s) in enumerate(self.steps) if s.name == name]
         if len(matches) != 1:
             raise RuntimeError(f"Looking for step {name} in flow {self.name}, found {matches}")
         idx = matches[0]
-        self.steps = self.steps[:idx] + Flow._flatten(steps) + self.steps[idx + 1:]
+        self.steps = self.steps[:idx] + Flow.flatten(steps) + self.steps[idx + 1:]
         return self
 
-    def remove(self, *names):
+    def remove(self, *names : str) -> "Flow":
         self.steps = [s for s in self.steps if s.name not in names]
         return self
 
-    def filterSteps(self, stepFilter):
+    def filterSteps(self, stepFilter : Callable[[FlowStep], bool]) -> "Flow":
         self.steps = [s for s in self.steps if stepFilter(s)]
         return self
 
-    def insertBeforeOrAfter(self, when : str, name, *steps):
+    def insertBeforeOrAfter(self,
+                            when : Literal["before", "after"],
+                            name : str,
+                            *steps : Union[FlowStep, Iterable[FlowStep]]) -> "Flow":
         assert (when in ("before", "after"))
-        newSteps = []
+        newSteps: list[FlowStep] = []
         found = True
         for s in self.steps:
             if s.name == name and when == "before":
-                newSteps += Flow._flatten(steps)
+                newSteps += Flow.flatten(steps)
             newSteps.append(s)
             if s.name == name and when == "after":
-                newSteps += Flow._flatten(steps)
+                newSteps += Flow.flatten(steps)
         self.steps = newSteps
         if not found:
             raise RuntimeError("Not found step %s in flow %s" % (name, self.name))
         return self
 
-    def __add__(self, other_flow):
+    def __add__(self, other_flow) -> "Flow":
         return Flow(f"{self.name}+{other_flow.name}", [*self.steps, *other_flow.steps])
 
-    def __getitem__(self, key):
+    def __getitem__(self, key : int) -> FlowStep:
         return self.steps[key]
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = f"\033[1mFlow: {self.name}\033[0m ({len(self.steps)} steps)\n\n"
         for idx, s in enumerate(self.steps):
             out += f"\t{idx + 1}. {s.__str__()}\n"
         return out
 
     @property
-    def show(self):
+    def show(self) -> None:
         print(self)
 
 
-class Target(object):
+class Hook(ABC):
+    @abstractmethod
+    def customizeFlow(self, flow : Flow, era : Optional[str]) -> Flow:
+        raise NotImplementedError
+
+
+class Target:
     """An endpoint of the graph, e.g. a plot, yield, or similar."""
 
-    def __init__(self, name, mcOnly=False):
+    def __init__(self, name : str, mcOnly : bool = False):
         self.name = name
         self.mcOnly = mcOnly
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         raise RuntimeError("Must be implemented by subclass")
 
-    def bookVariations(self, future, VariationsFor):
+    def bookVariations(self, future : Any) -> Any:
         """Calls RDF.Experimental.VariationsFor or any customization of it"""
-        return VariationsFor(future)
+        return ROOT.RDF.Experimental.VariationsFor(future)
 
-    def finish(self, value, sample, era):
+    def finish(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
         """Performs any post-processing of the nominal value returned by the RDF future.
            This is done before caching, so it should do manipulations that affect the
            content (e.g. handling overflows), while presentation aspects (e.g. labels)
            are better done later so that they can be changed even when the object is read from cache."""
         return value
 
-    def finishFuture(self, future, sample, era):
+    def finishFuture(self, future : Any, sample : Sample, era : Optional[str]) -> Any:
         """Receive a future for the nominal value, unwraps it and return the value.
-           By defalut it just calls `finish(future.GetValue(), sample, era)`"""
+           By default it just calls `finish(future.GetValue(), sample, era)`"""
         return self.finish(future.GetValue(), sample, era)
 
-    def finishVarFuture(self, varfuture, sample, era):
+    def finishVarFuture(self, varfuture : Any, sample : Sample, era) -> Optional[dict[str, Any]]:
         """Receive the RDF variations for an object, and by default unpacks them into a python map"""
         return dict((k, self.finish(varfuture[k], sample, era)) for k in varfuture.GetKeys())
 
-    def longId(self):
+    def longId(self) -> Optional[str]:
         """If different from None, it should be an unique and it will allow the result to be cached."""
         return None
 
@@ -517,39 +595,39 @@ class Target(object):
 class Yield(Target):
     """Computes an event yield (sum of the weights), with optional stat and syst uncertainties"""
 
-    def __init__(self, name, weight="weight", mcOnly=False):
-        super(Yield, self).__init__(name, mcOnly=mcOnly)
+    def __init__(self, name : str, weight : str = "weight", mcOnly : bool = False):
+        super().__init__(name, mcOnly=mcOnly)
         self.weight = weight
 
-    def attach(self, rdf, sample, era):
+    def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         fut = rdf.Sum(self.weight)
         fut._rdf = rdf
         return fut
 
-    def attachSumw2(self, rdf):
+    def attachSumw2(self, rdf: Any) -> Any:
         return rdf.Define(self.weight + "2", self.weight + "*" + self.weight).Sum(self.weight + "2")
 
-    def bookVariations(self, future, VariationsFor):
+    def bookVariations(self, future : Any) -> tuple[Any, Any]:
         sum2 = self.attachSumw2(future._rdf)
-        return (sum2, VariationsFor(future))
+        return (sum2, ROOT.RDF.Experimental.VariationsFor(future))
 
-    def finishVarFuture(self, varfuture, sample, era):
+    def finishVarFuture(self, varfuture : Any, sample : Sample, era : Optional[str]) -> dict[str, Any]:
         ret = dict()
         if isinstance(varfuture, tuple):
             sum2, systs = varfuture
-            ret = dict((k, systs[k]) for k in systs.GetKeys())
+            ret = dict((str(k), systs[k]) for k in systs.GetKeys())
             ret[""] = sum2.GetValue()
         else:
             ret[""] = varfuture.GetValue()
         return ret
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if other.__class__ == Yield:
             return self.name == other.name and self.weight == other.weight
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.longId())
 
-    def longId(self):
+    def longId(self) -> str:
         return "%s-%s" % (safeName(self), self.weight)

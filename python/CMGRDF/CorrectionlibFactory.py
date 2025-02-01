@@ -1,15 +1,16 @@
-import correctionlib
 import re
 from CMGRDF.init import Declare
+from typing import Any, Optional
 
+import correctionlib  # type: ignore
 correctionlib.register_pyroot_binding()
 
 
-class CorrectionlibFactory(object):
-    _ids = dict()  # type: dict[str,str]
+class CorrectionlibFactory:
+    _ids: dict[str, str] = dict()
 
     @classmethod
-    def _strToId(cls, name: str, prefix : str, hint=None):
+    def _strToId(cls, name: str, prefix : str, hint : Optional[str] = None) -> str:
         """Returns a unique C++-safe ID string for name, preferrably equal to hint if specified"""
         if name not in cls._ids:
             safe = re.sub("[^A-Za-z0-9_]", "", (hint if hint else name))
@@ -21,10 +22,10 @@ class CorrectionlibFactory(object):
             cls._ids[name] = key
         return cls._ids[name]
 
-    _files = dict()  # type: dict[str,str]
+    _files : dict[str, tuple[str, Any]] = dict()
 
     @classmethod
-    def _loadSet(cls, filename : str, hint=None, check=False):
+    def _loadSet(cls, filename : str, hint : Optional[str] = None, check : bool = False) -> tuple[str, Any]:
         """Loads a CorrectionSet from file, with a preferred name."""
         if filename not in cls._files:
             fileid = cls._strToId(filename, "_correctionlibSet_", hint=hint)
@@ -34,20 +35,20 @@ class CorrectionlibFactory(object):
             Declare(f'auto {fileid} = correction::CorrectionSet::from_file("{filename}");')
         return cls._files[filename]
 
-    _correctors = dict()  # type: dict[tuple[str,str],str]
+    _correctors : dict[tuple[str, str], tuple[str, Any]] = dict()
 
     @classmethod
-    def loadCorrector(cls, filename : str, corrector : str, fileHint=None, corrHint=None, check=False, access_method="at"):
+    def loadCorrector(cls, filename : str, corrector : str, fileHint=None, corrHint=None, check=False, access_method="at") -> tuple[str, Any]:
         if (filename, corrector) not in cls._correctors:
             corrSetId, corrSet = cls._loadSet(filename, hint=fileHint, check=check)
-            if check:
-                if corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
-                    raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " + ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
+            if check and corrector not in list(corrSet.keys()) + list(corrSet.compound.keys()):
+                raise RuntimeError(f"Error: can't find {corrector} in {filename}: available corrections are " +
+                                   ", ".join(sorted(corrSet.keys()) + sorted(corrSet.compound.keys())))
             corrId = cls._strToId(corrector + filename, corrSetId + "_corr_", hint=corrHint)
             Declare(f'auto {corrId} = {corrSetId}->{access_method}("{corrector}");')
-            if access_method == "at":
-                corr = corrSet[corrector] if check else None
+            if check:
+                corr = corrSet[corrector] if access_method == "at" else corrSet.compound[corrector]
             else:
-                corr = corrSet.compound[corrector] if check else None
+                corr = None
             cls._correctors[(filename, corrector)] = (corrId, corr)
         return cls._correctors[(filename, corrector)]

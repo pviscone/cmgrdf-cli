@@ -1,11 +1,12 @@
 from math import hypot, ceil
+import json
 import re
 import os
 import os.path
 from array import array
-from typing import Any
+from typing import Any, Literal, Optional
 
-import ROOT
+import ROOT  # type: ignore
 from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitContext, listAllNuisances, mergePlots, warnAboutNegativeBins
 from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
@@ -22,8 +23,14 @@ def _unTLatex(string : str) -> str:
 
 
 class Plot(Target):
-    def __init__(self, name, *args, typ="Histo1D", mcOnly=False, cut=None, **options):
-        super(Plot, self).__init__(name, mcOnly=mcOnly)
+    def __init__(self,
+                 name,
+                 *args : Any,
+                 typ : Literal["Histo1D", "Histo2D"] = "Histo1D",
+                 mcOnly : bool = False,
+                 cut : Optional[str] = None,
+                 **options):
+        super().__init__(name, mcOnly=mcOnly)
         for k, v in options.items():
             setattr(self, k, v)
         self.type = typ
@@ -45,7 +52,7 @@ class Plot(Target):
             else:
                 nbins, low, high = self._bins
                 self._model = ROOT.RDF.TH1DModel(self.name, self.getOpt("title", self.name), int(nbins), low, high)
-            self._template = self._model.GetHistogram()
+            self.template = self._model.GetHistogram()
         elif typ == "Histo2D":
             self._expr = args[0]
             if isinstance(args[1], list):
@@ -66,14 +73,14 @@ class Plot(Target):
             else:
                 nbinsx, lowx, highx, nbinsy, lowy, highy = self._bins
                 self._model = ROOT.RDF.TH2DModel(self.name, self.getOpt("title", self.name), int(nbinsx), lowx, highx, int(nbinsy), lowy, highy)
-            self._template = self._model.GetHistogram()
+            self.template = self._model.GetHistogram()
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
         self.cut = cut
         self._bigHash = None
 
-    def _prepareExpr(self, rdf, expr, name):
+    def _prepareExpr(self, rdf : Any, expr: str, name : str) -> tuple[Any, str]:
         if expr in rdf.GetColumnNames():
             return (rdf, expr)
         #print("Will create a new expression for plot "+self.name)
@@ -85,27 +92,28 @@ class Plot(Target):
         rdf2._from = rdf
         return (rdf2, name)
 
-    def getOpt(self, name, default=None):
+    def getOpt(self, name : str, default=None) -> Any:
         return getattr(self, name, default)
 
-    def hasOpt(self, name):
+    def hasOpt(self, name : str) -> bool:
         return hasattr(self, name)
 
-    def bookHisto1D(self, rdf, sample : Sample, era) -> Any:
+    def bookHisto1D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         rdf, expr = self._prepareExpr(rdf, self._expr, self.name + "__plot_expr_")
         ret = rdf.Histo1D(self._model, expr, "weight")
         ret._from = rdf
         return ret
 
-    def bookHisto2D(self, rdf, sample : Sample, era) -> Any:
+    def bookHisto2D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
         rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
         ret = rdf.Histo2D(self._model, expr_x, expr_y, "weight")
         ret._from = rdf
         return ret
 
-    def finishHisto1D(self, plot, sample : Sample, era) -> Any:
+    def finishHisto1D(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
         """Make changes to the plot that affect the contents"""
+        plot = value
         ## Contents
         if self.getOpt('includeOverflows', True) or self.getOpt('includeUnderflow', False):
             plot.SetBinContent(1, plot.GetBinContent(0) + plot.GetBinContent(1))
@@ -120,10 +128,10 @@ class Plot(Target):
             plot.SetBinError(n + 1, 0)
         return plot
 
-    def finishHisto2D(self, plot, sample : Sample, era) -> Any:
-        return plot
+    def finishHisto2D(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
+        return value
 
-    def styleHisto(self, plot, process : Process):
+    def styleHisto(self, plot : Any, process : Process):
         """Common for 2D and 1D"""
 
         plot.SetTitle(self.getOpt('title', self.name))
@@ -146,7 +154,7 @@ class Plot(Target):
         plot.GetYaxis().SetLabelFont(42)
         return plot
 
-    def styleHisto1D(self, plot, process : Process):
+    def styleHisto1D(self, plot : Any, process : Process) -> Any:
         plot = self.styleHisto(plot, process)
 
         """Make changes to the plot that affect only the style"""
@@ -157,16 +165,16 @@ class Plot(Target):
                 plot.GetXaxis().SetBinLabel(i + 1, l)
         return plot
 
-    def styleHisto2D(self, plot, process : Process):
+    def styleHisto2D(self, plot : Any, process : Process) -> Any:
         plot = self.styleHisto(plot, process)
         return plot
 
-    def restyleAsOutline(self, plot):
+    def restyleAsOutline(self, plot : Any) -> None:
         plot.SetLineWidth(3)
         plot.SetLineColor(plot.GetFillColor())
         plot.SetFillStyle(0)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if other.__class__ == Plot:
             if self.name != other.name:
                 return False
@@ -175,47 +183,55 @@ class Plot(Target):
             return self._forEquals == other._forEquals
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.bigHash())
 
-    def bigHash(self):
+    def bigHash(self) -> str:
         if not self._bigHash:
             self._bigHash = recursiveHash(self.name, self.type, self._forEquals)
         return self._bigHash
 
-    def longId(self):
+    def longId(self) -> str:
         return "%s-%s" % (safeName(self), self.bigHash())
 
 
-class PlotResult(object):
+class PlotResult:
     """A plot, with the specifications, the histograms with all the individual components and possibly some totals"""
 
-    def __init__(self, plot, histos, fillTotals=True):
+    def __init__(self,
+                 plot : Plot,
+                 histos : list[tuple[Process, Any]],
+                 fillTotals : bool = True):
         self.spec = plot
         self.name = plot.name
-        self.template = self.spec._template
+        self.template = self.spec.template
         self.histos = [(k, h if isinstance(h, HistoWithNuisances) else HistoWithNuisances(h)) for (k, h) in histos]
-        self.totals = {}
-        self._roofit = None
+        self.totals : dict[Literal["signal", "background"], HistoWithNuisances] = {}
+        self.lumi : Optional[float] = None
+        self._roofit : Optional[RooFitContext] = None
+        self._roofitPOI : Optional[Any] = None
         if fillTotals:
             self.fillTotals()
 
-    def __getattr__(self, key):
+    def __getattr__(self, key : str) -> Any:
         return getattr(self.spec, key)
 
-    def histByProcName(self, procName):
+    def toJSON(self) -> dict[str, Any]:
+        return dict(name=self.name, histos=dict((p.name, h.toJSON()) for (p, h) in self.histos))
+
+    def histByProcName(self, procName) -> Optional[HistoWithNuisances]:
         for (p, h) in self.histos:
             if p.name == procName:
                 return h
         return None
 
-    def histData(self):
+    def histData(self) -> Optional[HistoWithNuisances]:
         for (p, h) in self.histos:
             if p.isData:
                 return h
         return None
 
-    def fillTotals(self):
+    def fillTotals(self) -> None:
         sigs, bkgs = [], []
         for k, h in self.histos:
             if k.isSignal:
@@ -227,10 +243,14 @@ class PlotResult(object):
         if bkgs:
             self.totals["background"] = mergePlots("background", bkgs)
 
-    def initRooFit(self, workspace=None, xvarName="x", density=False, context : RooFitContext = None):
+    def initRooFit(self,
+                   workspace : Optional[Any] = None,
+                   xvarName : str = "x",
+                   density : bool = False,
+                   context : Optional[RooFitContext] = None) -> RooFitContext:
         """Set up RooFit for all the plots"""
         if self._roofit:
-            print("Warning, calling initRooFit twice on PlotResult {self.name}")
+            print(f"Warning, calling initRooFit twice on PlotResult {self.name}")
         # sanity check all inputs, and get one representative histogram
         h0 = None
         for k, h in self.histos:
@@ -256,6 +276,7 @@ class PlotResult(object):
             if not hasattr(workspace, 'nodelete'):
                 workspace.nodelete = []
             roofit = RooFitContext(workspace)
+        assert (roofit is not None) and (workspace is not None)
         if not roofit.xvar:
             # create the x variable
             roofit.prepareXVar(h0, density, name=xvarName)
@@ -267,15 +288,15 @@ class PlotResult(object):
             h.setupRooFit(roofit)
         # and return the context
         self._roofit = roofit
-
-    def getRooFit(self):
-        if self._roofit is None:
-            self.initRooFit()
         return self._roofit
 
-    def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : str = "r"):
+    def getRooFit(self) -> RooFitContext:
+        return self._roofit if self._roofit is not None else self.initRooFit()
+
+    def setPostFit(self, posfit : PostFitSetup, applyIt : bool, signalPOI : Optional[str] = "r") -> None:
         if not self._roofit:
             self.initRooFit()
+        assert self._roofit
         if signalPOI is not None and signalPOI != "":
             poiVar = self._roofit.workspace.var(signalPOI)
             if not poiVar:
@@ -298,19 +319,19 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     points = []
     errors = []
     for i in range(h.GetNbinsX()):
-        N = h.GetBinContent(i + 1)
+        n = h.GetBinContent(i + 1)
         dN = h.GetBinError(i + 1)
-        if drawZeroBins or N > 0:
-            if N > 0 and dN > 0 and abs(dN**2 / N - 1) > 1e-4:
+        if drawZeroBins or n > 0:
+            if n > 0 and dN > 0 and abs(dN**2 / n - 1) > 1e-4:
                 #print "Hey, this is not Poisson to begin with! %.2f, %.2f, neff = %.2f, yscale = %.5g" % (N, dN, (N/dN)**2, (dN**2/N))
-                yscale = (dN**2 / N)
-                N = (N / dN)**2
+                yscale = (dN**2 / n)
+                n = (n / dN)**2
             else:
                 yscale = 1
             x = xaxis.GetBinCenter(i + 1)
-            points.append((x, yscale * N))
-            EYlow = (N - ROOT.ROOT.Math.chisquared_quantile_c(1 - q, 2 * N) / 2.) if N > 0 else 0
-            EYhigh = ROOT.ROOT.Math.chisquared_quantile_c(q, 2 * (N + 1)) / 2. - N
+            points.append((x, yscale * n))
+            EYlow = (n - ROOT.ROOT.Math.chisquared_quantile_c(1 - q, 2 * n) / 2.) if n > 0 else 0
+            EYhigh = ROOT.ROOT.Math.chisquared_quantile_c(q, 2 * (n + 1)) / 2. - n
             EXhigh, EXlow = (xaxis.GetBinUpEdge(i + 1) - x, x - xaxis.GetBinLowEdge(i + 1)) if drawXbars else (0, 0)
             errors.append((EXlow, EXhigh, yscale * EYlow, yscale * EYhigh))
     ret = ROOT.TGraphAsymmErrors(len(points))
@@ -328,14 +349,15 @@ def getDataPoissonErrors(h, drawZeroBins=False, drawXbars=False):
     return ret
 
 
-class PlotSetPrinter(object):
+class PlotSetPrinter:
     @staticmethod
-    def defaultOptions():
+    def defaultOptions() -> Options:
         opts = Options()
         opts.declare("stack", True, bool, help="Whether different contributions should be stacked")
-        opts.declare("plotFormats", "png,pdf,root,txt", help="Output format for plots")
+        opts.declare("plotFormats", "png,pdf,root,txt,json", help="Output format for plots")
         opts.declare("noStackSignals", False, bool, help="Don't include signals in the stack")
-        opts.declare("showErrors", False, bool, help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines")
+        opts.declare("showErrors", False, bool,
+                     help="Show errors: in stacked plots, it will be on total (shaded band), otherwise it will be on individual outlines")
         opts.declare("extraLabel", help="Additional label to put in the plots")
         opts.declare("topLeftText", "#bf{CMS} #it{Internal}", help="Text on the top left of the canvas")
         opts.declare("topRightText", "", help="Text on the top right of the canvas")
@@ -359,13 +381,13 @@ class PlotSetPrinter(object):
     def __init__(self, **options):
         self._options = PlotSetPrinter.defaultOptions().update(**options)
 
-    def printSet(self, plots : MultiReport, path, **options):
+    def printSet(self, plots : MultiReport, path : str, **options) -> None:
         assert isinstance(plots, MultiReport)
         ## Loop on the plots and print them
         for plotKey, plot in plots:
             self.printPlot(plot, path.format(**plotKey), **options)
 
-    def printPlot(self, plot, path, **options):
+    def printPlot(self, plot : PlotResult, path : str, **options) -> None:
         ## make directory (FIXME make this better)
         if not os.path.exists(path):
             os.makedirs(path)
@@ -379,7 +401,7 @@ class PlotSetPrinter(object):
         total.SetName(outputName + "_total")
         outputFormats = opts.plotFormats.split(",")
         if "jupyter" in outputFormats:
-            from IPython.display import Image, HTML, display
+            from IPython.display import Image, HTML, display  # type: ignore
             outputFormats.remove("jupyter")
             if "png" not in outputFormats:
                 outputFormats.append("png")
@@ -593,7 +615,7 @@ class PlotSetPrinter(object):
                         continue
                     norm = hist.Integral()
                     stat = hist.integralStatError()
-                    syst = hist.integralSystError(symmetrize=True)
+                    syst : float = hist.integralSystError(symmetrize=True)  # type: ignore
                     var_perbin = [hist.GetBinContent(i + 1) for i in range(hist.GetNbinsX())]
                     if i == row1:
                         dump.write(("-" * (maxlen + 45)) + "\n")
@@ -630,17 +652,28 @@ class PlotSetPrinter(object):
                     c1.Print("%s/%s.%s" % (path, outputName, ext))
                     ROOT.gErrorIgnoreLevel = savErrorLevel
 
+            elif ext == "json":
+                json.dump(plot.toJSON(), open("%s/%s.%s" % (path, outputName, ext), "w"))
             elif ext == "root":
                 pass  # already being done
             elif ext == "jupyter":
-                display(Image("%s/%s.png" % (path, outputName)))
+                display(Image("%s/%s.png" % (path, outputName)))  # type: ignore
             else:
                 raise RuntimeError("Unsupported output format %r" % ext)
         if outputTDir:
             outputTDir.Close()
         c1.Close()
 
-    def addLabel(self, c1, text, x1, y1, x2, y2, align=12, fill=False, textSize=0.033):
+    def addLabel(self,
+                 c1 : Any,
+                 text : str,
+                 x1 : float,
+                 y1 : float,
+                 x2 : float,
+                 y2 : float,
+                 align : int = 12,
+                 fill : bool = False,
+                 textSize : float = 0.033) -> Any:
         cmsprel = ROOT.TPaveText(x1, y1, x2, y2, "NDC")
         cmsprel.SetTextSize(textSize)
         cmsprel.SetFillColor(0)
@@ -656,7 +689,7 @@ class PlotSetPrinter(object):
         c1._labels.append(cmsprel)
         return cmsprel
 
-    def addLabels(self, c1, opts, hasExpo=False, textSize=0.033, xoffs=0, doWide=False, lumi=None):
+    def addLabels(self, c1, opts : Options, hasExpo=False, textSize=0.033, xoffs=0, doWide=False, lumi=None) -> None:
         ymin, ymax = .955, .995
         if opts.topLeftText not in ['', None]:
             self.addLabel(c1, opts.topLeftText % dict(lumi=lumi),
@@ -667,14 +700,9 @@ class PlotSetPrinter(object):
                           (0.5 if doWide else .58) + xoffs, ymin, .98 + xoffs, ymax,
                           align=32, textSize=textSize)
 
-    def doLegend(self, c1, plot, total, totalError, opts, locvars):
-        if opts.stack:
-            if opts.noStackSignals:
-                mcStyle = ("L", "F")
-            else:
-                mcStyle = ("F", "F")
-        else:
-            mcStyle = ("L", "L")
+    def doLegend(self, c1, plot, total, totalError, opts, locvars) -> None:
+        mcStyleB = ("F" if opts.stack else "L")
+        mcStyleS = ("F" if opts.stack and not opts.noStackSignals else "L")
         corner = plot.getOpt("legend", "TR")
         if corner in ("none", "off"):
             return
@@ -688,11 +716,11 @@ class PlotSetPrinter(object):
             elif proc.isSignal:
                 if hist.Integral() < opts.legendCutOffSignals * totvalue:
                     continue
-                sigEntries.append((hist.raw(), proc.label, mcStyle[0]))
+                sigEntries.append((hist.raw(), proc.label, mcStyleS))
             else:
                 if hist.Integral() < opts.legendCutOffBackgrounds * totvalue:
                     continue
-                bgEntries.append((hist.raw(), proc.label, mcStyle[1]))
+                bgEntries.append((hist.raw(), proc.label, mcStyleB))
         entries = dataEntries + sigEntries + bgEntries
         if totalError:
             entries.append((totalError, "Total unc.", "F"))
@@ -869,7 +897,7 @@ class PlotSetPrinter(object):
         return ret
 
 
-def normalizePlots(plots, normSumToData=False):
+def normalizePlots(plots, normSumToData=False) -> None:
     for k, plotresult in plots:
         normValue = 1.0
         if normSumToData:

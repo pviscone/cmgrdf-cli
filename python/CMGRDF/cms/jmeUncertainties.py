@@ -1,8 +1,8 @@
 from CMGRDF.init import Declare
 from CMGRDF.flow import Define, Cut
-from CMSJMECalculators import loadJMESystematicsCalculators
+from CMSJMECalculators import loadJMESystematicsCalculators  # type: ignore
 loadJMESystematicsCalculators()
-from CMSJMECalculators import config as calcConfigs
+from CMSJMECalculators import config as calcConfigs  # type: ignore
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 
 jecTags = {
@@ -66,7 +66,7 @@ jetVetoTags = {
 }
 
 
-class JMEFactory(object):
+class JMEFactory:
     _ids = dict()
 
     @classmethod
@@ -94,7 +94,7 @@ class JMEFactory(object):
 
 
 class JMEUncertaintiesDefine(Define):
-    def __init__(self, splitJER=False, uncSources=["Total"], doMET=True,
+    def __init__(self, splitJER=False, uncSources=("Total",), doMET=True,
                  jetAlgo="AK4PFPuppi", metcollection="PuppiMET", doSyst=False, suffix="", **options):
 
         if len(options['eras']) != 1:
@@ -152,37 +152,55 @@ class JMEUncertaintiesDefine(Define):
         JMEFactory.loadJME(self.doMET, self.era, self.subera, self.jetAlgo, self.onData, self.splitJER, self.uncSources, self.suffix)
         self._init = True
 
-    def _attach(self, rdf) :
+    def _attach(self, rdf, withUncertainties) :
         if not self._init:
             self.init()
 
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
+            rdf._from = src
             if self.doMET:
+                src = rdf
                 rdf = rdf.Redefine(f"{self.metcollection}_pt", f"{self.metcollection}_T1.pt(0)")
+                rdf._from = src
+                src = rdf
                 rdf = rdf.Redefine(f"{self.metcollection}_phi", f"{self.metcollection}_T1.phi(0)")
+                rdf._from = src
 
-                if self.doSyst:
+                if self.doSyst and withUncertainties:
                     for obs in ["pt", "phi"]:
                         njer = 1 if not self.splitJER else 6
                         for ijer in range(njer):
+                            src = rdf
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * ijer + 1, 2 * ijer + 2),
                                            variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
+                            rdf._from = src
                         for isource, source in enumerate(self.uncSources):
+                            src = rdf
                             rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                            variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
+                            rdf._from = src
+                        src = rdf
                         rdf = rdf.Vary(f"{self.metcollection}_{obs}", f"ROOT::RVecD({{ {self.metcollection}_T1.{obs}(%d), {self.metcollection}_T1.{obs}(%d)}})" % (1 + 2 * njer + 2 * len(self.uncSources), 2 + 2 * njer + 2 * len(self.uncSources)),
                                        variationTags=["up", "down"], variationName="Uncl")
+                        rdf._from = src
             else:
+                src = rdf
                 rdf = rdf.Redefine("Jet_pt", "ak4JetVars.pt(0)")
-                if self.doSyst:
+                rdf._from = src
+                if self.doSyst and withUncertainties:
                     njer = 1 if not self.splitJER else 6
                     for ijer in range(njer):
+                        src = rdf
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * ijer + 1, 2 * ijer + 2),
                                        variationTags=["up", "down"], variationName="CMS_res_j_%s_%s" % (ijer, self.era))
+                        rdf._from = src
                     for isource, source in enumerate(self.uncSources):
+                        src = rdf
                         rdf = rdf.Vary("Jet_pt", "ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>>({ ak4JetVars.pt(%d), ak4JetVars.pt(%d)})" % (2 * isource + 2 * njer + 1, 2 * isource + 2 * njer + 2),
                                        variationTags=["up", "down"], variationName="CMS_scale_j_%s" % source)
+                        rdf._from = src
             return rdf
 
         except BaseException:
@@ -196,7 +214,7 @@ class JetVetoMapCut(Cut):
             raise RuntimeError("You can only call JetVetoMapCut for one era")
         self.era = options['eras'][0]
 
-        super().__init__(cutName, f"passesJetVetoMap_{self.era}( Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
+        super().__init__(cutName, f"passesJetVetoMap_{self.era}(Jet_pt, Jet_eta, Jet_phi, Jet_jetId, Jet_neEmEF, Jet_neHEF, Muon_eta, Muon_phi, Muon_isPFcand)", **options)
 
         self._fname = jsonMap[self.era] + '/jetvetomaps.json.gz'
         self._corrName = jetVetoTags[self.era]
@@ -204,10 +222,10 @@ class JetVetoMapCut(Cut):
 
     def init(self):
         vetoMapId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
-        Declare('''bool passesJetVetoMap_<era>( const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
-                                                                  const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
-                                                                  const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
-                                                                  const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand){
+        Declare('''bool passesJetVetoMap_<era>(const ROOT::RVec<float> & Jet_pt, const ROOT::RVec<float> & Jet_eta,
+                                                    const ROOT::RVec<float> & Jet_phi, const ROOT::RVec<int> & Jet_jetId,
+                                                    const ROOT::RVec<float> & Jet_neEmEF, const ROOT::RVec<float> & Jet_neHEF,
+                                                    const ROOT::RVec<float> & Muon_eta, const ROOT::RVec<float> & Muon_phi, const ROOT::RVec<int> & Muon_isPFcand) {
         bool ret=true;
         for (int ijet=0; ijet<Jet_pt.size(); ++ijet){
              if (<correctionname>->evaluate({"jetvetomap", TMath::Max( -5.0f, TMath::Min(5.0f, Jet_eta.at(ijet))), TMath::Max( -3.14f, TMath::Min(3.14f, Jet_phi.at(ijet)))}) == 0) continue;
@@ -228,10 +246,10 @@ class JetVetoMapCut(Cut):
 }'''.replace("<era>", self.era).replace("<correctionname>", vetoMapId))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
-        return super()._attach(rdf)
+        return super()._attach(rdf, withUncertainties)
 
 
 class JetPuIDSF(Define):
@@ -253,7 +271,11 @@ class JetPuIDSF(Define):
     def init(self):
         corrId = CorrectionlibFactory.loadCorrector(self._fname, self._corrName, check=True)[0]
         Declare('''
-        double weight_jetPUId_<ERA>(const ROOT::RVec<float> & pt, const ROOT::RVec<float> & eta, const ROOT::RVec<int> & idx, const std::string & wp, const std::string & choice = "nom") {
+        double weight_jetPUId_<ERA>(const ROOT::RVec<float> & pt,
+                                    const ROOT::RVec<float> & eta,
+                                    const ROOT::RVec<int> & idx,
+                                    const std::string & wp,
+                                    const std::string & choice = "nom") {
         double ret=1.;
         for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
             if ( (idx.at(i) < 0) || (pt.at(i) > 50)) continue;
@@ -263,17 +285,21 @@ class JetPuIDSF(Define):
      }'''.replace("<CORRID>", corrId).replace("<ERA>", self.era))
         self._init = True
 
-    def _attach(self, rdf):
+    def _attach(self, rdf, withUncertainties):
         if not self._init:
             self.init()
 
         try:
+            src = rdf
             rdf = rdf.Define(self.name, self.expr)
-            if self.doSyst:
+            rdf._from = src
+            if self.doSyst and withUncertainties:
                 up_expr = self.expr.replace(')', ', "up")')
                 dn_expr = self.expr.replace(')', ', "down")')
+                src = rdf
                 rdf = rdf.Vary(self.name, f"ROOT::RVecD( {{{up_expr}, {dn_expr}}})",
                                variationTags=["up", "down"], variationName=f"CMS_eff_j_PUJET_id_{self.era}")
+                rdf._from = src
             return rdf
         except BaseException:
             print(f"ERROR attaching Define({self.name}, {self.expr}")

@@ -3,16 +3,17 @@
 import os
 import os.path
 
-import ROOT
+import ROOT  # type: ignore
 from CMGRDF.histoWithNuisances import listAllNuisances, mergePlots
 from CMGRDF.utils import MultiKey, Options, MultiReport
 
 
-class DatacardWriter(object):
+class DatacardWriter:
     @staticmethod
-    def defaultOptions():
+    def defaultOptions() -> Options:
         opts = Options()
-        opts.declare("asimov", None, help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')")
+        opts.declare("asimov", None,
+                     help=("Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')"))
         opts.declare("autoMCStats", True, bool, help="use autoMCStats")
         opts.declare("autoMCStatsThreshold", 10, int, help="threshold to put on autoMCStats")
         opts.declare("threshold", 0.0, float, help="Minimum event yield to consider processes")
@@ -22,7 +23,7 @@ class DatacardWriter(object):
     def __init__(self, **options):
         self._options = DatacardWriter.defaultOptions().update(**options)
 
-    def makeCards(self, plots : MultiReport, plotKey : MultiKey, outname : str, **options):
+    def makeCards(self, plots : MultiReport, plotKey : MultiKey, outname : str, **options) -> None:
         assert isinstance(plots, MultiReport)
         assert isinstance(plotKey, MultiKey)
         opts = self._options.cloneAndUpdate(**options)
@@ -60,7 +61,7 @@ class DatacardWriter(object):
                 print("Nothing to plot for %s" % key)
                 continue
             if opts.asimov:
-                if "s" in options.asimov:
+                if "s" in opts.asimov:
                     data_obs = mergePlots("data_obs", [h for (p, h) in signals + backgrounds])
                 else:
                     data_obs = mergePlots("data_obs", [h for (p, h) in backgrounds])
@@ -116,7 +117,7 @@ class DatacardWriter(object):
                                 effyield[p] = "%.3f" % kup
                                 isNorm = True
                         else:
-                            effyield[p] = "%.3f/%.3f" % (kdn, kup)
+                            effyield[p] = "%.3f/%.3f" % (kdn, kup)  # type: ignore
                             isNorm = True
                     if isNorm:
                         if name.endswith("_lnU"):

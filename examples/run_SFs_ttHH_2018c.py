@@ -10,8 +10,8 @@ if P.startswith("/eos") and not os.path.isdir("/eos"):
 print(f"Reading from {P}")
 
 
-def mkMC(name, parts=0, normUncertainties=[]):
-    uncertainties = normUncertainties[:] + [lumiUncerty2018]
+def mkMC(name, parts=0, normUncertainties=()):
+    uncertainties = list(normUncertainties) + [lumiUncerty2018]
     if parts == 0:
         return MCSample(name, P, xsec="xsec", normUncertainties=uncertainties)
     else:
@@ -149,8 +149,8 @@ cuts_corr_Zmm = cuts_Zmm.clone("Zmm_corr").prepend(MuRocCorr2018).append(muIDsf)
 lumi = 6.90
 
 if __name__ == "__main__":
-    from CMGRDF.utils import processorFromCommandLineArgs
-    maker = processorFromCommandLineArgs()
+    from CMGRDF.cmdline import processorFromCommandLineArgs
+    maker, args = processorFromCommandLineArgs()
     #maker.book(procs_Zll,lumi,cuts_Zee,plots_Zee)
     maker.book(procs_Zll, lumi, cuts_Zmm, plots_Zmm, withUncertainties=True)
     maker.book(procs_Zll, lumi, cuts_Zmm, Yield("all"), withUncertainties=True)
