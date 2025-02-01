@@ -61,6 +61,10 @@ def write_log(outfolder, command, cachepath):
         f"cd {os.environ['ANALYSIS_DIR']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}"
     )
     os.system(f"cd {os.environ['ANALYSIS_DIR']} && git diff >> {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}")
+    # Copy setup.sh to log folder
+    os.system(f"cp -r --force {os.path.join(main_dir, 'setup.sh')} {os.path.join(outfolder, 'zlog')}")
+    # Copy requirements.txt to log folder
+    os.system(f"cp -r --force {os.path.join(main_dir, 'requirements.txt')} {os.path.join(outfolder, 'zlog')}")
 
     # Copy all the accessed files to the log folder
     copy_imports(outfolder)
@@ -73,6 +77,9 @@ def write_log(outfolder, command, cachepath):
     )
     # Always copy the CLI file
     os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'zlog')}")
+    # Always copy the flow.SFs module
+    os.makedirs(os.path.join(outfolder, "zlog/flows"), exist_ok=True)
+    os.system(f"cp -r --force {os.path.join(main_dir, 'flows/SFs')} {os.path.join(outfolder, 'zlog/flows/')}")
     return
 
 
