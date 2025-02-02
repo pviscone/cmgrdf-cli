@@ -77,7 +77,7 @@ class Tree:
     def graphviz(self, outfile, clean_fn = lambda x: x):
         A = PG.AGraph(directed=True, strict=True, overlap=False, splines='ortho')
         for _, segment in self.segments.items():
-            if not segment.isLeaf:
+            if not segment.isLeaf or segment.isHead:
                 node1 = Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", "")
                 node1_label = clean_fn(node1)
                 A.add_node(node1, label=node1_label)
