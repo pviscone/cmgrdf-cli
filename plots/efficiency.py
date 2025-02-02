@@ -1,4 +1,4 @@
-from plots import Hist
+from plots import Hist, Hist2D
 
 plots= {
     "main":[
@@ -18,7 +18,11 @@ plots= {
         Hist("nLPLPDiEle", "nLPLPDiEle",),
         Hist("DiElectron_type", "DiElectron_type",),
         Hist("MatchedDiEle_type", "MatchedDiEle_type"),
-        Hist("nLHEJets","nLHEJets")
+        Hist("nLHEJets","nLHEJets"),
+        Hist2D("GenZd_invPt:GenZd_dR", "GenZd_invPt", "GenZd_dR"),
+        Hist2D("GenEleLead_pt:GenZd_dR", "Max(GenEle_pt)", "GenZd_dR"),
+        Hist2D("GenEleSubLead_pt:GenZd_dR", "Min(GenEle_pt)", "GenZd_dR"),
+        Hist2D("GenEleLead_pt:GenEleSubLead_pt", "Max(GenEle_pt)", "Min(GenEle_pt)"),
 
     ],
     "GenMatch":[

@@ -64,6 +64,7 @@ def flow(dR_genMatch = 0.1):
 
             #! --------------------------- GenZd reco ---------------------- #
             Define("GenZd_invMass","(GenEle_p4[0]+GenEle_p4[1]).mass()"),
+            Define("GenZd_invPt","(GenEle_p4[0]+GenEle_p4[1]).pt()"),
             Define("GenZd_dR","ROOT::VecOps::DeltaR(GenEle_eta[0],GenEle_eta[1],GenEle_phi[0],GenEle_phi[1])"),
             Cut("noCut", "1",  plot="NoCut")
         ]
