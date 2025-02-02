@@ -21,6 +21,7 @@ import cpp_functions
 from utils.cli_utils import load_module, parse_function
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from utils.flow_utils import parse_flows, clean_commons
+from utils.plot_utils import DrawPyPlots
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -29,7 +30,7 @@ console = Console(record=True)
 def run_analysis(
     #! Configs
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
+    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")], #TODO test multiple eras
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] or [bold red]Tree[/bold red] object.", rich_help_panel="Configs"),
     plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs"),
@@ -54,14 +55,15 @@ def run_analysis(
     enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (comma separated)", rich_help_panel="Flow Options"),
 
     #! Plot options
-    lumitext     : str         = typer.Option("L = %(lumi).1f fb^{-1} (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
+    lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
+    cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
     noRatio      : bool        = typer.Option(False, "--noRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
     maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
-    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
-    plotformat   : str         = typer.Option("png,pdf,root,txt", "--plotformat", help="The format of the plots", rich_help_panel="Plot Options"),
+    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"), #TODO test multiple eras with and without mergeEras
 
-    #! Datacard options
+    #! Datacard options #
+    # TODO re-test
     datacards        : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
     asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
     autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
@@ -70,6 +72,7 @@ def run_analysis(
     regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 
     #! Snapshot options
+    # TODO re-test
     snapshot   : bool = typer.Option(False, "--snapshot", help="Save snapshots in outfolder/snap/{name}_{era}_{flow}.root", rich_help_panel="Snapshot Options"),
     columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
@@ -98,6 +101,9 @@ def run_analysis(
 
     if data is None:
         noRatio = True
+
+    if noXsec and lumitext=="{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)":
+        lumitext = "(13.6 TeV)"
 
     #! ---------------------- Debug and verbosity ----------------------- !#
     if disableBreakpoints:
@@ -165,6 +171,7 @@ def run_analysis(
     #! -------------- Print flows table and parse flows -------------------- !#
     region_flows = parse_flows(console, flow, outfolder, enable=enableRegions.split(","), disable=disableRegions.split(","))
     region_flows = clean_commons(region_flows)
+    flow_plots = []
     for flow_list in region_flows:
         #If plots is a single list, make a list of list to make the same plots at each plotting step
         if plots and isinstance(plots, list) and not isinstance(plots[0], list):
@@ -214,6 +221,7 @@ def run_analysis(
                 else:
                     plot = plots[_i]
                 maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
+                flow_plots.append((flow.name, plot))
 
             #! ---------------------- BOOK SNAPSHOT ----------------------!#
             if snapshot:
@@ -229,18 +237,23 @@ def run_analysis(
                 if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
                     maker.book(snap_list, lumi, flow, Snapshot(outfolder + "/snap/{name}_{era}_{flow}.root".replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
-    #!---------------------- PRINT Plots ---------------------- !#
+    #!---------------------- Save Plots ---------------------- !#
+    #TODO fix all the arguments in plotsetprinter and pass them to drawpyplots
     pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
             topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange,
             showRatio=not noRatio, noStackSignals=True, showErrors=True,
-            plotFormats=plotformat,
-        ).printSet(plotter, outfolder + "/{flow}/")
+            plotFormats="root,txt",
+        ).printSet(plotter, outfolder + "/{flow}/") #TODO should i add {era} here and adjust all the paths? Loops on era???
 
-    yields = maker.runYields(mergeEras=True)
+        #!---------------------- Draw Plots ---------------------- !#
+        plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
+        DrawPyPlots(outfolder, plot_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=ncpu)
+
     #!---------------------- PRINT YIELDS ---------------------- !#
+    yields = maker.runYields(mergeEras=True)
     console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
     for flow_list in region_flows:
         if len(region_flows)>1 and flow_list[0].name.startswith("0common"):

@@ -77,7 +77,6 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
         process_list = []
         groups_list = process_dict["groups"]
         label = process_dict["label"]
-        color = process_dict["color"]
         mcgroup_samples=[]
         processtable.add_row(process, "MC")
         MCtable.add_row(process, "", "", "", "", "")
@@ -173,10 +172,11 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
         process_kwargs = {
             key: value
             for key, value in process_dict.items()
-            if key not in ["groups", "eras", "label", "color"]
+            if key not in ["groups", "eras", "label"]
         }
         if len(process_list) > 0:
-            process=Process(process, process_list, label=label, fillColor=color, **process_kwargs)
+            process_kwargs["pycolor"] = process_dict.get("color", None)
+            process=Process(process, process_list, label=label, **process_kwargs)
             process_xsec = sum([group.xsec for group in process_list]) if None not in [group.xsec for group in process_list] else None
             process.xsec = process_xsec
             all_data.append(process)

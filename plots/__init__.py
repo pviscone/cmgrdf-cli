@@ -21,12 +21,13 @@ class Hist(BaseHist):
         for pattern in name_defaults:
             if re.search(pattern, name):
                 pattern_kwargs = copy.deepcopy(name_defaults[pattern])
-                label = pattern_kwargs.pop("label", None)
+                label = pattern_kwargs.get("label", None)
                 if label:
                     groups = re.match(pattern, name).groups()
                     for i, group in enumerate(groups):
                         label = label.replace(f"(${i+1})", group, 1)
                 pattern_kwargs["xTitle"] = label
+                pattern_kwargs["xlabel"] = label
                 bins = pattern_kwargs.pop("bins", bins) if bins is None else bins
                 break
 
@@ -50,13 +51,15 @@ class Hist2D(BaseHist):
                     bins[ax_idx] = pattern_kwargs.pop("bins", bins[ax_idx]) if bins[ax_idx] is None else bins[ax_idx]
                     label = pattern_kwargs.pop("label", None)
                     if label:
-                        groups = re.match(pattern, name).groups()
-                        for group in groups:
-                            label = label.replace("(.*)", group, 1)
+                        groups = re.match(pattern, ax_name).groups()
+                        for i, group in enumerate(groups):
+                            label = label.replace(f"(${i+1})", group, 1)
                     if ax_idx == 0:
                         th2_dict["xTitle"] = label
+                        th2_dict["xlabel"] = label
                     elif ax_idx == 1:
                         th2_dict["yTitle"] = label
+                        th2_dict["ylabel"] = label
                     break
 
         assert all(bins), "Bins are not defined neither in the user arguments nor in the name_defaults"

@@ -1,5 +1,7 @@
 typer
 rich
+uproot
 hist
 pygraphviz
+mplhep
 #termvisage
