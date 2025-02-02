@@ -234,8 +234,8 @@ In `plots/defaults.py` you can set default arguments for the histogram. You can 
 - global_defaults : These arguments are passed to all the histograms
 - histo1d_defaults: These arguments are passed to all the 1D histograms
 - histo2d_defaults: These arguments are passed to all the 2D histograms
-- name1d_defaults : Here you can define a regex pattern as a key and a dictionary for each regex pattern. The first regex pattern that will match the name of a 1D `Hist` object will have the defined arguments applied
-- name2d_defaults : Same thing but for 2D Hists **(Not implemented yet)**
+- name_defaults : Here you can define a regex pattern as a key and a dictionary for each regex pattern. The first regex pattern that will match the name of a `Hist` object or the axis name of a `Hist2D` object will have the defined arguments applied
+*
 
 Of course, you can ovverride the defalut values just defining a new one in the `Hist` definition
 The priority is
@@ -243,7 +243,8 @@ The priority is
 ` global_defaults < histo1d_defaults < branch_defaults < user defined`
 
 
-The config file must contain a list of Hists or a function that returns a list of Hists called `plots`
+The config file must contain a list of Hists or a function that returns a list of Hists called `plots`.
+You can edit the defaults just importing them in your config and editing them.
 
 ### Corrections and systematics
 Here the things are a bit weird.
