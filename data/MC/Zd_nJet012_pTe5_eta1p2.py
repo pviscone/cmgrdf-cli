@@ -1,4 +1,4 @@
-import ROOT
+from data.MC import cms10
 
 MCDict={
     "HAHM_13p6TeV_M5" : {
@@ -16,7 +16,7 @@ MCDict={
             },
         ],
         "label":"ZdM5",
-        "color": ROOT.kBlue-3,
+        "color": cms10[0],
     },
     "HAHM_13p6TeV_M3p1" : {
         "groups" : [
@@ -33,7 +33,7 @@ MCDict={
             },
         ],
         "label":"ZdM3p1",
-        "color": ROOT.kRed,
+        "color": cms10[1],
     },
     "HAHM_13p6TeV_M1" : {
         "groups" : [
@@ -50,7 +50,7 @@ MCDict={
             },
         ],
         "label":"ZdM1",
-        "color": ROOT.kGreen,
+        "color": cms10[2],
     }
 }
 
