@@ -24,6 +24,7 @@ MCtable.add_column("Samples", style="bold red")
 MCtable.add_column("xsec", style="bold red")
 MCtable.add_column("Eras", style="bold red")
 MCtable.add_column("Selections", style="bold red")
+MCtable.add_column("isSignal", style="bold red")
 
 
 def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
@@ -79,7 +80,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
         label = process_dict["label"]
         mcgroup_samples=[]
         processtable.add_row(process, "MC")
-        MCtable.add_row(process, "", "", "", "", "")
+        MCtable.add_row(process, "", "", "", "", "","\u2713" if process_dict.get("signal", False) else "")
         #! Loop over all groups
         for group_dict in groups_list:
             group_name = group_dict["name"]
