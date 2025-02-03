@@ -44,8 +44,8 @@ ggplot_palette=('#348ABD','#E24A33', '#988ED5', '#777777', '#FBC15E', '#8EBA42',
 
 hep.styles.cms.CMS["patch.linewidth"] = 2
 hep.styles.cms.CMS["lines.linewidth"] = 2
-hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", ggplot_palette)
-hep.styles.cms.CMS["legend.frameon"] = True
+hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", petroff10)
+hep.styles.cms.CMS["legend.frameon"] = False
 hep.styles.cms.CMS["figure.autolayout"] = True
 hep.style.use(hep.style.CMS)
 
@@ -211,8 +211,12 @@ class TH1(BasePlotter):
 
     @merge_kwargs()
     def add(self, hist, **kwargs):
-        hist=convert_to_hist(hist)
-        hist = hist[self.rebin]
+        if isinstance(hist, list):
+            hist = [convert_to_hist(h) for h in hist]
+            hist = [h[self.rebin] for h in hist]
+        else:
+            hist=convert_to_hist(hist)
+            hist = hist[self.rebin]
         hep.histplot(hist, ax=self.ax, clip_on=True, **kwargs)
         sys.stderr = open(os.devnull, "w")
         self.ax.legend(**self.legend_kwargs)
@@ -292,3 +296,5 @@ class TEfficiency(BasePlotter):
         sys.stderr = open(os.devnull, "w")
         self.ax.legend(**self.legend_kwargs)
         sys.stderr = sys.__stderr__
+
+

@@ -58,9 +58,10 @@ def run_analysis(
     #! Plot options
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
-    noRatio      : bool        = typer.Option(False, "--noRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
-    noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
-    maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"), #TODO tuple with range
+    noRatio        : bool        = typer.Option(False, "--ratio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
+    ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
+    ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"), #TODO test multiple eras with and without mergeEras
 
     #! Datacard options #
@@ -100,11 +101,13 @@ def run_analysis(
     if data is None and mc is None:
         raise typer.BadParameter("You must provide at least one of the data or mc file")
 
-    if data is None:
+    if data is None or noStack:
         noRatio = True
 
     if noXsec and lumitext=="{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)":
         lumitext = "(13.6 TeV)"
+
+    assert ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference'"
 
     #! ------------------------- Set Folders -------------------------- !#
     folders.outfolder = os.path.abspath(outfolder)
@@ -245,19 +248,18 @@ def run_analysis(
                     maker.book(snap_list, lumi, flow, Snapshot(folders.snap.replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
     #!---------------------- Save Plots ---------------------- !#
-    #TODO fix all the arguments in plotsetprinter and pass them to drawpyplots
     pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
-            topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange,
-            showRatio=not noRatio, noStackSignals=True, showErrors=True,
+            stack=True,
+            showRatio=False, noStackSignals=False, showErrors=True,
             plotFormats="root,txt",
         ).printSet(plotter, folders.plots) #TODO should i add {era} here and adjust all the paths? Loops on era???
 
         #!---------------------- Draw Plots ---------------------- !#
         plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-        DrawPyPlots(plot_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=ncpu)
+        DrawPyPlots(plot_lumi, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     yields = maker.runYields(mergeEras=True)
