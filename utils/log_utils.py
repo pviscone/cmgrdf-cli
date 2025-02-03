@@ -5,6 +5,8 @@ from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 
+from utils import folders
+
 import __main__
 
 main_dir = os.path.dirname(__main__.__file__)  # Path to dp-ee-main folder
@@ -27,7 +29,7 @@ def trace_calls(frame, event, arg):
     return trace_calls
 
 
-def write_log(outfolder, command, cachepath):
+def write_log(command, cachepath):
     if cachepath is None:
         cachestring = "--cachepath ../zcache"
     elif isinstance(cachepath, str):
@@ -39,53 +41,53 @@ def write_log(outfolder, command, cachepath):
     else:
         cachestring = ""
     # Write the command string to file
-    os.makedirs(f"{outfolder}/zlog", exist_ok=True)
+    os.makedirs(folders.log, exist_ok=True)
     os.system(
-        f"cp {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/command.sh')}"
+        f"cp {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(folders.log, 'command.sh')}"
     )
-    os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(outfolder, "zlog/command.sh")}')
-    # get abs path to outfolder
-    abs_outfolder = os.path.abspath(outfolder)
+    os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(folders.log, "command.sh")}')
 
     # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
     os.system(
-        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'zlog/cmgrdf_commit.txt')}"
+        f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'cmgrdf_commit.txt')}"
     )
-    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(abs_outfolder, 'zlog/cmgrdf_commit.txt')}")
+    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(folders.log, 'cmgrdf_commit.txt')}")
 
     # Write dp-ee-main commit hash and, eventually, git diff to dp-ee-main_commit.txt
     os.system(
-        f"cd {os.environ['ANALYSIS_DIR']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}"
+        f"cd {os.environ['ANALYSIS_DIR']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'dpeemain_commit.txt')}"
     )
-    os.system(f"cd {os.environ['ANALYSIS_DIR']} && git diff >> {os.path.join(abs_outfolder, 'zlog/dpeemain_commit.txt')}")
+    os.system(f"cd {os.environ['ANALYSIS_DIR']} && git diff >> {os.path.join(folders.log, 'dpeemain_commit.txt')}")
     # Copy setup.sh to log folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'setup.sh')} {os.path.join(outfolder, 'zlog')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'setup.sh')} {folders.log}")
     # Copy requirements.txt to log folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'requirements.txt')} {os.path.join(outfolder, 'zlog')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'requirements.txt')} {folders.log}")
 
     # Copy all the accessed files to the log folder
-    copy_imports(outfolder)
+    copy_imports()
     # Always copy the cpp functions
-    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {os.path.join(outfolder, 'zlog')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {folders.log}")
     # Always copy the command template
-    os.makedirs(os.path.join(outfolder, "zlog/utils"), exist_ok=True)
+    os.makedirs(os.path.join(folders.log, "utils"), exist_ok=True)
     os.system(
-        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(outfolder, 'zlog/utils')}"
+        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(folders.log, 'utils')}"
     )
     # Always copy the CLI file
-    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {os.path.join(outfolder, 'zlog')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {folders.log}")
     # Always copy the flow.SFs module
-    os.makedirs(os.path.join(outfolder, "zlog/flows"), exist_ok=True)
-    os.system(f"cp -r --force {os.path.join(main_dir, 'flows/SFs')} {os.path.join(outfolder, 'zlog/flows/')}")
+    os.makedirs(os.path.join(folders.log, "flows"), exist_ok=True)
+    os.system(f"cp -r --force {os.path.join(main_dir, 'flows/SFs')} {os.path.join(folders.log, 'flows/')}")
     #Always copy the scripts folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'scripts')} {os.path.join(outfolder, 'zlog/')}")
+    os.system(f"cp -r --force {os.path.join(main_dir, 'scripts')} {folders.log}")
     return
 
 
-def copy_imports(outfolder):
+def copy_imports():
     for file_path in accessed_files:
         relative_path = file_path.split(main_dir)[1]
-        newpath = os.path.join(outfolder, f"zlog/{os.path.dirname(relative_path)}")
+        if relative_path.startswith("/"):
+            relative_path = relative_path[1:]
+        newpath = os.path.join(folders.log, f"{os.path.dirname(relative_path)}")
         os.makedirs(newpath, exist_ok=True)
         os.system(f"cp -r --force {file_path} {newpath}")
 
@@ -94,7 +96,6 @@ def print_configs(
     console,
     ncpu,
     nevents,
-    outfolder,
     nocache,
     cachepath,
     datacards,
@@ -111,13 +112,13 @@ def print_configs(
     config_table.add_column("Value")
     config_table.add_row("ncpu", str(ncpu))
     config_table.add_row("nevents", str(nevents))
-    config_table.add_row("outfolder", outfolder)
+    config_table.add_row("outfolder", folders.outfolder)
     config_table.add_row("Cache", str(not nocache))
     config_table.add_row("Datacards", str(datacards))
     config_table.add_row("Snapshot", str(snapshot))
     if nocache is False:
         config_table.add_row(
-            "Cache Path", str(cachepath) if cachepath is not None else os.path.join(outfolder, "cache")
+            "Cache Path", str(cachepath) if cachepath is not None else folders.cache
         )
 
     config_table.add_row("Eras", str(eras))
@@ -153,7 +154,7 @@ def print_flow(console, flow):
     console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
 
-def print_yields(yields, all_data, flows, outfolder, console=Console()):
+def print_yields(yields, all_data, flows, console=Console()):
     for proc in all_data:
         for flow in flows:
             console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
@@ -204,8 +205,8 @@ def print_yields(yields, all_data, flows, outfolder, console=Console()):
                     "\u2713" if hasattr(cut, "plot") else ""
                 )
                 started = True
-        os.makedirs(os.path.join(outfolder, f"{flow.name}"), exist_ok=True)
-        with open(os.path.join(outfolder,f"{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
+        os.makedirs(os.path.join(folders.outfolder, f"{flow.name}"), exist_ok=True)
+        with open(os.path.join(folders.outfolder,f"{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
             flow_console = Console(file=report_file)
             flow_console.print(table)
         console.print(table)

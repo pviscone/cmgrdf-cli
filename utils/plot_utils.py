@@ -1,9 +1,9 @@
 import os
 import multiprocessing as mp
 import uproot
-import matplotlib.pyplot as plt
 
 from utils.plotters import TH1, TH2
+from utils import folders
 
 #TODO add data
 #TODO add ratioplot
@@ -44,8 +44,8 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext):
             h.save(os.path.join(folder,f"{process_name}.pdf"))
 
 
-def DrawPyPlots(outfolder, plots_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=16):
-    paths=[f"{outfolder}/{flow}/{plot.name}.root" for (flow, plots) in flow_plots for plot in plots]
+def DrawPyPlots(plots_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=16):
+    paths=[f"{folders.outfolder}/{flow}/{plot.name}.root" for (flow, plots) in flow_plots for plot in plots]
     plots = [plot for (_, plots) in flow_plots for plot in plots]
     pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
     p=mp.Pool(ncpu)

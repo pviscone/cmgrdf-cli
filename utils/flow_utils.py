@@ -2,6 +2,7 @@ from rich.table import Table
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import FlowStep
 from utils.cli_utils import load_module, parse_function
+from utils import folders
 from flows import Tree
 import re
 
@@ -27,7 +28,7 @@ def split_at_plot(flow_obj):
     return flow_list
 
 
-def parse_flows(console, flow_config, outfolder, enable=[""], disable=[""]):
+def parse_flows(console, flow_config, enable=[""], disable=[""]):
     flow_table = Table(title="Flows", show_header=True, header_style="bold black")
     flow_table.add_column("Configs", style="bold red")
     flow_table.add_column("Name")
@@ -42,9 +43,9 @@ def parse_flows(console, flow_config, outfolder, enable=[""], disable=[""]):
                 flows_dict = {k: v for k, v in flows_dict.items() if k not in disable}
             for name in flows_dict:
                 flow_table.add_row(flow_config, name)
-            flow_obj.graphviz(f"{outfolder}/verbose_tree")
-            flow_obj.graphviz(f"{outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
-            flow_obj.graphviz(f"{outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
+            flow_obj.graphviz(f"{folders.outfolder}/verbose_tree")
+            flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
+            flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
             return [
                 split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()
             ]

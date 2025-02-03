@@ -22,6 +22,7 @@ from utils.cli_utils import load_module, parse_function
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from utils.flow_utils import parse_flows, clean_commons
 from utils.plot_utils import DrawPyPlots
+from utils import folders
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -44,7 +45,7 @@ def run_analysis(
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose  : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
     nocache  : bool = typer.Option(False, "--noCache", help="Disable caching", rich_help_panel="RDF Options"),
-    cachepath: str  = typer.Option(None, "--cachepath", help="Path to the cache folder (Default is outfolder/cache)", rich_help_panel="RDF Options"),
+    cachepath: str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
 
     #! Debug options
     nevents : int = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
@@ -59,7 +60,7 @@ def run_analysis(
     cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
     noRatio      : bool        = typer.Option(False, "--noRatio", help="Disable the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms", rich_help_panel="Plot Options"),
-    maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    maxratiorange: Tuple[float, float] = typer.Option([0, 2], "--maxRatioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"), #TODO tuple with range
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"), #TODO test multiple eras with and without mergeEras
 
     #! Datacard options #
@@ -73,7 +74,7 @@ def run_analysis(
 
     #! Snapshot options
     # TODO re-test
-    snapshot   : bool = typer.Option(False, "--snapshot", help="Save snapshots in outfolder/snap/{name}_{era}_{flow}.root", rich_help_panel="Snapshot Options"),
+    snapshot   : bool = typer.Option(False, "--snapshot", help=f"Save snapshots in outfolder/{folders.snap}", rich_help_panel="Snapshot Options"),
     columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     noMC       : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
@@ -104,6 +105,12 @@ def run_analysis(
 
     if noXsec and lumitext=="{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)":
         lumitext = "(13.6 TeV)"
+
+    #! ------------------------- Set Folders -------------------------- !#
+    folders.outfolder = os.path.abspath(outfolder)
+    for attr in dir(folders):
+        if not attr.startswith("__"):
+            setattr(folders, attr, os.path.join(folders.outfolder, getattr(folders, attr)))
 
     #! ---------------------- Debug and verbosity ----------------------- !#
     if disableBreakpoints:
@@ -145,9 +152,9 @@ def run_analysis(
         plots     = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
-    print_configs(console, ncpu, nevents, outfolder, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
-    os.makedirs(outfolder, exist_ok=True)
-    os.system(f"cp $CMGRDF/externals/index.php {outfolder}/index.php")
+    print_configs(console, ncpu, nevents, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
+    os.makedirs(folders.outfolder, exist_ok=True)
+    os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.outfolder, 'index.php')}")
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
@@ -159,8 +166,8 @@ def run_analysis(
 
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
-        os.makedirs(os.path.join(outfolder, "zcache"), exist_ok=True)
-        cache = SimpleCache(os.path.join(outfolder, "zcache"))
+        os.makedirs(folders.cache, exist_ok=True)
+        cache = SimpleCache(folders.cache)
     elif nocache is False:
         cache = SimpleCache(cachepath)
     else:
@@ -169,7 +176,7 @@ def run_analysis(
     maker = Processor(cache=cache)
 
     #! -------------- Print flows table and parse flows -------------------- !#
-    region_flows = parse_flows(console, flow, outfolder, enable=enableRegions.split(","), disable=disableRegions.split(","))
+    region_flows = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","))
     region_flows = clean_commons(region_flows)
     flow_plots = []
     for flow_list in region_flows:
@@ -235,7 +242,7 @@ def run_analysis(
                         continue
                     snap_list.append(dat)
                 if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
-                    maker.book(snap_list, lumi, flow, Snapshot(outfolder + "/snap/{name}_{era}_{flow}.root".replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+                    maker.book(snap_list, lumi, flow, Snapshot(folders.snap.replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
     #!---------------------- Save Plots ---------------------- !#
     #TODO fix all the arguments in plotsetprinter and pass them to drawpyplots
@@ -246,11 +253,11 @@ def run_analysis(
             topRightText=lumitext, stack=not noStack, maxRatioRange=maxratiorange,
             showRatio=not noRatio, noStackSignals=True, showErrors=True,
             plotFormats="root,txt",
-        ).printSet(plotter, outfolder + "/{flow}/") #TODO should i add {era} here and adjust all the paths? Loops on era???
+        ).printSet(plotter, folders.plots) #TODO should i add {era} here and adjust all the paths? Loops on era???
 
         #!---------------------- Draw Plots ---------------------- !#
         plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-        DrawPyPlots(outfolder, plot_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=ncpu)
+        DrawPyPlots(plot_lumi, flow_plots, all_processes, cmstext, lumitext, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     yields = maker.runYields(mergeEras=True)
@@ -258,8 +265,8 @@ def run_analysis(
     for flow_list in region_flows:
         if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
             continue
-        print_yields(yields, all_data, flow_list, outfolder, console=console)
-        write_log(outfolder, command, cachepath)
+        print_yields(yields, all_data, flow_list, console=console)
+        write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
@@ -267,20 +274,18 @@ def run_analysis(
         if plots is None:
             raise ValueError("You need to provide the plots file to create the datacards")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
-        card_path = outfolder+"/cards/{name}_{era}_{flow}.txt"
-        if mergeEras:
-            card_path = card_path.replace("{era}", "allEras")
+        card_path = folders.cards.replace("{era}", "allEras") if mergeEras else folders.cards
         cardMaker.makeCards(plotter, MultiKey(), card_path)
-        os.system(f"cp $CMGRDF/externals/index.php {outfolder}/cards/index.php")
+        os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.cards_path,'index.php')}")
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
         report = maker.runSnapshots()
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
-        os.system(f"cp $CMGRDF/externals/index.php {outfolder}/snap/index.php")
+        os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.snap_path,'index.php')}")
 
     sys.settrace(None)
-    console.save_text(os.path.join(outfolder, "zlog/report.txt"))
+    console.save_text(os.path.join(folders.log, "report.txt"))
 
 
 if __name__ == "__main__":
