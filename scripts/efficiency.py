@@ -64,6 +64,7 @@ def plot_efficiency(
     ncol          : int = typer.Option(3, "-n", "--ncol", help="ncol", rich_help_panel="Legend"),
     fontsize      : float = typer.Option(15, "-f", "--fontsize", help="fontsize", rich_help_panel="Legend"),
 ):
+    inputfolder = os.path.abspath(inputfolder)
     yaml_cfg = yaml.safe_load(open(cfgfile))
 
     denom_nums = yaml_cfg["denom_nums"]
@@ -93,6 +94,7 @@ def plot_efficiency(
 
     command = " ".join(sys.argv).replace('"', r'\\\"')
     os.system(fr'echo "python {command}" > {os.path.join(inputfolder, outfolder, "command.sh")}')
+    os.system(f"chmod +x {os.path.join(inputfolder, outfolder, 'command.sh')}")
 
 if __name__ == "__main__":
     app()
