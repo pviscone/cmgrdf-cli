@@ -254,7 +254,7 @@ def run_analysis(
         PlotSetPrinter(
             stack=True,
             showRatio=False, noStackSignals=False, showErrors=True,
-            plotFormats="root,txt",
+            plotFormats="root",
         ).printSet(plotter, folders.plots) #TODO should i add {era} here and adjust all the paths? Loops on era???
 
         #!---------------------- Draw Plots ---------------------- !#
