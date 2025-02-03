@@ -59,7 +59,7 @@ def run_analysis(
     #! Plot options
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
-    noRatio        : bool        = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
+    noRatio      : bool        = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
     ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
     ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
@@ -67,7 +67,7 @@ def run_analysis(
 
     #! Datacard options #
     # TODO re-test
-    datacards        : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
+    datacards       : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
     asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
     autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
     autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
