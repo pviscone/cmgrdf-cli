@@ -16,7 +16,9 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
     hist_type = str(type(file[list(all_processes.keys())[0]]))
     if "TH1" in hist_type:
         fig, ax = None ,[None, None]
-        if ratio:
+        bkgs = [process_name for process_name, process_dict in all_processes.items() if not process_dict.get("signal", False)]
+        signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False)]
+        if ratio and len(bkgs) > 0:
             fig, ax =plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.}, sharex=True)
         h = TH1(cmstext = cmstext,
             lumitext= lumitext,
@@ -33,15 +35,12 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             data_hist = data_hist.to_hist()
             h.add(data_hist, label="Data", density = density, color = "black", histtype = "errorbar", w2method="poisson")
 
-        bkgs = [process_name for process_name, process_dict in all_processes.items() if not process_dict.get("signal", False)]
         if noStack or len(bkgs) == 0:
             for process_name, process_dict in all_processes.items():
                 hist = file[process_name].to_hist()
                 color = process_dict.get("color", None)
                 h.add(hist, label=process_dict["label"], density = density, color = color, w2method="poisson")
         else: #stack
-            signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False)]
-
             bkg_hist = [file[bkg].to_hist() for bkg in bkgs]
             bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs]
             bkg_colors = [all_processes[bkg].get("color", None) for bkg in bkgs]
