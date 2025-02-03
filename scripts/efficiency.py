@@ -59,9 +59,9 @@ def plot_efficiency(
 
 
     #! ---------------------- Legend arguments ---------------------- #
-    bbox_to_anchor : Tuple[float, float] = typer.Option((0.5, -0.25), "-b", "--bbox", help="bbox_to_anchor", rich_help_panel="Legend"),
+    bbox_to_anchor: Tuple[float, float] = typer.Option((0.5, -0.25), "-b", "--bbox", help="bbox_to_anchor", rich_help_panel="Legend"),
     loc           : str = typer.Option("lower center", "-l", "--loc", help="loc", rich_help_panel="Legend"),
-    ncol          : int = typer.Option(3, "-n", "--ncol", help="ncol", rich_help_panel="Legend"),
+    ncol          : int = typer.Option(3, "--ncol", help="ncol", rich_help_panel="Legend"),
     fontsize      : float = typer.Option(15, "-f", "--fontsize", help="fontsize", rich_help_panel="Legend"),
 ):
     inputfolder = os.path.abspath(inputfolder)
