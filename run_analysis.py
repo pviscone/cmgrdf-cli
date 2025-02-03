@@ -52,13 +52,14 @@ def run_analysis(
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Flow options
+    #TODO they should be regex patterns
     disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (comma separated)", rich_help_panel="Flow Options"),
     enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (comma separated)", rich_help_panel="Flow Options"),
 
     #! Plot options
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
-    noRatio        : bool        = typer.Option(False, "--ratio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
+    noRatio        : bool        = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
     ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
     ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
