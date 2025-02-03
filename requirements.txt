@@ -1,7 +1,6 @@
+#need to specify also all the dependencies here
 typer
-rich
-uproot
-hist
-pygraphviz
-mplhep
+shellingham
+mplhep==0.3.55
+mplhep_data==0.0.4
 #termvisage

@@ -1,6 +1,6 @@
 # Check if the script is being sourced in bash, otherwise raise an error
-MAIN_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
-export PYTHONPATH=$MAIN_DIR/scripts:$PYTHONPATH
+export ANALYSIS_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+export PYTHONPATH=$ANALYSIS_DIR/scripts:$PYTHONPATH
 CURRENT_SHELL=$(ps -p $$ -o comm=)
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     echo "ZSH can't source the cvmfs scripts. You must source it in bash and then return to zsh" >&2
@@ -14,7 +14,6 @@ if [[ ${BASH_SOURCE[0]} == $0 ]]; then
 fi
 
 # Check which platform is being used and source the correct cvmfs script
-export ANALYSIS_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 source /etc/os-release
 if [[ "$PLATFORM_ID" == "platform:el8" ]]; then
     echo "You are using el8. It should work, otherwise, use an el9 container:"
@@ -37,6 +36,8 @@ fi
 # Set the environment variables
 eval $(make env)
 if [[ "$1" == "build" ]]; then
-    pip install -r $MAIN_DIR/requirements.txt
+    pip install -r $ANALYSIS_DIR/requirements.txt --prefix $ANALYSIS_DIR/.venv --no-deps --ignore-installed
 fi
+py_ver=`python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))'`
+export PYTHONPATH=$ANALYSIS_DIR/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
 cd $CURRENT_PWD
