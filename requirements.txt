@@ -1,6 +1,9 @@
-#need to specify also all the dependencies here
-typer
-shellingham
+#need to specify dependencies not included in cvmfs here
+typer==0.15.1
+shellingham==1.5.4
+plothist==1.2.6
+hist==2.8.0
+boost_histogram==1.5.1
 mplhep==0.3.55
 mplhep_data==0.0.4
 #termvisage
