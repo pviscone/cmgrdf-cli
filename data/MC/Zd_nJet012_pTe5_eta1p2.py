@@ -15,6 +15,7 @@ MCDict={
             "cut":"1",
             },
         ],
+        "signal": True,
         "label":"ZdM5",
         "color": cms10[0],
     },
@@ -34,6 +35,7 @@ MCDict={
         ],
         "label":"ZdM3p1",
         "color": cms10[1],
+        "signal": True,
     },
     "HAHM_13p6TeV_M1" : {
         "groups" : [
@@ -50,6 +52,7 @@ MCDict={
             },
         ],
         "label":"ZdM1",
+        "signal": True,
         "color": cms10[2],
     }
 }
