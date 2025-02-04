@@ -34,6 +34,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
         mcc_steps = mccFlow.steps
 
     data_datasets = []
+    assert list(data_dict.keys()) == list(era_paths.keys()), "Eras in data_dict and era_paths do not match"
     for era, samples in data_dict.items():
         if era not in eras:
             continue
