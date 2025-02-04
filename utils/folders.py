@@ -1,24 +1,32 @@
 class Folders:
     def __init__(self):
-        self.cache = "zcache"
+        self.cache = "zzcache"
         self.log = "zlog"
-        self.snap_path = "zsnap"
-        self.cards_path = "zcards"
-        self.plots = ""
-        self.snap = ""
-        self.cards = ""
+        self.snap_path = "zsnap/era{era}/{flow}"
+        self.snap = self.snap_path+"/{name}.root" #! MERGE ERAS FOR SNAPSHOTS MAKE NO SENSE
 
-    def init(self, mergeEras=False):
+        self.plots = ""
+        self.cards_path = ""
+        self.cards = ""
+        self.tables_path = ""
+        self.tables = ""
+
+    def init(self, mergeEras=False, mergeErasYields=False):
         if not mergeEras:
-            self.plots = "{era}/{flow}"
-            self.snap = self.snap_path+"/{era}/{flow}/{name}.root"
-            self.cards = self.cards_path+"/{era}/{flow}/{name}.txt"
+            self.plots = "era{era}/{flow}"
+            self.cards_path = "zcards/era{era}/{flow}"
+
         else:
             self.plots = "{flow}"
-            self.snap = self.snap_path+"/{flow}/{name}.root"
-            self.cards = self.cards_path+"/{flow}/{name}.txt"
+            self.cards_path = "zcards/{flow}"
 
-def create_folders():
-    return Folders()
+        self.cards = self.cards_path+"/{name}.txt"
 
-folders = create_folders()
+        if not mergeErasYields:
+            self.tables_path = "ztables/era{era}/{flow}"
+        else:
+            self.tables_path = "ztables/{flow}"
+
+        self.tables = self.tables_path+"/{name}.txt"
+
+folders = Folders()

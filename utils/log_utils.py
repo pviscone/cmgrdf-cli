@@ -154,69 +154,93 @@ def print_flow(console, flow):
     console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
 
-def print_yields(yields, all_data, flows, console=Console()):
+def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
     for proc in all_data:
         for flow in flows:
-            console.print(f"CutFlow: [bold magenta]{flow.name}[/bold magenta]")
             print()
-            table = Table(title=proc.name, show_header=True, header_style="bold black", title_style="bold magenta")
-            table.add_column("Cut", style="bold red")
-            table.add_column("Expr", style="bold red")
-            table.add_column("Pass (+- stat.)", justify="center")
-            table.add_column("eff. (+- stat.)", justify="center")
-            table.add_column("cumulative eff. (+- stat.)", justify="center")
-            table.add_column("xsec*eff. (+- stat.) [pb]", justify="center")
-            table.add_column("Plot", justify="center")
+            for era in eras:
+                suffix = "" if mergeEras else f" ({era})"
+                table = Table(title=f"{proc.name} ({flow.name}){suffix}", show_header=True, header_style="bold black", title_style="bold magenta")
+                table.add_column("Cut", style="bold red")
+                table.add_column("Expr", style="bold red")
+                table.add_column("Pass (+- stat.)", justify="center")
+                table.add_column("eff. (+- stat.)", justify="center")
+                table.add_column("cumulative eff. (+- stat.)", justify="center")
+                table.add_column("xsec*eff. (+- stat.) [pb]", justify="center")
+                table.add_column("Plot", justify="center")
+                started = False
+                for cut in flow:
+                    if type(cut) != Cut:
+                        continue
+                    key_dict = {"flow": flow.name, "process": proc.name, "name": cut.name, "era": era}
+                    if mergeEras:
+                        key_dict.pop("era")
+                    y = yields.getByKey(MultiKey(**key_dict))[-1]
+                    if not started:
+                        started = True
+                        if proc.isData:
+                            n_events = y.central
+                            old_passed = y.central
+                        else:
+                            n_events = (y.central**2) / (y.stat**2)
+                            old_passed = (y.central**2) / (y.stat**2)
+
+                    if proc.isData:
+                        passed = y.central
+                    else:
+                        passed = (y.central**2) / (y.stat**2)
+
+                    eff = passed / old_passed
+                    eff_err = ratio_uncertainty(passed, old_passed, uncertainty_type="efficiency")
+                    cumulative_eff = passed / n_events
+                    cumulative_eff_err = ratio_uncertainty(passed, n_events, uncertainty_type="efficiency")
+
+                    if proc.isData:
+                        old_passed = y.central
+                    else:
+                        old_passed = (y.central**2) / (y.stat**2)
+
+                    subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
+                    superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
+
+                    eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
+                    eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
+                    cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
+                    cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
 
 
-            started = False
-            for cut in flow:
-                if type(cut) != Cut:
-                    continue
-                y = yields.getByKey(MultiKey(flow=flow.name, process=proc.name, name=cut.name))[-1]
-                if not started:
-                    nMC_events = (y.central**2) / (y.stat**2)
-                    oldMC_passed = (y.central**2) / (y.stat**2)
+                    proc_xsec_err_minus = f"-{(proc.xsec*cumulative_eff_err[0]):.3f}".translate(subscripts) if getattr(proc,"xsec", None) is not None else ""
+                    proc_xsec_err_plus = f"+{(proc.xsec*cumulative_eff_err[1]):.3f}".translate(superscripts) if getattr(proc,"xsec", None) is not None else ""
+                    table.add_row(
+                        cut.name,
+                        ' '.join(cut.expr.split()),
+                        f"{y.central:.0f} +- {y.stat:.0f}",
+                        f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
+                        f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
+                        f"{cumulative_eff*proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}" if getattr(proc,"xsec", None) is not None else "",
+                        "\u2713" if hasattr(cut, "plot") else ""
+                    )
 
-                mc_passed = (y.central**2) / (y.stat**2)
-                eff = mc_passed / oldMC_passed
-                eff_err = ratio_uncertainty(mc_passed, oldMC_passed, uncertainty_type="efficiency")
-                cumulative_eff = mc_passed / nMC_events
-                cumulative_eff_err = ratio_uncertainty(mc_passed, nMC_events, uncertainty_type="efficiency")
-                oldMC_passed = (y.central**2) / (y.stat**2)
-
-                subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
-                superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
-
-                eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
-                eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
-                cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
-                cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
-
-
-                proc_xsec_err_minus = f"-{(proc.xsec*cumulative_eff_err[0]):.3f}".translate(subscripts) if getattr(proc,"xsec", None) is not None else ""
-                proc_xsec_err_plus = f"+{(proc.xsec*cumulative_eff_err[1]):.3f}".translate(superscripts) if getattr(proc,"xsec", None) is not None else ""
-                table.add_row(
-                    cut.name,
-                    ' '.join(cut.expr.split()),
-                    f"{y.central:.0f} +- {y.stat:.0f}",
-                    f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
-                    f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
-                    f"{cumulative_eff*proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}" if getattr(proc,"xsec", None) is not None else "",
-                    "\u2713" if hasattr(cut, "plot") else ""
-                )
-                started = True
-        os.makedirs(os.path.join(folders.outfolder, f"{flow.name}"), exist_ok=True)
-        with open(os.path.join(folders.outfolder,f"{flow.name}/table_{proc.name}.txt"), "wt") as report_file:
-            flow_console = Console(file=report_file)
-            flow_console.print(table)
-        console.print(table)
-        console.print(
-            "[bold magenta]------------------------------------------------------------------------------------------------------[/bold magenta]"
-        )
+                format_dict = {"era": era, "flow": flow.name}
+                if mergeEras: format_dict.pop("era")
+                os.makedirs(folders.tables_path.format(**format_dict), exist_ok=True)
+                format_dict["name"] = proc.name
+                with open(folders.tables.format(**format_dict), "wt") as report_file:
+                    flow_console = Console(file=report_file)
+                    flow_console.print(table)
+                console.print(table)
+                console.print("\n")
+                if mergeEras:
+                    break
+        if not mergeEras:
+            console.print(
+                f"        [bold magenta]------------------------- END FLOW {flow.name} -----------------------------[/bold magenta]"
+            )
+            console.print("\n")
     console.print(
-        "[bold green]------------------------------------------------------------------------------------------------------[/bold green]"
+        f"[bold green]----------------------------------END PROC {proc.name}------------------------------------[/bold green]"
     )
+    console.print("\n")
 
 
 

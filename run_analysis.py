@@ -64,6 +64,9 @@ def run_analysis(
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
 
+    #! Yields options
+    mergeErasYields: bool = typer.Option(False, "--mergeErasYields", help="Merge the eras in the yields", rich_help_panel="Yields Options"),
+
     #! Datacard options #
     datacards       : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
     asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
@@ -108,7 +111,7 @@ def run_analysis(
     assert ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference'"
 
     #! ------------------------- Set Folders -------------------------- !#
-    folders.init(mergeEras=mergeEras)
+    folders.init(mergeEras=mergeEras, mergeErasYields=mergeErasYields)
     folders.outfolder = os.path.abspath(outfolder)
     for attr in dir(folders):
         if not attr.startswith("__") and attr != "init":
@@ -266,12 +269,12 @@ def run_analysis(
         DrawPyPlots(plot_lumi, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
-    yields = maker.runYields(mergeEras=True)
+    yields = maker.runYields(mergeEras=mergeErasYields)
     console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
     for flow_list in region_flows:
         if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
             continue
-        print_yields(yields, all_data, flow_list, console=console)
+        print_yields(yields, all_data, flow_list, eras, mergeErasYields, console=console)
         write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
@@ -280,8 +283,7 @@ def run_analysis(
         if plots is None:
             raise ValueError("You need to provide the plots file to create the datacards")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
-        card_path = folders.cards.replace("{era}", "allEras") if mergeEras else folders.cards
-        cardMaker.makeCards(plotter, MultiKey(), card_path)
+        cardMaker.makeCards(plotter, MultiKey(), folders.card_path)
         os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.cards_path,'index.php')}")
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
