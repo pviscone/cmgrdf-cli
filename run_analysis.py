@@ -184,10 +184,14 @@ def run_analysis(
     region_flows = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","))
     region_flows = clean_commons(region_flows)
     flow_plots = []
+    modified = False
     for flow_list in region_flows:
         #If plots is a single list, make a list of list to make the same plots at each plotting step
         if plots and isinstance(plots, list) and not isinstance(plots[0], list):
             plots = [plots]*len(flow_list)
+            modified = True
+        elif plots and isinstance(plots, list) and modified:
+            plots = [plots[0]]*len(flow_list)
         if plots and isinstance(plots, list):
             assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
