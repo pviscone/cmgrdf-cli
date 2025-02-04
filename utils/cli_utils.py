@@ -4,6 +4,7 @@ import types
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import SimpleExprFlowStep
 
+from flows import Tree
 
 def load_module(filepath):
     if filepath is not None:
@@ -37,5 +38,10 @@ def parse_function(module, name, typ, kwargs={}):
     if isinstance(obj, Flow):
         if not isinstance(obj[0], SimpleExprFlowStep) or obj[0].expr != "1":
             obj.prepend(Cut("nEvents", "1"))
+
+    if isinstance(obj, Tree):
+        for segment in obj.segments:
+            if obj.segments[segment].isHead:
+                obj.segments[segment].obj.insert(0, Cut("nEvents", "1"))
 
     return obj
