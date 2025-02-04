@@ -7,13 +7,14 @@ sys.path.append(os.environ["ANALYSIS_DIR"])
 
 import uproot
 import glob
-from utils.plotters import TEfficiency
+from utils.plotters import TEfficiency, set_palette, ggplot_palette
 import multiprocessing as mp
 import typer
 from typing_extensions import Annotated
 from typing import Tuple
 import yaml
 
+set_palette(ggplot_palette)
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 
@@ -30,9 +31,13 @@ def eff_plot(inputfolder, denom, effplot_name, nums_dict, variable, teff_kwargs,
         if noReplace and f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}/{sample}')}.png" in glob.glob(f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}')}/*"):
             continue
         denom_h = denom_file[sample].to_hist()
+        if len(denom_h.axes) > 1:
+            continue
         varlabel = denom_h.axes[0].label
         sample_label = denom_h.name
-        eff = TEfficiency(xlabel=varlabel, cmstext="Preliminary", lumitext=f"{sample_label} ({effplot_name})", **teff_kwargs)
+        eff = TEfficiency(xlabel=varlabel, lumitext=f"{sample_label} ({effplot_name})", **teff_kwargs)
+        eff.add_line(y=1, linewidth=1, color="red", linestyle="--", alpha=0.3)
+        eff.add_line(y=0.8, linewidth=1, color="red", linestyle="--", alpha=0.3)
         for num, num_label in nums_dict.items():
             num_h = uproot.open(os.path.join(inputfolder, f'{num}/{variable}.root'))[sample].to_hist()
             eff.add(num_h, denom_h, label=num_label)
@@ -51,7 +56,10 @@ def plot_efficiency(
 
     #! ---------------------- Plot arguments ---------------------- #
     rebin        : int  = typer.Option(1, "-r", "--rebin", help="rebin factor", rich_help_panel="Plot"),
-    ylim         : Tuple[float, float] = typer.Option([0,1.1], "-y", "--ylim", help="Y axis limits", rich_help_panel="Plot"),
+    ylim         : Tuple[float, float] = typer.Option([0,1.2], "-y", "--ylim", help="Y axis limits", rich_help_panel="Plot"),
+    cmsloc       : int = typer.Option(1, "--cmsloc", help="CMS location", rich_help_panel="Plot"),
+    cmstext      : str = typer.Option("Preliminary", "--cmstext", help="CMS text", rich_help_panel="Plot"),
+    grid         : bool = typer.Option(False, "--grid", help="Grid", rich_help_panel="Plot"),
 
 
     #! ---------------------- Legend arguments ---------------------- #
@@ -67,7 +75,7 @@ def plot_efficiency(
     variables = yaml_cfg.get("vars", None) if not allvars else None
 
     legend_kwargs = dict(bbox_to_anchor=bbox_to_anchor, loc=loc, ncol=ncol, fontsize=fontsize)
-    teff_kwargs = dict(rebin=rebin, ylim=ylim, legend_kwargs=legend_kwargs)
+    teff_kwargs = dict(rebin=rebin, ylim=ylim, legend_kwargs=legend_kwargs, cmsloc=cmsloc, cmstext=cmstext, grid=grid)
 
     pool_data=[]
     os.makedirs(os.path.join(inputfolder, outfolder), exist_ok=True)
