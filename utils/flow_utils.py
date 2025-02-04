@@ -58,15 +58,14 @@ def parse_flows(console, flow_config, enable=[""], disable=[""]):
             flow_obj.graphviz(f"{folders.outfolder}/verbose_tree")
             flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
             flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
-            return [
-                split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()
-            ], isBranched
+            console.print(flow_table)
+            return [split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()], isBranched
         except ValueError:
             flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
             flow_table.add_row(flow_config, flow_obj.name)
             isBranched = False
-        console.print(flow_table)
-        return [flow_obj], isBranched
+            console.print(flow_table)
+            return [flow_obj], isBranched
     else:
         flow_obj = Flow("empty", Cut("empty", "1"))
         return [split_at_plot(flow_obj)], isBranched
