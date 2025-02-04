@@ -283,18 +283,18 @@ def run_analysis(
         if plots is None:
             raise ValueError("You need to provide the plots file to create the datacards")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
-        cardMaker.makeCards(plotter, MultiKey(), folders.card_path)
-        os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.cards_path,'index.php')}")
+        cardMaker.makeCards(plotter, MultiKey(), folders.cards)
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
         report = maker.runSnapshots()
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
-        os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.snap_path,'index.php')}")
 
     sys.settrace(None)
     console.save_text(os.path.join(folders.log, "report.txt"))
 
+    #!------------------- COPY INDEX.PHP ---------------------- !#
+    copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
 
 if __name__ == "__main__":
     app()

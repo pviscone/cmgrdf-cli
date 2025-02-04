@@ -1,5 +1,7 @@
 import importlib
+import os
 import types
+import shutil
 
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import SimpleExprFlowStep
@@ -45,3 +47,16 @@ def parse_function(module, name, typ, kwargs={}):
                 obj.segments[segment].obj.insert(0, Cut("nEvents", "1"))
 
     return obj
+
+def copy_file_to_subdirectories(src_file, target_folder, ignore=[]):
+    shutil.copy(src_file, target_folder)
+    for root, dirs, _ in os.walk(target_folder):
+        for directory in dirs:
+            target_dir = os.path.abspath(os.path.join(root, directory))
+            skip = False
+            for i in ignore:
+                if i in target_dir:
+                    skip = True
+            if skip:
+                continue
+            shutil.copy(src_file, target_dir)
