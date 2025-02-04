@@ -106,5 +106,7 @@ class Segment:
         self.children=set()
         self.parent = None
         self.common_to_all = False
+        self.isLeaf = False
+        self.isHead = False
     def __repr__(self):
         return f"{self.name}: {self.obj}"
