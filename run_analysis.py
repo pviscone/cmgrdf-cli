@@ -111,9 +111,10 @@ def run_analysis(
     assert ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference'"
 
     #! ------------------------- Set Folders -------------------------- !#
+    folders.init(mergeEras=mergeEras)
     folders.outfolder = os.path.abspath(outfolder)
     for attr in dir(folders):
-        if not attr.startswith("__"):
+        if not attr.startswith("__") and attr != "init":
             setattr(folders, attr, os.path.join(folders.outfolder, getattr(folders, attr)))
 
     #! ---------------------- Debug and verbosity ----------------------- !#

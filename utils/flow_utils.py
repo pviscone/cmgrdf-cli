@@ -2,7 +2,7 @@ from rich.table import Table
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import FlowStep
 from utils.cli_utils import load_module, parse_function
-from utils import folders
+from utils.folders import folders
 from flows import Tree
 import re
 

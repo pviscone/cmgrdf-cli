@@ -4,7 +4,7 @@ import uproot
 import matplotlib.pyplot as plt
 from plothist import plot_comparison
 from utils.plotters import TH1, TH2
-from utils import folders
+from utils.folders import folders
 
 
 def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype):

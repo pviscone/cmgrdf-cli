@@ -5,7 +5,7 @@ from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 
-from utils import folders
+from utils.folders import folders
 
 import __main__
 
