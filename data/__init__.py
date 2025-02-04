@@ -116,19 +116,13 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
 
             group_xsec = 0
             #! Loop over all samples
+            #FIXME probably accumulating paths!!!
             for sample_name in samples:
                 sample_dict = samples[sample_name]
                 xsec = sample_dict.get("xsec", "xsec") if not noXsec else None
                 group_xsec = group_xsec + xsec if (xsec is not None and group_xsec is not None) else None
-                samples_path = sample_dict.get("path", False)
-                friends_path = sample_dict.get("friends_path", False)
-                if not samples_path:
-                    samples_path = group_samples_path
-                if not friends_path:
-                    friends_path = group_friends_path
 
                 MCtable.add_row("", "", sample_name, str(xsec), "", "")
-
                 #! Loop over all eras
                 for (era, paths) in era_paths.items():
                     if era not in eras:
@@ -136,10 +130,17 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
                     if "eras" in group_dict and era not in group_dict["eras"]:
                         continue
 
+                    samples_path = sample_dict.get("path", False)
+                    friends_path = sample_dict.get("friends_path", False)
+                    if not samples_path:
+                        samples_path = group_samples_path
                     if not samples_path:
                         _, samples_path, _ = paths
                     if not friends_path:
+                        friends_path = group_friends_path
+                    if not friends_path:
                         _, _, friends_path = paths
+
                     P0, _, _ = paths
                     samples_path = os.path.join(P0, samples_path)
                     friends_path = os.path.join(P0, friends_path)
@@ -153,7 +154,6 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
                     if noXsec:
                         group_kwargs["genWeightName"] = None
                         group_kwargs["weight"] = "1."
-
                     mcgroup_samples.append(
                         MCSample(
                         sample_name,
