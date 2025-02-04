@@ -83,14 +83,15 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             folder = path.replace('.root','')
             folder = folder.rsplit('/',1)[0]+"/2D_"+folder.rsplit('/',1)[1]
             os.makedirs(folder, exist_ok=True)
-            os.system(f"cp $CMGRDF/externals/index.php {folder}")
             h.save(os.path.join(folder,f"{process_name}.png"))
             h.save(os.path.join(folder,f"{process_name}.pdf"))
 
 
-def DrawPyPlots(plots_lumi, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, ncpu=16):
-    paths=[f"{folders.outfolder}/{flow}/{plot.name}.root" for (flow, plots) in flow_plots for plot in plots]
-    plots = [plot for (_, plots) in flow_plots for plot in plots]
-    pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
-    p=mp.Pool(ncpu)
-    p.starmap(_drawPyPlots, pool_data)
+def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, ncpu=16):
+    for era in eras:
+        format_dict = {"era": era} if not mergeEras else {}
+        paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
+        plots = [plot for (_, plots) in flow_plots for plot in plots]
+        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        p=mp.Pool(ncpu)
+        p.starmap(_drawPyPlots, pool_data)

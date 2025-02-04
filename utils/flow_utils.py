@@ -28,7 +28,7 @@ def split_at_plot(flow_obj):
     return flow_list
 
 
-def parse_flows(console, flow_config, enable=[""], disable=[""]):
+def parse_flows(console, flow_config, enable=[""], disable=[""], noPlotsteps=False):
     assert enable==[""] or disable==[""], "Cannot enable and disable at the same time"
 
     isBranched=False
@@ -59,7 +59,10 @@ def parse_flows(console, flow_config, enable=[""], disable=[""]):
             flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
             flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
             console.print(flow_table)
-            return [split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()], isBranched
+            if noPlotsteps:
+                return [[Flow(name, steps)] for name, steps in flows_dict.items()], isBranched
+            else:
+                return [split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()], isBranched
         except ValueError:
             flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
             flow_table.add_row(flow_config, flow_obj.name)
@@ -68,7 +71,10 @@ def parse_flows(console, flow_config, enable=[""], disable=[""]):
             return [flow_obj], isBranched
     else:
         flow_obj = Flow("empty", Cut("empty", "1"))
-        return [split_at_plot(flow_obj)], isBranched
+        if noPlotsteps:
+            return [[flow_obj]], isBranched
+        else:
+            return [split_at_plot(flow_obj)], isBranched
 
 def clean_commons(region_flows):
     nmin = min([len(l) for l in region_flows])

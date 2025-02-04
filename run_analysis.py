@@ -18,7 +18,7 @@ from CMGRDF.stat import DatacardWriter
 from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from flows.SFs import BranchCorrection
 import cpp_functions
-from utils.cli_utils import load_module, parse_function
+from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from utils.flow_utils import parse_flows, clean_commons
 from utils.plot_utils import DrawPyPlots
@@ -52,8 +52,8 @@ def run_analysis(
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Flow options
-    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated)", rich_help_panel="Flow Options"),
-    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated)", rich_help_panel="Flow Options"),
+    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
 
     #! Plot options
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
@@ -63,8 +63,10 @@ def run_analysis(
     ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
+    noPlotsteps  : bool        = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Plot Options"),
 
     #! Yields options
+    noYields       : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
     mergeErasYields: bool = typer.Option(False, "--mergeErasYields", help="Merge the eras in the yields", rich_help_panel="Yields Options"),
 
     #! Datacard options #
@@ -110,12 +112,22 @@ def run_analysis(
 
     assert ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference'"
 
+    if datacards:
+        assert plots is not None, "You need to provide the plots file to create the datacards"
+
+    if columnVeto:
+        columnVeto += ",mcSampleWeight"
+    else:
+        columnVeto = "mcSampleWeight"
+
     #! ------------------------- Set Folders -------------------------- !#
     folders.init(mergeEras=mergeEras, mergeErasYields=mergeErasYields)
     folders.outfolder = os.path.abspath(outfolder)
     for attr in dir(folders):
         if not attr.startswith("__") and attr != "init":
             setattr(folders, attr, os.path.join(folders.outfolder, getattr(folders, attr)))
+
+    os.makedirs(folders.log, exist_ok=True)
 
     #! ---------------------- Debug and verbosity ----------------------- !#
     if disableBreakpoints:
@@ -159,7 +171,6 @@ def run_analysis(
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print_configs(console, ncpu, nevents, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
     os.makedirs(folders.outfolder, exist_ok=True)
-    os.system(f"cp $CMGRDF/externals/index.php {os.path.join(folders.outfolder, 'index.php')}")
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
     AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
@@ -181,9 +192,11 @@ def run_analysis(
     maker = Processor(cache=cache)
 
     #! -------------- Print flows table and parse flows -------------------- !#
-    region_flows, isBranched = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","))
-    if isBranched:
+    region_flows, isBranched = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps)
+    if isBranched and not noPlotsteps:
         region_flows = clean_commons(region_flows)
+    region_flows = [flow_list for flow_list in region_flows if flow_list]
+
     flow_plots = []
     modified = False
     for flow_list in region_flows:
@@ -262,26 +275,25 @@ def run_analysis(
             stack=True,
             showRatio=False, noStackSignals=False, showErrors=True,
             plotFormats="root",
-        ).printSet(plotter, folders.plots)
+        ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#
         plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-        DrawPyPlots(plot_lumi, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, ncpu=ncpu)
+        DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
-    yields = maker.runYields(mergeEras=mergeErasYields)
-    console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
-    for flow_list in region_flows:
-        if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
-            continue
-        print_yields(yields, all_data, flow_list, eras, mergeErasYields, console=console)
-        write_log(command, cachepath)
+    if not noYields:
+        yields = maker.runYields(mergeEras=mergeErasYields)
+        console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
+        for flow_list in region_flows:
+            if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
+                continue
+            print_yields(yields, all_data, flow_list, eras, mergeErasYields, console=console)
+            write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
         pprint("[bold red]---------------------- Saving datacards ----------------------[/bold red]")
-        if plots is None:
-            raise ValueError("You need to provide the plots file to create the datacards")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
         cardMaker.makeCards(plotter, MultiKey(), folders.cards)
 
