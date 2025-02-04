@@ -22,7 +22,7 @@ from utils.cli_utils import load_module, parse_function
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from utils.flow_utils import parse_flows, clean_commons
 from utils.plot_utils import DrawPyPlots
-from utils import folders
+from utils.folders import folders
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
