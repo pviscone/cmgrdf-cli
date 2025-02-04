@@ -49,6 +49,10 @@ hep.styles.cms.CMS["legend.frameon"] = False
 hep.styles.cms.CMS["figure.autolayout"] = True
 hep.style.use(hep.style.CMS)
 
+def set_palette(palette):
+    hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", palette)
+    hep.style.use(hep.style.CMS)
+
 def merge_kwargs(**decorator_kwargs):
     def decorator(method):
         @wraps(method)
