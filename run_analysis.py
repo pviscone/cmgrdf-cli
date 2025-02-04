@@ -181,8 +181,9 @@ def run_analysis(
     maker = Processor(cache=cache)
 
     #! -------------- Print flows table and parse flows -------------------- !#
-    region_flows = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","))
-    region_flows = clean_commons(region_flows)
+    region_flows, isBranched = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","))
+    if isBranched:
+        region_flows = clean_commons(region_flows)
     flow_plots = []
     modified = False
     for flow_list in region_flows:
