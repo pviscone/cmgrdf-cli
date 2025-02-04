@@ -288,7 +288,7 @@ def run_analysis(
         for flow_list in region_flows:
             if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
                 continue
-            print_yields(yields, all_data, flow_list, eras, mergeErasYields, console=console)
+            print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
             write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
