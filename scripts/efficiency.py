@@ -19,10 +19,6 @@ app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", 
 
 
 def eff_plot(inputfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace):
-    #Create variable folder
-    os.makedirs(os.path.join(inputfolder,f'zeff/{variable}'), exist_ok=True)
-    #create denom folder
-    os.makedirs(os.path.join(inputfolder,f'zeff/{variable}/{denom}'), exist_ok=True)
     #Create effplot folder
     os.makedirs(os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}'), exist_ok=True)
     #copy index.php
