@@ -31,7 +31,7 @@ console = Console(record=True)
 def run_analysis(
     #! Configs
     cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")], #TODO test multiple eras
+    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] or [bold red]Tree[/bold red] object.", rich_help_panel="Configs"),
     plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs"),
@@ -52,9 +52,8 @@ def run_analysis(
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Flow options
-    #TODO they should be regex patterns
-    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (comma separated)", rich_help_panel="Flow Options"),
-    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (comma separated)", rich_help_panel="Flow Options"),
+    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated)", rich_help_panel="Flow Options"),
+    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated)", rich_help_panel="Flow Options"),
 
     #! Plot options
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
@@ -63,10 +62,9 @@ def run_analysis(
     ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
     ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
-    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"), #TODO test multiple eras with and without mergeEras
+    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
 
     #! Datacard options #
-    # TODO re-test
     datacards       : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
     asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
     autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
@@ -75,7 +73,6 @@ def run_analysis(
     regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 
     #! Snapshot options
-    # TODO re-test
     snapshot   : bool = typer.Option(False, "--snapshot", help=f"Save snapshots in outfolder/{folders.snap}", rich_help_panel="Snapshot Options"),
     columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
@@ -262,7 +259,7 @@ def run_analysis(
             stack=True,
             showRatio=False, noStackSignals=False, showErrors=True,
             plotFormats="root",
-        ).printSet(plotter, folders.plots) #TODO should i add {era} here and adjust all the paths? Loops on era???
+        ).printSet(plotter, folders.plots)
 
         #!---------------------- Draw Plots ---------------------- !#
         plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]

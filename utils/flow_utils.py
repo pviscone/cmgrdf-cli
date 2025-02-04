@@ -41,10 +41,18 @@ def parse_flows(console, flow_config, enable=[""], disable=[""]):
             flow_obj = parse_function(flow_module, "flow", Tree, kwargs=flow_kwargs)
             isBranched = True if any([len(s.children)>1 for _, s in flow_obj.segments.items()]) else False
             flows_dict = flow_obj.to_dict()
-            if enable!=[""]:
-                flows_dict = {k: v for k, v in flows_dict.items() if k in enable}
-            if disable!=[""]:
-                flows_dict = {k: v for k, v in flows_dict.items() if k not in disable}
+            if enable!=[""] or disable!=[""]:
+                new_flows_dict = {}
+                for name in flows_dict:
+                    if enable!=[""]:
+                        for en_pattern in enable:
+                            if re.search(en_pattern, name):
+                                new_flows_dict[name] = flows_dict[name]
+                    if disable!=[""]:
+                        for dis_pattern in disable:
+                            if not re.search(dis_pattern, name):
+                                new_flows_dict[name] = flows_dict[name]
+                flows_dict = new_flows_dict
             for name in flows_dict:
                 flow_table.add_row(flow_config, name)
             flow_obj.graphviz(f"{folders.outfolder}/verbose_tree")
