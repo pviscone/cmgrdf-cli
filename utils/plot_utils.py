@@ -7,7 +7,7 @@ from utils.plotters import TH1, TH2
 from utils.folders import folders
 
 
-def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype):
+def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid):
     if "{lumi" in lumitext:
         lumitext = lumitext.format(lumi=plot_lumi)
     density = getattr(plot, "density", False)
@@ -27,7 +27,7 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             log = log,
             fig = fig,
             ax = ax[0],
-            grid=False,
+            grid=grid,
         )
 
         data_hist = file.get("data", False)
@@ -77,7 +77,8 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
                     lumitext= lumitext,
                     xlabel = plot.xlabel,
                     ylabel = plot.ylabel,
-                    log = log)
+                    log = log,
+                    grid=grid)
             hist = file[process_name].to_hist()
             h.add(hist, density = density)
             folder = path.replace('.root','')
@@ -87,11 +88,11 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             h.save(os.path.join(folder,f"{process_name}.pdf"))
 
 
-def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, ncpu=16):
+def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=16):
     for era in eras:
         format_dict = {"era": era} if not mergeEras else {}
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
-        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         p=mp.Pool(ncpu)
         p.starmap(_drawPyPlots, pool_data)

@@ -64,6 +64,7 @@ def run_analysis(
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     noPlotsteps  : bool        = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Plot Options"),
+    grid         : bool        = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
 
     #! Yields options
     noYields       : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
@@ -274,7 +275,7 @@ def run_analysis(
 
         #!---------------------- Draw Plots ---------------------- !#
         plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-        DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, ncpu=ncpu)
+        DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
@@ -284,7 +285,6 @@ def run_analysis(
             if len(region_flows)>1 and re.search("(\d+)common.*", flow_list[-1].name):
                 continue
             print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
-            write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
@@ -297,10 +297,10 @@ def run_analysis(
         report = maker.runSnapshots()
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
 
+    #!--------------------- SAVE LOGS ---------------------- !#
+    write_log(command, cachepath)
     sys.settrace(None)
     console.save_text(os.path.join(folders.log, "report.txt"))
-
-    #!------------------- COPY INDEX.PHP ---------------------- !#
     copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
 
 if __name__ == "__main__":
