@@ -218,7 +218,7 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                         f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
                         f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
                         f"{cumulative_eff*proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}" if getattr(proc,"xsec", None) is not None else "",
-                        "\u2713" if hasattr(cut, "plot") else ""
+                        "\u2713" if getattr(cut, "plot", False) else ""
                     )
 
                 format_dict = {"era": era, "flow": flow.name}

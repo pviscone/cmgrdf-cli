@@ -210,7 +210,8 @@ def run_analysis(
             assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
 
         #! ---------------------- PRINT THE FLOW ----------------------- !#
-        print_flow(console, flow_list[-1])
+        if not re.search("(\d+)common.*", flow_list[-1].name): #Do not print common flows
+            print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
         plot = copy.deepcopy(plots.get("main", [])) if isinstance(plots, dict) else []

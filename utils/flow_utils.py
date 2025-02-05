@@ -13,7 +13,7 @@ def split_at_plot(flow_obj):
     for step_idx, flow_step in enumerate(flow_obj):
         if (
             isinstance(flow_step, FlowStep)
-            and hasattr(flow_step, "plot")
+            and getattr(flow_step, "plot", False)
             and flow_step.plot
         ):
             flow_name = flow_obj.name + f"_{plotted_steps}"
@@ -39,6 +39,10 @@ def parse_flows(console, flow_config, enable=[""], disable=[""], noPlotsteps=Fal
         flow_module, flow_kwargs = load_module(flow_config)
         try:
             flow_obj = parse_function(flow_module, "flow", Tree, kwargs=flow_kwargs)
+            if noPlotsteps:
+                for segment in flow_obj.segments:
+                    for step in flow_obj.segments[segment].obj:
+                        step.plot=False
             isBranched = True if any([len(s.children)>1 for _, s in flow_obj.segments.items()]) else False
             flows_dict = flow_obj.to_dict()
             if enable!=[""] or disable!=[""]:
@@ -59,26 +63,22 @@ def parse_flows(console, flow_config, enable=[""], disable=[""], noPlotsteps=Fal
             flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
             flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
             console.print(flow_table)
-            if noPlotsteps:
-                return [[Flow(name, steps)] for name, steps in flows_dict.items()], isBranched
-            else:
-                return [split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()], isBranched
+            return [split_at_plot(Flow(name, steps)) for name, steps in flows_dict.items()], isBranched
         except ValueError:
             flow_obj = parse_function(flow_module, "flow", Flow, kwargs=flow_kwargs)
+            if noPlotsteps:
+                for step in flow_obj.steps:
+                    step.plot=False
             flow_table.add_row(flow_config, flow_obj.name)
             isBranched = False
             console.print(flow_table)
-            return [flow_obj], isBranched
-    else:
-        flow_obj = Flow("empty", Cut("empty", "1"))
-        if noPlotsteps:
-            return [[flow_obj]], isBranched
-        else:
             return [split_at_plot(flow_obj)], isBranched
+    else:
+        return [[Flow("empty", Cut("empty", "1"))]], isBranched
 
 def clean_commons(region_flows):
-    nmin = min([len(l) for l in region_flows])
     common_flows = []
+    nmin = min([len(l) for l in region_flows])
     for i in range(nmin):
         flow_i = [region[i].steps for region in region_flows]
         if all(x==flow_i[0] for x in flow_i):
@@ -89,5 +89,4 @@ def clean_commons(region_flows):
         else:
             break
     region_flows = [region[i:] for region in region_flows]
-    region_flows = [common_flows, *region_flows]
-    return region_flows
+    return [common_flows, *region_flows]
