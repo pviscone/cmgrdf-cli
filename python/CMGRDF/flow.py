@@ -165,7 +165,7 @@ class Cut(SimpleExprFlowStep):
 
 class Range(SimpleExprFlowStep):
     def __init__(self, expr : Union[int, tuple[int, int], tuple[int, int, int], list[int]], **options):
-        super().__init__("Range", repr(expr), **options)
+        super().__init__("Range", expr, **options)
 
     def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
         try:
