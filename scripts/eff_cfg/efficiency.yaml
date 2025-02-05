@@ -2,36 +2,40 @@ vars:
     - GenZd_dR
     - GenEleLead_pt
     - GenEleSubLead_pt
+    - GenEleLead_pt
+    - GenEleSubLead_pt
+    - SelectedDiEle_fitted_mass
+    - SelectedDiEle_pt
 
 denom_nums:
     0common_0_NoCut:
         NoCut:
-            PFPF_postSelectionCuts_1_GenMatch: GenMatched
+            1common_1_GenMatch: GenMatched
             PFPF_postSelectionCuts_2_SelPFPF: PF-PF
             PFLP_postSelectionCuts_2_SelPFLP: PF-LP
             LPLP_postSelectionCuts_2_SelLPLP: LP-LP
         NoCutPFPF:
-            PFPF_postSelectionCuts_1_GenMatch: GenMatched
+            1common_1_GenMatch: GenMatched
             PFPF_postSelectionCuts_2_SelPFPF: PF-PF
             PFPF_postSelectionCuts_3_dZ: "$dZ \\leq 1cm$"
             PFPF_postSelectionCuts_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFPF_postSelectionCuts_5_HLT: HLT OR
             PFPF_postSelectionCuts_6_TrgObjMatch: TrgObjMatch
         NoCutPFLP:
-            PFPF_postSelectionCuts_1_GenMatch: GenMatched
+            1common_1_GenMatch: GenMatched
             PFLP_postSelectionCuts_2_SelPFLP: PF-LP
             PFLP_postSelectionCuts_3_dZ: "$dZ \\leq 1cm$"
             PFLP_postSelectionCuts_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFLP_postSelectionCuts_5_HLT: HLT OR
             PFLP_postSelectionCuts_6_TrgObjMatch: TrgObjMatch
         NoCutLPLP:
-            PFPF_postSelectionCuts_1_GenMatch: GenMatched
+            1common_1_GenMatch: GenMatched
             LPLP_postSelectionCuts_2_SelLPLP: LP-LP
             LPLP_postSelectionCuts_3_dZ: "$dZ \\leq 1cm$"
             LPLP_postSelectionCuts_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_postSelectionCuts_5_HLT: HLT OR
             LPLP_postSelectionCuts_6_TrgObjMatch: TrgObjMatch
-    PFPF_postSelectionCuts_1_GenMatch:
+    1common_1_GenMatch:
         GenMatch:
             PFPF_postSelectionCuts_2_SelPFPF: PF-PF
             PFLP_postSelectionCuts_2_SelPFLP: PF-LP

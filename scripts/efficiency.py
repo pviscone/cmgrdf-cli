@@ -8,6 +8,7 @@ sys.path.append(os.environ["ANALYSIS_DIR"])
 import uproot
 import glob
 from utils.plotters import TEfficiency, set_palette, ggplot_palette
+from utils.cli_utils import copy_file_to_subdirectories
 import multiprocessing as mp
 import typer
 from typing_extensions import Annotated
@@ -19,20 +20,19 @@ set_palette(ggplot_palette)
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 
 
-def eff_plot(inputfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace):
+def eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace):
     #Create effplot folder
-    os.makedirs(os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}'), exist_ok=True)
-    #copy index.php
-    os.system(f"cp {os.environ['CMGRDF']}/externals/index.php {os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}')}")
-
+    if "_vs_" in variable:
+        return
+    if not os.path.exists(os.path.join(inputfolder,f'{denom}/{variable}.root')):
+        return
+    os.makedirs(os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}'), exist_ok=True)
     denom_file = uproot.open(os.path.join(inputfolder, f'{denom}/{variable}.root'))
     samples = [s.split(";")[0] for s in denom_file.keys() if "_total" not in s and "_stack" not in s and "_canvas" not in s and not s.startswith("data")]
     for sample in samples:
-        if noReplace and f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}/{sample}')}.png" in glob.glob(f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}')}/*"):
+        if noReplace and f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.png" in glob.glob(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}')}/*"):
             continue
         denom_h = denom_file[sample].to_hist()
-        if len(denom_h.axes) > 1:
-            continue
         varlabel = denom_h.axes[0].label
         sample_label = denom_h.name
         eff = TEfficiency(xlabel=varlabel, lumitext=f"{sample_label} ({effplot_name})", **teff_kwargs)
@@ -41,8 +41,8 @@ def eff_plot(inputfolder, denom, effplot_name, nums_dict, variable, teff_kwargs,
         for num, num_label in nums_dict.items():
             num_h = uproot.open(os.path.join(inputfolder, f'{num}/{variable}.root'))[sample].to_hist()
             eff.add(num_h, denom_h, label=num_label)
-        eff.save(f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}/{sample}')}.png")
-        eff.save(f"{os.path.join(inputfolder,f'zeff/{variable}/{denom}/{effplot_name}/{sample}')}.pdf")
+        eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.png")
+        eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.pdf")
 
 @app.command()
 def plot_efficiency(
@@ -86,7 +86,7 @@ def plot_efficiency(
                 variables = glob.glob(os.path.join(inputfolder, f'{denom}/*.root'))
                 variables = [v.split("/")[-1].split(".root")[0] for v in variables]
             for variable in variables:
-                pool_data.append((inputfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace))
+                pool_data.append((inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace))
 
     p=mp.Pool(ncpu)
     p.starmap(eff_plot, pool_data)
@@ -99,6 +99,7 @@ def plot_efficiency(
     command = " ".join(sys.argv).replace('"', r'\\\"')
     os.system(fr'echo "python {command}" > {os.path.join(inputfolder, outfolder, "command.sh")}')
     os.system(f"chmod +x {os.path.join(inputfolder, outfolder, 'command.sh')}")
+    copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), os.path.join(inputfolder, outfolder))
 
 if __name__ == "__main__":
     app()
