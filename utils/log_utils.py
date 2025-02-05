@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 from utils.folders import folders
+from utils.cli_utils import center_header
 
 import __main__
 
@@ -137,7 +138,7 @@ def print_configs(
 
 
 def print_dataset(console, processtable, datatable, MCtable, eras):
-    console.print("[bold red]---------------------- DATASETS ----------------------[/bold red]")
+    console.print(f"[bold red]{center_header('DATASETS')}[/bold red]")
     console.print(f"Running eras: {eras}")
     console.print(processtable)
     console.print(datatable)
@@ -145,12 +146,12 @@ def print_dataset(console, processtable, datatable, MCtable, eras):
 
 
 def print_mcc(console, mccFlow):
-    console.print("[bold red]---------------------- MCC ----------------------[/bold red]")
+    console.print(f"[bold red]{center_header('MCC')}[/bold red]")
     console.print(mccFlow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
 
 def print_flow(console, flow):
-    console.print(f"[bold red]--------------------- FLOW: {flow.name} ----------------------[/bold red]")
+    console.print(f"[bold red]{center_header(f'FLOW: {flow.name}')}[/bold red]")
     console.print(flow.__str__().replace("\033[1m", "").replace("\033[0m", ""))
 
 
@@ -232,20 +233,20 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                 console.print("\n")
                 if mergeEras:
                     break
-        if not mergeEras:
-            console.print(
-                f"        [bold magenta]------------------------- END FLOW {flow.name} -----------------------------[/bold magenta]"
-            )
+            if not mergeEras:
+                console.print(
+                    f"[bold magenta]{center_header(f'END ERA {era}', padding=10)}[/bold magenta]"
+                )
             console.print("\n")
     console.print(
-        f"[bold green]----------------------------------END PROC {proc.name}------------------------------------[/bold green]"
+        f"[bold green]{center_header(f'END FLOW {flow.name}')}[/bold green]"
     )
     console.print("\n")
 
 
 
 def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern):
-    console.print("[bold red]---------------------- SNAPSHOTS ----------------------[/bold red]")
+    console.print(f"[bold red]{center_header('SNAPSHOTS')}[/bold red]")
     console.print(f"columnSel: {columnSel.split(',') if columnSel is not None else []}")
     console.print(f"columnVeto: {columnVeto.split(',') if columnVeto is not None else []}")
     console.print(f"MCpattern: {MCpattern if MCpattern is not None else []}")

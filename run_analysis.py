@@ -18,9 +18,9 @@ from CMGRDF.stat import DatacardWriter
 from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from flows.SFs import BranchCorrection
 import cpp_functions
-from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories
+from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
-from utils.flow_utils import parse_flows, clean_commons
+from utils.flow_utils import parse_flows, clean_commons, disable_plotflag
 from utils.plot_utils import DrawPyPlots
 from utils.folders import folders
 
@@ -34,7 +34,7 @@ def run_analysis(
     eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
     outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
     flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] or [bold red]Tree[/bold red] object.", rich_help_panel="Configs"),
-    plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] list", rich_help_panel="Configs"),
+    plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] dict/list", rich_help_panel="Configs"),
     data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
     mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
@@ -120,6 +120,9 @@ def run_analysis(
     else:
         columnVeto = "mcSampleWeight"
 
+    if plots is None:
+        plots={}
+
     #! ------------------------- Set Folders -------------------------- !#
     folders.init(mergeEras=mergeEras, mergeErasYields=mergeErasYields)
     folders.outfolder = os.path.abspath(outfolder)
@@ -165,6 +168,7 @@ def run_analysis(
     mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
     try:
         plots     = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+        plots = {"main" : plots}
     except ValueError:
         plots     = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
 
@@ -192,33 +196,27 @@ def run_analysis(
     maker = Processor(cache=cache)
 
     #! -------------- Print flows table and parse flows -------------------- !#
-    region_flows, isBranched = parse_flows(console, flow, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps)
+    #list of list of flows. [i][j] i is leaf, j is plotstep. bool if tree contains a branch
+    region_flows, region_plots, isBranched = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps)
+    if noPlotsteps:
+        region_flows = [[r[-1]] for r in region_flows]
+        region_plots = [[p[-1]] for p in region_plots]
+        disable_plotflag(region_flows)
     if isBranched and not noPlotsteps:
-        region_flows = clean_commons(region_flows)
-    region_flows = [flow_list for flow_list in region_flows if flow_list]
-
+        region_flows, region_plots = clean_commons(region_flows, region_plots)
+    region_plots = [region_plots[idx] for idx in range(len(region_flows)) if region_flows[idx]] #remove plot elements associated to empty flow_list
+    region_flows = [flow_list for flow_list in region_flows if flow_list] #remove empty flow_list
     flow_plots = []
-    modified = False
-    for flow_list in region_flows:
-        #If plots is a single list, make a list of list to make the same plots at each plotting step
-        if plots and isinstance(plots, list) and not isinstance(plots[0], list):
-            plots = [plots]*len(flow_list)
-            modified = True
-        elif plots and isinstance(plots, list) and modified:
-            plots = [plots[0]]*len(flow_list)
-        if plots and isinstance(plots, list):
-            assert len(plots) == len(flow_list), "The number of plots (list) should be the same as the number of flows"
-
+    for flow_list, plot_list in zip(region_flows, region_plots):
         #! ---------------------- PRINT THE FLOW ----------------------- !#
         if not re.search("(\d+)common.*", flow_list[-1].name): #Do not print common flows
             print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
-        plot = copy.deepcopy(plots.get("main", [])) if isinstance(plots, dict) else []
-        for _i, flow in enumerate(flow_list):
+        for _i, (flow, plot) in enumerate(zip(flow_list, plot_list)):
 
             if nevents != -1:
-                flow.prepend(Range(nevents))
+                flow.prepend(Range(int(nevents)))
 
             #! ------------------ Corrections handling ------------------------ !#
             # Dirty workaround to handle corrections
@@ -243,14 +241,10 @@ def run_analysis(
                         flow.steps[idx]=new_steps[0]
 
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
-            pprint(f"[bold red]---------------------- Booking flow {flow.name}----------------------[/bold red]")
+            pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
             maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
             if plots:
-                if isinstance(plots, dict):
-                    plot.extend(plots.get(flow.name.split("_")[-1], []))
-                else:
-                    plot = plots[_i]
                 maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
                 flow_plots.append((flow.name, plot))
 
@@ -269,7 +263,7 @@ def run_analysis(
                     maker.book(snap_list, lumi, flow, Snapshot(folders.snap.replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
     #!---------------------- Save Plots ---------------------- !#
-    pprint("[bold red]---------------------- RUNNING ----------------------[/bold red]")
+    pprint(f"[bold red]{center_header('RUNNING')}[/bold red]")
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
@@ -285,16 +279,16 @@ def run_analysis(
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
         yields = maker.runYields(mergeEras=mergeErasYields)
-        console.print("[bold red]###################################################### YIELDS ######################################################[/bold red]")
+        console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
-            if len(region_flows)>1 and flow_list[0].name.startswith("0common"):
+            if len(region_flows)>1 and re.search("(\d+)common.*", flow_list[-1].name):
                 continue
             print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
             write_log(command, cachepath)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
     if datacards:
-        pprint("[bold red]---------------------- Saving datacards ----------------------[/bold red]")
+        pprint(f"[bold red]{center_header('Saving datacards')}[/bold red]")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
         cardMaker.makeCards(plotter, MultiKey(), folders.cards)
 

@@ -8,6 +8,21 @@ from CMGRDF.flow import SimpleExprFlowStep
 
 from flows import Tree
 
+def center_header(text, s="-", padding=0, max_width=150):
+    text=f" {text} "
+    term_width = os.get_terminal_size().columns
+    if max_width is not None:
+        term_width = min(term_width, max_width)
+    max_padding = term_width // 2
+    adjusted_padding = min(padding, max_padding)
+    available_width = term_width - 2 * adjusted_padding
+    truncated_text = text[:available_width] if len(text) > available_width else text
+    if available_width > 0:
+        line_part = f"{truncated_text:{s}^{available_width}}"
+    else:
+        line_part = ''
+    return ' ' * adjusted_padding + line_part + ' ' * adjusted_padding
+
 def load_module(filepath):
     if filepath is not None:
         if filepath.count(":") == 0:
