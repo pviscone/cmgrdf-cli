@@ -1,11 +1,5 @@
 [TOC]
 
-**ACHTUNG!!! THIS IS A WORK IN PROGRESS, THINGS WILL CHANGE**
-
-### TODO
-
-https://codimd.web.cern.ch/s/7BImZD6LD#
-
 # Setup
 
 Clone this repository with the `--recursive` option, so `cmgrdf-prototype` is also cloned. While cloning, you will be asked to enter your gitlab user name and password when grabbing the cmg-rdf submodule. After, follow the set-up instructions as described in that repository.
@@ -42,12 +36,6 @@ source setup.sh
 >3. If you use zsh shell, you have to run the setup.sh script with bash shell, so you have to run ```source setup.sh``` in bash and then re-launch zsh. ```bash -c "source setup.sh; zsh"```
 
 More information can be found in the [cmg-rdf](https://gitlab.cern.ch/cms-new-cmgtools/cmgrdf-prototype) repository.
-
-
-### Examples
-
-The commmand `run_example.sh` run a simple example
-
 
 ### Debug
 
@@ -219,7 +207,6 @@ The plot config file contains a list of plots or a list of list of plots or a di
 
 In case you want to make plots at different steps of the cutflow:
 - if `plots` is a list of plots then at each step all the plots are plotted
-- if `plots` is a list of list of plots then `len(plots)` must be equal to the number of flowstep with the flowstep `plot` argument
 - if `plots` is a dict of list of plots, each list of plots is plotted at the step that has the flowstep `plot` argument equal to the dict key. You can define a key `"main"` that is plotted by default if no key is specified for a given flowstep `plot` argument
 
 Currently only 1D and 2D histograms are supported (e.g. no TEfficiency)
@@ -235,7 +222,7 @@ In `plots/defaults.py` you can set default arguments for the histogram. You can 
 - histo1d_defaults: These arguments are passed to all the 1D histograms
 - histo2d_defaults: These arguments are passed to all the 2D histograms
 - name_defaults : Here you can define a regex pattern as a key and a dictionary for each regex pattern. The first regex pattern that will match the name of a `Hist` object or the axis name of a `Hist2D` object will have the defined arguments applied
-*
+
 
 Of course, you can ovverride the defalut values just defining a new one in the `Hist` definition
 The priority is
@@ -245,6 +232,13 @@ The priority is
 
 The config file must contain a list of Hists or a function that returns a list of Hists called `plots`.
 You can edit the defaults just importing them in your config and editing them.
+
+#### Main Plot arguments
+- bins: if tuple is ROOT-like (nbin, lowedge, highedge) or python-list of binedges
+- log: string. Set-up the axes that you want in log scale (e.g. log="xy" is bilog). For TH2 log="z" transform the colorbar axis
+- density: bool. To normalize the histogram
+- xlabel: string. In defaults you can use substrings like `"($i)"` where i is the index of the regex group that you want to capture
+- ylabel: string. Default is `Events` for TH1, `Density` for normalized TH1, and the right matched axis for TH@
 
 ### Corrections and systematics
 Here the things are a bit weird.
@@ -302,7 +296,6 @@ If the config file contains a function that return the needed object you can set
 e.g. `--flow flows/flow.py:region=\"Signal\",Eleptcut=5`
 
 
-
 ---
 The CLI will print on the terminal:
 - A table containing the mainm configurations (eras, ncpu, etc.)
@@ -311,15 +304,17 @@ The CLI will print on the terminal:
 - The list of steps of the MCC
 - The list of steps of the Flow
 - The RDataFrame logging
-- For each process a table with all the cuts with the yields, relative efficiencies and cumulative efficiencies
+- For each process/era/region a table with all the cuts with the yields, relative efficiencies and cumulative efficiencies
 
 
 ---
 In the outfolder, the CLI will save:
-- The CMGRDF output (index.php to visualize plots on webeos, pdf and png plots, txt with yields for each plot, hist saved in root file)
-- a cards folder with Combine datacards for each plot and root input files (if runned with `--datacards`)
+- The CMGRDF output (index.php to visualize plots on webeos, pdf and png plots, txt with yields for each plot, hist saved in root file) for each region
+- a cards folder (if requested) with Combine datacards for each plot and root input files (if runned with `--datacards`)
+- a snapshot folder (if requested)
+- a table folder with all the yields saved
 - A log folder that contains:
-    - `cache` folder that contains the cache of the analysis (for rerunning it faster) (enabled by default)
+    - cache folder that contains the cache of the analysis (for rerunning it faster) (enabled by default)
     - `report.txt` A file that contains the terminal output of the CLI
     - `cmgrdf_commit.txt` A file that contains the commit hash of the CMGRDF used to runned the analysis and (if in a dirty state), the git diff
     - All the files needed to rerun the analysis (not all the files in the repo, just the one you need)
