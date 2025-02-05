@@ -39,9 +39,13 @@ name_defaults = OrderedDict({
     "(.*)_type(.*)": dict(
         bins=(3, 1, 4),
         label="($1) ($2) type",
+        density=True,
+        log="y",
     ),
     "n(.*)": dict(
         bins=(10, 0, 10),
         label="# ($1)",
+        density=True,
+        log="y",
     ),
 })
