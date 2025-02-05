@@ -2,10 +2,11 @@ import pygraphviz as PG
 import os
 import copy
 from CMGRDF import Flow
+from collections import OrderedDict
 
 class Tree:
     def __init__(self):
-        self.segments={}
+        self.segments=OrderedDict({})
         self.leaves=set()
         self.heads=set()
 
