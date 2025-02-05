@@ -56,6 +56,7 @@ def run_analysis(
     enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
 
     #! Plot options
+    noPyplots    : bool        = typer.Option(False, "--noPyplots", help="Do not plot figures, just save THx root files", rich_help_panel="Plot Options"),
     lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
     cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
     noRatio      : bool        = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
@@ -274,8 +275,9 @@ def run_analysis(
         ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#
-        plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-        DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu)
+        if not noPyplots:
+            plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
+            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
