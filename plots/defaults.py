@@ -11,7 +11,6 @@ histo1d_defaults = OrderedDict(
 histo2d_defaults = OrderedDict()
 
 # The first matched pattern will be used
-# TODO xTitle like a regex pattern? re.replace(pattern, replacement, string)
 name_defaults = OrderedDict({
     "(.*)_(?:pt|invPt)(.*)": dict(
         bins=(50, 0, 50),
@@ -37,7 +36,7 @@ name_defaults = OrderedDict({
         bins=(40, 0, 1.5),
         label="($1) ($2) $\Delta$R",
     ),
-    "(.*)_type": dict(
+    "(.*)_type(.*)": dict(
         bins=(3, 1, 4),
         label="($1) ($2) type",
     ),
