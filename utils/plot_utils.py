@@ -69,8 +69,12 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
                     comparison_ylim = ratiorange
                     )
 
-        h.save(f"{path.replace('.root','.png')}")
-        h.save(f"{path.replace('.root','.pdf')}")
+        pdf_Path = path.replace('.root','.pdf')
+        png_Path = path.replace('.root','')
+        h.save(f"{pdf_Path}")
+        os.system(f"pdftocairo {pdf_Path} -png -r 200 {png_Path}")
+        os.system(f"mv {png_Path}-1.png {png_Path}.png")
+
     elif "TH2" in hist_type:
         for process_name, process_dict in all_processes.items():
             h = TH2(cmstext = cmstext,
@@ -84,9 +88,9 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             folder = path.replace('.root','')
             folder = folder.rsplit('/',1)[0]+"/2D_"+folder.rsplit('/',1)[1]
             os.makedirs(folder, exist_ok=True)
-            h.save(os.path.join(folder,f"{process_name}.png"))
             h.save(os.path.join(folder,f"{process_name}.pdf"))
-
+            os.system(f"pdftocairo {os.path.join(folder,f'{process_name}.pdf')} -png -r 200 {os.path.join(folder,f'{process_name}')}")
+            os.system(f"mv {os.path.join(folder,f'{process_name}-1.png')} {os.path.join(folder,f'{process_name}.png')}")
 
 def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=16):
     for era in eras:
