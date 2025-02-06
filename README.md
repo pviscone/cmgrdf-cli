@@ -167,9 +167,9 @@ all_processes={
 ### MCC
 *Optional*
 
-The MCC is just a **list** of flowstep that are added to each sample as a Prepend hook. They usually contains just a bunch of alias.
+The MCC is just a Flow that is added to each sample as a Prepend hook. They usually contains just a bunch of alias.
 
-The MCC config file must contain a list of flowsteps or a function that return a list of flowstep called `mccFlow`
+The MCC config file must contain a Flow or a function that return a Flow called `mccFlow`
 
 ### Flows
 The flow config file contains the analysis flow.
