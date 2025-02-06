@@ -139,7 +139,8 @@ dicts={
         "eras": era_list #OPTIONAL, eras where the sample is present
     ]
     "label":label,
-    "color": root_color,
+    "color": hex_color, #cms palette in from data.MC import cms10 (list)
+    "normUncertainty": 1.5
     },
     ...#other processes
 }

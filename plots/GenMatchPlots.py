@@ -1,3 +1,5 @@
+#! To run with:
+# - flows/DoubleEleFlow_baseline_GenMatch.py
 from plots import Hist, Hist2D
 
 plots= {
