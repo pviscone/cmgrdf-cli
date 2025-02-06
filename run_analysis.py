@@ -169,10 +169,10 @@ def run_analysis(
     all_processes = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
     mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
     try:
-        plots     = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
-        plots = {"main" : plots}
-    except ValueError:
         plots     = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
+    except ValueError:
+        plots     = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+        plots     = {"main" : plots} if plots != [] else {}
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print_configs(console, ncpu, nevents, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)
