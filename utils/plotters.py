@@ -12,6 +12,8 @@ from hist import Hist, intervals
 from hist import rebin as Rebin
 from matplotlib import colors
 from rich import print as pprint
+import matplotlib.style as mplstyle
+
 
 # cms palette list (10 colors version)
 petroff10 = [
@@ -48,6 +50,7 @@ hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", petroff10)
 hep.styles.cms.CMS["legend.frameon"] = False
 hep.styles.cms.CMS["figure.autolayout"] = True
 hep.style.use(hep.style.CMS)
+mplstyle.use('fast')
 
 def set_palette(palette):
     hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", palette)
