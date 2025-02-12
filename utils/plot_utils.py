@@ -37,17 +37,19 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
 
         if noStack or len(bkgs) == 0:
             for process_name, process_dict in all_processes.items():
+                if process_name not in file:
+                    continue
                 hist = file[process_name].to_hist()
                 color = process_dict.get("color", None)
                 h.add(hist, label=process_dict["label"], density = density, color = color, w2method="poisson")
         else: #stack
-            bkg_hist = [file[bkg].to_hist() for bkg in bkgs]
-            bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs]
-            bkg_colors = [all_processes[bkg].get("color", None) for bkg in bkgs]
+            bkg_hist = [file[bkg].to_hist() for bkg in bkgs if bkg in file]
+            bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs if bkg in file]
+            bkg_colors = [all_processes[bkg].get("color", None) for bkg in bkgs if bkg in file]
 
-            signal_hist = [file[signal].to_hist() for signal in signals]
-            signal_labels = [all_processes[signal]["label"] for signal in signals]
-            signal_colors = [all_processes[signal].get("color", None) for signal in signals]
+            signal_hist = [file[signal].to_hist() for signal in signals if signal in file]
+            signal_labels = [all_processes[signal]["label"] for signal in signals if signal in file]
+            signal_colors = [all_processes[signal].get("color", None) for signal in signals if signal in file]
 
             stack_total = sum(bkg_hist)
             h.add(bkg_hist, label=bkg_labels, density = density, color = bkg_colors, stack = True, histtype = "fill")
@@ -77,6 +79,8 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
 
     elif "TH2" in hist_type:
         for process_name, process_dict in all_processes.items():
+            if process_name not in file:
+                continue
             h = TH2(cmstext = cmstext,
                     lumitext= lumitext,
                     xlabel = plot.xlabel,
