@@ -39,7 +39,12 @@ def eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, t
         eff.add_line(y=1, linewidth=1, color="red", linestyle="--", alpha=0.3)
         eff.add_line(y=0.8, linewidth=1, color="red", linestyle="--", alpha=0.3)
         for num, num_label in nums_dict.items():
-            num_h = uproot.open(os.path.join(inputfolder, f'{num}/{variable}.root'))[sample].to_hist()
+            if not os.path.exists(os.path.join(inputfolder, f'{num}/{variable}.root')):
+                continue
+            num_h = uproot.open(os.path.join(inputfolder, f'{num}/{variable}.root'))
+            if sample not in num_h:
+                continue
+            num_h = num_h[sample].to_hist()
             eff.add(num_h, denom_h, label=num_label)
         eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.png")
         eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.pdf")
@@ -90,6 +95,8 @@ def plot_efficiency(
 
     p=mp.Pool(ncpu)
     p.starmap(eff_plot, pool_data)
+    #for data in pool_data:
+    #    eff_plot(*data)
 
     os.makedirs(os.path.join(inputfolder, outfolder, "scripts"), exist_ok=True)
     os.makedirs(os.path.join(inputfolder, outfolder, "scripts", "eff_cfg"), exist_ok=True)
