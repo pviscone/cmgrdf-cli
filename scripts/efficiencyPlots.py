@@ -93,7 +93,7 @@ def plot_efficiency(
 
     os.makedirs(os.path.join(inputfolder, outfolder, "scripts"), exist_ok=True)
     os.makedirs(os.path.join(inputfolder, outfolder, "scripts", "eff_cfg"), exist_ok=True)
-    os.system(f"cp {os.environ['ANALYSIS_DIR']}/scripts/efficiency.py {os.path.join(inputfolder, outfolder, 'scripts')}")
+    os.system(f"cp {os.environ['ANALYSIS_DIR']}/scripts/efficiencyPlots.py {os.path.join(inputfolder, outfolder, 'scripts')}")
     os.system(f"cp {os.path.abspath(cfgfile)} {os.path.join(inputfolder, outfolder, 'scripts', 'eff_cfg')}")
 
     command = " ".join(sys.argv).replace('"', r'\\\"')
