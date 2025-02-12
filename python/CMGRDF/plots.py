@@ -1,5 +1,6 @@
 from math import hypot
 import re
+import os
 import multiprocessing as mp
 from array import array
 from typing import Any, Literal, Optional
@@ -181,8 +182,6 @@ class Plot(Target):
         plot = self.styleHisto(plot, process)
         return plot
 
-
-
     def __eq__(self, other) -> bool:
         if other.__class__ == Plot:
             if self.name != other.name:
@@ -314,6 +313,7 @@ class PlotResult:
                     h.addRooFitScaleFactor(self._roofitPOI)
 
 def printPlot(plot, path : str) -> None:
+    os.makedirs(path, exist_ok=True)
     outputName = plot.name
     outputTDir = ROOT.TFile.Open("%s/%s.root" % (path, outputName), "RECREATE")
     print("Printing %s in %s (formats: root)" % (outputName, path))
