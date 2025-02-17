@@ -63,6 +63,7 @@ def run_analysis(
     ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
     ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
+    stackSignal  : bool        = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     noPlotsteps  : bool        = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Plot Options"),
     grid         : bool        = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
@@ -266,15 +267,15 @@ def run_analysis(
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
-            stack=True,
-            showRatio=False, noStackSignals=False, showErrors=True,
+            stack= not noStack,
+            showRatio=False, noStackSignals=not stackSignal, showErrors=True,
             plotFormats="root",
         ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#
         if not noPyplots:
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu)
+            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu, stackSignal=stackSignal)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
