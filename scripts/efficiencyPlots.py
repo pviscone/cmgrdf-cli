@@ -9,7 +9,7 @@ import uproot
 import glob
 from utils.plotters import TEfficiency, set_palette, ggplot_palette
 from utils.cli_utils import copy_file_to_subdirectories
-import multiprocessing as mp
+import concurrent
 import typer
 from typing_extensions import Annotated
 from typing import Tuple
@@ -19,8 +19,10 @@ set_palette(ggplot_palette)
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 
+def eff_plot(args):
+    return _eff_plot(*args)
 
-def eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace):
+def _eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace):
     #Create effplot folder
     if "_vs_" in variable:
         return
@@ -49,6 +51,7 @@ def eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, t
         eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.png")
         eff.save(f"{os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}/{sample}')}.pdf")
 
+_ncpu = os.cpu_count()
 @app.command()
 def plot_efficiency(
     #! ---------------------- Configs ---------------------- #
@@ -56,7 +59,7 @@ def plot_efficiency(
     cfgfile      : Annotated[str , typer.Option("-c", "--cfg", help="Path of the yaml config file", rich_help_panel="Configs")],
     outfolder    : str = typer.Option("zeff", "-o", "--out", help="Output folder", rich_help_panel="Configs"),
     allvars      : bool = typer.Option(False, "-a", "--all", help="Plot all variables", rich_help_panel="Configs"),
-    ncpu         : int = typer.Option(mp.cpu_count(), "-j", "--ncpu", help="Number of cpus", rich_help_panel="Configs"),
+    ncpu         : int = typer.Option(_ncpu, "-j", "--ncpu", help="Number of cpus", rich_help_panel="Configs"),
     noReplace   : bool = typer.Option(False, "-n", "--noReplace", help="Do not replace existing plots", rich_help_panel="Configs"),
 
     #! ---------------------- Plot arguments ---------------------- #
@@ -93,8 +96,9 @@ def plot_efficiency(
             for variable in variables:
                 pool_data.append((inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace))
 
-    p=mp.Pool(ncpu)
-    p.starmap(eff_plot, pool_data)
+    with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
+        chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
+        executor.map(eff_plot, pool_data, chunksize = chunksize)
     #for data in pool_data:
     #    eff_plot(*data)
 
