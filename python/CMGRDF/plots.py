@@ -414,7 +414,7 @@ def printPlot(data : tuple[PlotResult, str, Options]) -> None:
 def _printPlot(plot : PlotResult, path : str,  opts) -> None:
     ## make directory (FIXME make this better)
     if not os.path.exists(path):
-        os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
     if not os.path.exists(os.path.join(path, "index.php")):
         moduledir = os.environ["CMGRDF"]
         os.system(f"cp {moduledir}/externals/index.php " + path)
