@@ -1,15 +1,23 @@
 from math import hypot
 import re
 import os
-import multiprocessing as mp
+import concurrent
 from array import array
 from typing import Any, Literal, Optional
 
 import ROOT  # type: ignore
-from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitContext, listAllNuisances
+from CMGRDF.histoWithNuisances import HistoWithNuisances, PostFitSetup, RooFitContext, listAllNuisances, mergePlots
 from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target
+
+def _unTLatex(string : str) -> str:
+    """Replaces a root-formatted string with plaintext"""
+    string = string.replace("#chi", "x").replace("#rightarrow", "->").replace("#minus", "-")
+    string = re.sub(r"#(mu|tau|gamma)", r"\1", string)
+    string = re.sub(r"#bar\{(\w+)\}", r"\1bar", string)
+    string = re.sub(r"[\^_]\{([012+\-])\}", r"\1", string)
+    return string
 
 class Plot(Target):
     def __init__(self,
@@ -208,23 +216,29 @@ class PlotResult:
 
     def __init__(self,
                  plot : Plot,
-                 histos : list[tuple[Process, Any]]):
+                 histos : list[tuple[Process, Any]],
+                 fillTotals : bool = True):
         self.spec = plot
         self.name = plot.name
         self.template = self.spec.template
         self.histos = [(k, h if isinstance(h, HistoWithNuisances) else HistoWithNuisances(h)) for (k, h) in histos]
+        self.totals : dict[Literal["signal", "background"], HistoWithNuisances] = {}
         self.lumi : Optional[float] = None
         self._roofit : Optional[RooFitContext] = None
         self._roofitPOI : Optional[Any] = None
+        if fillTotals:
+            self.fillTotals()
+
 
     def __getstate__(self):
-        return dict(name=self.name, histos=self.histos, spec=self.spec, lumi=self.lumi)
+        return dict(name=self.name, histos=self.histos, spec=self.spec, lumi=self.lumi, totals=self.totals)
 
     def __setstate__(self, state):
         self.name = state['name']
         self.histos = state['histos']
         self.spec = state['spec']
         self.lumi = state['lumi']
+        self.totals = state['totals']
 
     def __getattr__(self, key : str) -> Any:
         return getattr(self.spec, key)
@@ -244,6 +258,17 @@ class PlotResult:
                 return h
         return None
 
+    def fillTotals(self) -> None:
+        sigs, bkgs = [], []
+        for k, h in self.histos:
+            if k.isSignal:
+                sigs.append(h)
+            elif not k.isData:
+                bkgs.append(h)
+        if sigs:
+            self.totals["signal"] = mergePlots("signal", sigs)
+        if bkgs:
+            self.totals["background"] = mergePlots("background", bkgs)
 
     def initRooFit(self,
                    workspace : Optional[Any] = None,
@@ -311,18 +336,29 @@ class PlotResult:
                 h.setPostFitInfo(posfit, applyIt)
                 if p.isSignal:
                     h.addRooFitScaleFactor(self._roofitPOI)
+        # remake totals
+        self.fillTotals()
 
-def printPlot(plot, path : str) -> None:
+def printPlot(args):
+    return _printPlot(*args)
+
+def _printPlot(plot, path : str, txt, stack, noStackSignals) -> None:
     os.makedirs(path, exist_ok=True)
     outputName = plot.name
     outputTDir = ROOT.TFile.Open("%s/%s.root" % (path, outputName), "RECREATE")
     print("Printing %s in %s (formats: root)" % (outputName, path))
-    data = []
 
+    total = HistoWithNuisances(plot.template)
+    total.SetName(outputName + "_total")
+
+    data = []
     for (proc, hist) in reversed(plot.histos):
         if proc.isData:
             data.append((proc, hist))
             continue
+        if stack and not (proc.isSignal and noStackSignals):
+            total += hist
+
         if outputTDir:
             hist.writeToFile(outputTDir)
 
@@ -355,7 +391,50 @@ def printPlot(plot, path : str) -> None:
         #if options.doStatTests:
         #    doStatTests(total, dhist, options.doStatTests, legendCorner=plot.getOpt('legend','TR'))
     if outputTDir:
+        total.writeToFile(outputTDir)
         outputTDir.Close()
+
+    if txt:
+        if "TProfile" in total.ClassName():
+            return
+        dump = open("%s/%s.%s" % (path, outputName, "txt"), "w")
+        dump_perBin = open("%s/%s_perBin.%s" % (path, outputName, "txt"), "w")
+        toprint = [(_unTLatex(p.label), hist) for (p, hist) in plot.histos if not p.isData]
+        row1 = len(toprint)
+        for tot in "signal", "background":
+            if tot in plot.totals:
+                toprint.append((tot.title(), plot.totals[tot]))
+        toprint.append(("Total", total))
+        maxlen = max([len(l) for (l, h) in toprint] + [10])
+        fmt = "%%-%ds %%9.2f +/- %%9.2f (stat)" % (maxlen + 1)
+        for i, (label, hist) in enumerate(toprint):
+            if hist.Integral() <= 0:
+                continue
+            norm = hist.Integral()
+            stat = hist.integralStatError()
+            syst : float = hist.integralSystError(symmetrize=True)  # type: ignore
+            var_perbin = [hist.GetBinContent(i + 1) for i in range(hist.GetNbinsX())]
+            if i == row1:
+                dump.write(("-" * (maxlen + 45)) + "\n")
+                dump_perBin.write(("-" * (maxlen + 45)) + "\n")
+            dump.write(fmt % (label, norm, stat))
+            dump_perBin.write("%%-%ds " % (maxlen + 1) % label + " ".join(["%9.2f" % x for x in var_perbin]) + "\n")
+            if syst:
+                dump.write(" +/- %9.2f (syst) = +/- %9.2f (all)" % (syst, hypot(stat, syst)))
+            dump.write("\n")
+        if data:
+            dump.write(("-" * (maxlen + 45)) + "\n")
+            dump_perBin.write(("-" * (maxlen + 45)) + "\n")
+            for dproc, dhist in data:
+                label = "DATA" if len(data) == 1 else dproc.label
+                dump       .write(("%%-%ds %%7.0f\n" % (maxlen + 1)) % (label, dhist.Integral()))
+                dump_perBin.write(("%%-%ds " % (maxlen + 1)) % (label) + " ".join(["%7.0f" % dhist.GetBinContent(i + 1) for i in range(dhist.GetNbinsX())]) + "\n")
+        for logname, loglines in getattr(plot, "allLogs", []):
+            dump.write("\n\n --- %s --- \n" % logname)
+            for line in loglines:
+                dump.write("%s\n" % line)
+        dump.write("\n")
+        dump.close()
 
 class PlotSetPrinter:
     @staticmethod
@@ -366,13 +445,22 @@ class PlotSetPrinter:
     def __init__(self, **options):
         self._options = PlotSetPrinter.defaultOptions().update(**options)
 
-    def printSet(self, plots : MultiReport, path : str, **options) -> None:
+    def printSet(self, plots : MultiReport, path : str, ncpu = None, **options) -> None:
         assert isinstance(plots, MultiReport)
+
+        if ncpu is None:
+            ncpu = os.cpu_count()
+
+        opts = self._options.cloneAndUpdate(**options)
+        outputFormats = opts.plotFormats.split(",")
         ## Loop on the plots and print them
         pool_data = []
         for plotKey, plot in plots:
-            pool_data.append((plot, path.format(**plotKey)))
-        pool = mp.Pool()
-        pool.starmap(printPlot, pool_data)
+            pool_data.append((plot, path.format(**plotKey), "txt" in outputFormats, opts.stack, opts.noStackSignals))
+
+        with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
+            executor.map(printPlot, pool_data, chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1)
+
+
 
 
