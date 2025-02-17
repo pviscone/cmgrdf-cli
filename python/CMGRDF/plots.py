@@ -406,7 +406,7 @@ class PlotSetPrinter:
 
         with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
             chunksize = len(pool_data) // ncpu if len(pool_data) // ncpu > 0 else 1
-            executor.map(printPlot, pool_data, chunksize = chunksize)
+            list(executor.map(printPlot, pool_data, chunksize = chunksize))
 
 def printPlot(data : tuple[PlotResult, str, Options]) -> None:
     _printPlot(*data)
