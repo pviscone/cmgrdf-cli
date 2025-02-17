@@ -33,6 +33,13 @@ class Options:
         for opt in optionDeclarations:
             self.declare(opt.name, default=opt.default, opttype=opt.type, cmdline=opt.cmdline, **opt.kwargs)
 
+    def __getstate__(self):
+        return dict(values=self._values, declarations=self._declarations)
+
+    def __setstate__(self, state):
+        self._values = state["values"]
+        self._declarations = state["declarations"]
+
     def declare(self,
                 name : str,
                 default : Any = None,
