@@ -10,4 +10,4 @@ fix:
 - Disabled cache by default
 
 cmgrdf commit bump
-- Plots cleaned, just TH object saved in TFiles in parallel
+- Plots cleaned, just TH object saved in TFiles
