@@ -10,6 +10,7 @@ from CMGRDF.utils import Options, MultiReport, recursiveHash, safeName
 from CMGRDF.data import Sample, Process
 from CMGRDF.flow import Target
 
+
 def _unTLatex(string : str) -> str:
     """Replaces a root-formatted string with plaintext"""
     string = string.replace("#chi", "x").replace("#rightarrow", "->").replace("#minus", "-")
@@ -17,6 +18,7 @@ def _unTLatex(string : str) -> str:
     string = re.sub(r"#bar\{(\w+)\}", r"\1bar", string)
     string = re.sub(r"[\^_]\{([012+\-])\}", r"\1", string)
     return string
+
 
 class Plot(Target):
     def __init__(self,
@@ -228,7 +230,6 @@ class PlotResult:
         if fillTotals:
             self.fillTotals()
 
-
     def __getstate__(self):
         return dict(name=self.name, histos=self.histos, spec=self.spec, lumi=self.lumi, totals=self.totals, template=self.template)
 
@@ -339,8 +340,10 @@ class PlotResult:
         # remake totals
         self.fillTotals()
 
+
 def printPlot(args):
     return _printPlot(*args)
+
 
 def _printPlot(plot, path : str, txt, stack, noStackSignals) -> None:
     os.makedirs(path, exist_ok=True)
@@ -439,6 +442,7 @@ def _printPlot(plot, path : str, txt, stack, noStackSignals) -> None:
         dump.write("\n")
         dump.close()
 
+
 class PlotSetPrinter:
     @staticmethod
     def defaultOptions() -> Options:
@@ -451,7 +455,7 @@ class PlotSetPrinter:
     def __init__(self, **options):
         self._options = PlotSetPrinter.defaultOptions().update(**options)
 
-    def printSet(self, plots : MultiReport, path : str, ncpu = None, **options) -> None:
+    def printSet(self, plots : MultiReport, path : str, ncpu=None, **options) -> None:
         assert isinstance(plots, MultiReport)
 
         opts = self._options.cloneAndUpdate(**options)
@@ -476,6 +480,3 @@ class PlotSetPrinter:
 
         for d in pool_data:
             printPlot(d)
-
-
-
