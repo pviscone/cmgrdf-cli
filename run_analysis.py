@@ -267,9 +267,7 @@ def run_analysis(
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
-            stack= not noStack,
-            showRatio=False, noStackSignals=not stackSignal, showErrors=True,
-            plotFormats="root",
+            stack= not noStack, noStackSignals=not stackSignal, plotFormats="root",
         ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#
