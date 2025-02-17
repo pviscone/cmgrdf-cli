@@ -44,7 +44,7 @@ def run_analysis(
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose  : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
-    nocache  : bool = typer.Option(False, "--noCache", help="Disable caching", rich_help_panel="RDF Options"),
+    cache  : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
     cachepath: str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
 
     #! Debug options
@@ -122,6 +122,8 @@ def run_analysis(
         columnVeto += ",mcSampleWeight"
     else:
         columnVeto = "mcSampleWeight"
+
+    nocache = not cache
 
     #! ------------------------- Set Folders -------------------------- !#
     folders.init(mergeEras=mergeEras, mergeErasYields=mergeErasYields)
