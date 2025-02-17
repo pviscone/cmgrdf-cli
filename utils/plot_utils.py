@@ -54,7 +54,8 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
             if stackSignal:
                 stack_total = stack_total + sum(signal_hist)
             h.add(bkg_hist, label=bkg_labels, density = density, color = bkg_colors, stack = True, histtype = "fill")
-            h.add(signal_hist, label=signal_labels, density = density, color = signal_colors, stack = stackSignal, histtype = "step" if not stackSignal else "fill", w2method="poisson")
+            signal_histtype = "step" if not stackSignal else "fill"
+            h.add(signal_hist, label=signal_labels, density = density, color = signal_colors, stack = stackSignal, histtype = signal_histtype, w2method="poisson")
             h.add(stack_total, density = density, color = "black", histtype = "step", yerr=False, linewidth=1)
             h.add(stack_total, density = density, color = "black", histtype = "band", label="Total Unc.", w2method="poisson")
 
@@ -107,4 +108,5 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         plots = [plot for (_, plots) in flow_plots for plot in plots]
         pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
-            executor.map(_drawPyPlots, pool_data, chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1)
+            chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
+            executor.map(_drawPyPlots, pool_data, chunksize = chunksize)
