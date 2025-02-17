@@ -346,7 +346,10 @@ def _printPlot(plot, path : str, txt, stack, noStackSignals) -> None:
     os.makedirs(path, exist_ok=True)
     outputName = plot.name
     outputTDir = ROOT.TFile.Open("%s/%s.root" % (path, outputName), "RECREATE")
-    print("Printing %s in %s (formats: root)" % (outputName, path))
+    formats = "root"
+    if txt:
+        formats += ",txt"
+    print(f"Printing {outputName} in {path} (formats: {formats})")
 
     total = HistoWithNuisances(plot.template)
     total.SetName(outputName + "_total")
