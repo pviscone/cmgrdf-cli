@@ -1,13 +1,12 @@
 import os
-import multiprocessing as mp
+import concurrent
 import uproot
 import matplotlib.pyplot as plt
 from plothist import plot_comparison
 from utils.plotters import TH1, TH2
 from utils.folders import folders
 
-
-def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid):
+def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal):
     if "{lumi" in lumitext:
         lumitext = lumitext.format(lumi=plot_lumi)
     density = getattr(plot, "density", False)
@@ -52,8 +51,10 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             signal_colors = [all_processes[signal].get("color", None) for signal in signals if signal in file]
 
             stack_total = sum(bkg_hist)
+            if stackSignal:
+                stack_total = stack_total + sum(signal_hist)
             h.add(bkg_hist, label=bkg_labels, density = density, color = bkg_colors, stack = True, histtype = "fill")
-            h.add(signal_hist, label=signal_labels, density = density, color = signal_colors, stack = False, histtype = "step", w2method="poisson")
+            h.add(signal_hist, label=signal_labels, density = density, color = signal_colors, stack = stackSignal, histtype = "step" if not stackSignal else "fill", w2method="poisson")
             h.add(stack_total, density = density, color = "black", histtype = "step", yerr=False, linewidth=1)
             h.add(stack_total, density = density, color = "black", histtype = "band", label="Total Unc.", w2method="poisson")
 
@@ -96,11 +97,14 @@ def _drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStac
             os.system(f"pdftocairo {os.path.join(folder,f'{process_name}.pdf')} -png -r 200 {os.path.join(folder,f'{process_name}')}")
             os.system(f"mv {os.path.join(folder,f'{process_name}-1.png')} {os.path.join(folder,f'{process_name}.png')}")
 
-def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=16):
+def _drawPyPlots(args):
+    return __drawPyPlots(*args)
+
+def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
     for era in eras:
         format_dict = {"era": era} if not mergeEras else {}
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
-        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
-        p=mp.Pool(ncpu)
-        p.starmap(_drawPyPlots, pool_data)
+        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
+            executor.map(_drawPyPlots, pool_data, chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1)
