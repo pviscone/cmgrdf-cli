@@ -98,7 +98,7 @@ def plot_efficiency(
 
     with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
         chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
-        executor.map(eff_plot, pool_data, chunksize = chunksize)
+        list(executor.map(eff_plot, pool_data, chunksize = chunksize))
     #for data in pool_data:
     #    eff_plot(*data)
 

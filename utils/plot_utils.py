@@ -109,4 +109,4 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
             chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
-            executor.map(_drawPyPlots, pool_data, chunksize = chunksize)
+            list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
