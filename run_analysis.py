@@ -122,9 +122,6 @@ def run_analysis(
     else:
         columnVeto = "mcSampleWeight"
 
-    if plots is None:
-        plots={}
-
     #! ------------------------- Set Folders -------------------------- !#
     folders.init(mergeEras=mergeEras, mergeErasYields=mergeErasYields)
     folders.outfolder = os.path.abspath(outfolder)

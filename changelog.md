@@ -5,6 +5,7 @@
 fix:
 - Added safeguards against empty regions (0 events)
 - Fixed efficiencyPlots system copy command
+- fixed empty plot argument
 
 
 cmgrdf commit bump
