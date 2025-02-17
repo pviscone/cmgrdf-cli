@@ -440,6 +440,9 @@ class PlotSetPrinter:
     @staticmethod
     def defaultOptions() -> Options:
         opts = Options()
+        opts.declare("stack", True, bool, help="Whether different contributions should be stacked")
+        opts.declare("plotFormats", "root,txt", help="Output format for plots")
+        opts.declare("noStackSignals", False, bool, help="Don't include signals in the stack")
         return opts
 
     def __init__(self, **options):
