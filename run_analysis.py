@@ -19,7 +19,7 @@ from data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from flows.SFs import BranchCorrection
 import cpp_functions
 from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
-from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
+from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot, accessed_files
 from utils.flow_utils import parse_flows, clean_commons, disable_plotflag
 from utils.plot_utils import DrawPyPlots
 from utils.folders import folders
@@ -274,8 +274,12 @@ def run_analysis(
 
         #!---------------------- Draw Plots ---------------------- !#
         if not noPyplots:
+            sys.settrace(None) #to be faster
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
             DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu, stackSignal=stackSignal)
+            accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plot_utils.py"))
+            accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plotters.py"))
+            sys.settrace(trace_calls)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
