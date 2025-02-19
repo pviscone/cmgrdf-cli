@@ -189,27 +189,13 @@ class BasePlotter:
         self.fig.savefig(filename, *args, **kwargs)
         plt.close(self.fig)
 
-    def lazy_add(self, to_file, mode="normal", *args, **kwargs):
-        self.lazy_args.append((to_file, mode, args, kwargs))
+    def lazy_add(self, to_file, *args, **kwargs):
+        self.lazy_args.append((to_file, args, kwargs))
 
     def lazy_execute(self, file):
-        for to_file, mode, args, kwargs in self.lazy_args:
+        for to_file, args, kwargs in self.lazy_args:
             hists_list = [file[var] for var in to_file]
-            if mode == "normal":
-                self.add(*hists_list, *args, **kwargs)
-            elif mode == "rate_vs_pt_score":
-                score_cuts = hists_list[0].axes[1].edges[:-1]
-                for idx, cut in enumerate(score_cuts):
-                    if "cuts" in kwargs:
-                        if cut not in kwargs["cuts"]:
-                            continue
-                    label = kwargs.get("label")
-                    if label is not None:
-                        label = label.replace("%cut%", cut)
-                        kwargs.pop("label")
-                    self.add(hists_list[0][:, idx], *args, label=label, **kwargs)
-            else:
-                raise ValueError(f"mode '{mode}' is not implemented")
+            self.add(*hists_list, *args, **kwargs)
 
 
 class TH1(BasePlotter):

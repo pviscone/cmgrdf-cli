@@ -16,12 +16,16 @@ name_defaults = OrderedDict({
         bins=(50, 0, 50),
         label="($1) ($2) $p_{T}$ [GeV]",
     ),
+    "(.*)_deta(.*)": dict(
+        bins=(30, 0, 6),
+        label="($1) ($2) $|\Delta \eta|$",
+    ),
     "(.*)_eta(.*)": dict(
-        bins=(30, -2, 2),
+        bins=(30, -4, 4),
         label="($1) ($2) $\eta$",
     ),
     "(.*)_abseta(.*)": dict(
-        bins=(30, 0, 2),
+        bins=(30, 0, 4),
         label="($1) ($2) $|\eta|$",
     ),
     "(.*)_phi(.*)": dict(
@@ -40,12 +44,12 @@ name_defaults = OrderedDict({
         bins=(3, 1, 4),
         label="($1) ($2) type",
         density=True,
-        log="y",
+        log="counts",
     ),
     "n(.*)": dict(
         bins=(10, 0, 10),
         label="# ($1)",
         density=True,
-        log="y",
+        log="counts",
     ),
 })

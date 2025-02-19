@@ -44,7 +44,7 @@ def run_analysis(
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose  : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
-    cache  : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
+    cache    : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
     cachepath: str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
 
     #! Debug options
@@ -52,8 +52,9 @@ def run_analysis(
     disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Flow options
-    disableRegions: str = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
-    enableRegions  : str = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    disableRegions: str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    enableRegions : str  = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    noPlotsteps   : bool = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Flow Options"),
 
     #! Plot options
     noPyplots    : bool        = typer.Option(False, "--noPyplots", help="Do not plot figures, just save THx root files", rich_help_panel="Plot Options"),
@@ -65,7 +66,6 @@ def run_analysis(
     noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     stackSignal  : bool        = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
-    noPlotsteps  : bool        = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Plot Options"),
     grid         : bool        = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
 
     #! Yields options

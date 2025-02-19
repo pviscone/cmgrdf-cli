@@ -9,8 +9,6 @@ from utils.folders import folders
 def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal):
     if "{lumi" in lumitext:
         lumitext = lumitext.format(lumi=plot_lumi)
-    density = getattr(plot, "density", False)
-    log = getattr(plot, "log", "")
     file = uproot.open(path)
     hist_type = str(type(file[list(all_processes.keys())[0]]))
     if "TH1" in hist_type:
@@ -19,11 +17,12 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
         signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False)]
         if ratio and len(bkgs) > 0:
             fig, ax =plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.}, sharex=True)
+
         h = TH1(cmstext = cmstext,
             lumitext= lumitext,
             xlabel = plot.xlabel if not ratio else None,
-            ylabel = "Density" if density else "Events",
-            log = log,
+            ylabel = "Density" if plot.density else "Events",
+            log = plot.log,
             fig = fig,
             ax = ax[0],
             grid=grid,
@@ -32,7 +31,7 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
         data_hist = file.get("data", False)
         if data_hist:
             data_hist = data_hist.to_hist()
-            h.add(data_hist, label="Data", density = density, color = "black", histtype = "errorbar", w2method="poisson")
+            h.add(data_hist, label="Data", density =plot.density, color = "black", histtype = "errorbar", w2method="poisson")
 
         if noStack or len(bkgs) == 0:
             for process_name, process_dict in all_processes.items():
@@ -40,7 +39,7 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
                     continue
                 hist = file[process_name].to_hist()
                 color = process_dict.get("color", None)
-                h.add(hist, label=process_dict["label"], density = density, color = color, w2method="poisson")
+                h.add(hist, label=process_dict["label"], density = plot.density, color = color, w2method="poisson")
         else: #stack
             bkg_hist = [file[bkg].to_hist() for bkg in bkgs if bkg in file]
             bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs if bkg in file]
@@ -53,11 +52,11 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
             stack_total = sum(bkg_hist)
             if stackSignal:
                 stack_total = stack_total + sum(signal_hist)
-            h.add(bkg_hist, label=bkg_labels, density = density, color = bkg_colors, stack = True, histtype = "fill")
+            h.add(bkg_hist, label=bkg_labels, density = plot.density, color = bkg_colors, stack = True, histtype = "fill")
             signal_histtype = "step" if not stackSignal else "fill"
-            h.add(signal_hist, label=signal_labels, density = density, color = signal_colors, stack = stackSignal, histtype = signal_histtype, w2method="poisson")
-            h.add(stack_total, density = density, color = "black", histtype = "step", yerr=False, linewidth=1)
-            h.add(stack_total, density = density, color = "black", histtype = "band", label="Total Unc.", w2method="poisson")
+            h.add(signal_hist, label=signal_labels, density = plot.density, color = signal_colors, stack = stackSignal, histtype = signal_histtype, w2method="poisson")
+            h.add(stack_total, density = plot.density, color = "black", histtype = "step", yerr=False, linewidth=1)
+            h.add(stack_total, density = plot.density, color = "black", histtype = "band", label="Total Unc.", w2method="poisson")
 
             if ratio:
                 plt.setp(ax[0].get_yticklabels()[0], visible=False)
@@ -83,14 +82,15 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
         for process_name, process_dict in all_processes.items():
             if process_name not in file:
                 continue
+
             h = TH2(cmstext = cmstext,
                     lumitext= lumitext,
                     xlabel = plot.xlabel,
                     ylabel = plot.ylabel,
-                    log = log,
+                    log = plot.log,
                     grid=grid)
             hist = file[process_name].to_hist()
-            h.add(hist, density = density)
+            h.add(hist, density = plot.density)
             folder = path.replace('.root','')
             folder = folder.rsplit('/',1)[0]+"/2D_"+folder.rsplit('/',1)[1]
             os.makedirs(folder, exist_ok=True)

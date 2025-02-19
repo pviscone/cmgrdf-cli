@@ -21,14 +21,30 @@ class Hist(BaseHist):
         for pattern in name_defaults:
             if re.search(pattern, name):
                 pattern_kwargs = copy.deepcopy(name_defaults[pattern])
-                label = pattern_kwargs.get("label", None)
+                pattern_kwargs.setdefault("label", None)
+                pattern_kwargs.setdefault("log", "")
+                pattern_kwargs.setdefault("density", False)
+
+                label = pattern_kwargs.get("label")
                 if label:
                     groups = re.match(pattern, name).groups()
                     for i, group in enumerate(groups):
                         label = label.replace(f"(${i+1})", group, 1)
+                    label = label.replace("  ", " ")
                 pattern_kwargs["xTitle"] = label
                 pattern_kwargs["xlabel"] = label
                 bins = pattern_kwargs.pop("bins", bins) if bins is None else bins
+
+                #log
+                log = pattern_kwargs.pop("log", "")
+                log_l = log.split(",")
+                log = ""
+                if "axis" in log_l:
+                    log += "x"
+                elif "counts" in log_l:
+                    log += "y"
+                pattern_kwargs["log"] = log
+
                 break
 
         super().__init__(histo1d_defaults, pattern_kwargs, user_kwargs, name, expr, bins)
@@ -41,9 +57,7 @@ class Hist2D(BaseHist):
         user_kwargs["typ"] = "Histo2D"
 
         bins = [bins_x, bins_y]
-
-        #The only arguments taken from name_defaults for th2 are bins and labels
-        th2_dict = {}
+        th2_dict = dict(log="", density=True)
         for ax_idx, ax_name in enumerate(name.split(":")):
             for pattern in name_defaults:
                 if re.search(pattern, ax_name):
@@ -54,14 +68,28 @@ class Hist2D(BaseHist):
                         groups = re.match(pattern, ax_name).groups()
                         for i, group in enumerate(groups):
                             label = label.replace(f"(${i+1})", group, 1)
+                        label = label.replace("  ", " ")
                     if ax_idx == 0:
                         th2_dict["xTitle"] = label
                         th2_dict["xlabel"] = label
                     elif ax_idx == 1:
                         th2_dict["yTitle"] = label
                         th2_dict["ylabel"] = label
-                    break
 
+                    #Log
+                    #log on counts also if setted for one single axis
+                    log = pattern_kwargs.pop("log", "")
+                    log_l = log.split(",")
+                    if "axis" in log_l:
+                        th2_dict["log"] += "x" if ax_idx == 0 else "y"
+                    elif "counts" in log_l:
+                        th2_dict["log"] += "z"
+
+                    #density true only if density is setted for both axis or in user_kwargs
+                    density = pattern_kwargs.pop("density", False)
+                    th2_dict["density"] = density and th2_dict["density"]
+
+                    break
         assert all(bins), "Bins are not defined neither in the user arguments nor in the name_defaults"
 
         #Currently, cmgrdf not supports mixed definition of bins. In case, convert the tuple to a list
