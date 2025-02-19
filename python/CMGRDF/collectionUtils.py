@@ -4,6 +4,60 @@ from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import recursiveAddToHash
 
 
+class AliasCollection(FlowStep):
+    """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
+
+    def __init__(self,
+                 name : str,
+                 srcColl : str,
+                 members : Optional[Iterable[str]] = None,
+                 optMembers : Optional[Iterable[str]] = None,
+                 **options):
+        super().__init__(name, **options)
+        self.srcColl = srcColl
+        self.members = list(members) if members is not None else None
+        self.optMembers = list(optMembers or [])
+
+    def _params(self) -> Any:
+        return (self.name, self.srcColl,
+                self.members, self.optMembers)
+
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        cols = set(rdf.GetColumnNames())
+
+        if self.members is None:
+            members = [branch.c_str().split(f"{self.srcColl}_", 1)[1] for branch in rdf.GetColumnNames()
+                       if branch.c_str().startswith((f"{self.srcColl}_", f"Friends.{self.srcColl}_"))]
+            members = list(dict.fromkeys(members))  # Remove duplicates
+            if f"n{self.srcColl}" in cols:
+                src = rdf
+                rdf = rdf.Alias(f"n{self.name}", f"n{self.srcColl}")
+                rdf._from = src
+        else:
+            members = self.members
+
+        for m in members:
+            src = rdf
+            rdf = rdf.Alias(f"{self.name}_{m}", f"{self.srcColl}_{m}")
+            rdf._from = src
+
+        for m in self.optMembers:
+            if f"{self.srcColl}_{m}" in cols:
+                src = rdf
+                rdf = rdf.Alias(f"{self.name}_{m}", f"{self.srcColl}_{m}")
+                rdf._from = src
+        return rdf
+
+    def __eq__(self, other) -> bool:
+        if other.__class__ == self.__class__:
+            return FlowStep._equals(self, other) and self._params() == other._params()
+        return id(self) == id(other)
+
+    def _addToHash(self, hasher : Any) -> None:
+        super()._addToHash(hasher)
+        recursiveAddToHash(self._params(), hasher)
+
+
 class DefineFromCollection(FlowStep):
     """Define new scalar branchs looping over the members of a collection.
     Index can be an explicit index or a string with the name of the index branch (ex. 0 or LepGood_photonIdx[0])
