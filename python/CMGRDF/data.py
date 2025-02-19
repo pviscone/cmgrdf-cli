@@ -612,20 +612,27 @@ class MCSample(Sample):
                 self._genWeightSum[era] = sumw  # type: ignore
                 src.addMeta("genWeightSum", sumw)
                 continue
-            chain = ROOT.TChain("Runs")
-            for f in src.files:
-                chain.Add(f)
             genSumWeightName = self.genSumWeightName
-            if genSumWeightName == "_auto_":
-                if chain.GetBranch("genEventSumw"):
-                    genSumWeightName = "genEventSumw"
-                elif chain.GetBranch("genEventSumw_"):
-                    genSumWeightName = "genEventSumw_"
-                else:
-                    raise RuntimeError("ERROR: can't find gen sum name in sample " + self.name)
-            chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
-            hist = ROOT.gROOT.FindObject("htemp")
-            sumw = hist.GetBinContent(1)
+            if genSumWeightName == "_nevents_":
+                self.genWeightName = "1."
+                chain = ROOT.TChain("Events")
+                for f in src.files:
+                    chain.Add(f)
+                sumw = float(chain.GetEntries())
+            else:
+                chain = ROOT.TChain("Runs")
+                for f in src.files:
+                    chain.Add(f)
+                if genSumWeightName == "_auto_":
+                    if chain.GetBranch("genEventSumw"):
+                        genSumWeightName = "genEventSumw"
+                    elif chain.GetBranch("genEventSumw_"):
+                        genSumWeightName = "genEventSumw_"
+                    else:
+                        raise RuntimeError("ERROR: can't find gen sum name in sample " + self.name)
+                chain.Draw("0.5 >> htemp(1,0,1)", genSumWeightName, "GOFF")
+                hist = ROOT.gROOT.FindObject("htemp")
+                sumw = hist.GetBinContent(1)
             self._genWeightSum[era] = sumw  # type: ignore
             src.addMeta("genWeightSum", sumw)
             if cache:
@@ -690,8 +697,12 @@ class MCGroup(Sample):
         for s in samples[1:]:
             assert (s._hooks == self._hooks)
         self._hooks += self.moreHooks
-        self.genWeightName = samples[0].genWeightName
-        assert all((s.genWeightName == self.genWeightName) for s in samples[1:])
+        if samples[0].genSumWeightName=="_nevents_":
+            self.genWeightName = "1."
+            assert all((s.genSumWeightName == "_nevents_") for s in samples[1:])
+        else:
+            self.genWeightName = samples[0].genWeightName
+            assert all((s.genWeightName == self.genWeightName) for s in samples[1:])
         self.weight = samples[0].weight
         assert all((s.weight == self.weight) for s in samples[1:])
         if any(isinstance(s.xsec, str) for s in samples):
