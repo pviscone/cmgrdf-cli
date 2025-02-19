@@ -151,9 +151,9 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
                         if key not in ["name", "samples", "eras", "cut"]
                     }
 
-                    if noXsec:
-                        group_kwargs["genWeightName"] = None
-                        group_kwargs["weight"] = "1."
+                    #if noXsec:
+                    #    group_kwargs["genWeightName"] = None
+                    #    group_kwargs["weight"] = "1."
                     mcgroup_samples.append(
                         MCSample(
                         sample_name,
