@@ -8,7 +8,7 @@ class BaseHist(Plot):
     def __init__(self, type_kwargs, pattern_kwargs, user_kwargs, name, expr, bins=None):
         union_kwargs = {**global_defaults, **type_kwargs, **pattern_kwargs, **user_kwargs}
         if bins is None:
-            raise ValueError("Bins are not defined neither in the user arguments nor in the name_defaults")
+            raise ValueError(f"For {name}:{expr}, bins are not defined neither in the user arguments nor in the name_defaults")
         super().__init__(name, expr, bins, **union_kwargs)
 
 
@@ -23,7 +23,6 @@ class Hist(BaseHist):
                 pattern_kwargs = copy.deepcopy(name_defaults[pattern])
                 pattern_kwargs.setdefault("label", None)
                 pattern_kwargs.setdefault("log", "")
-                pattern_kwargs.setdefault("density", False)
 
                 label = pattern_kwargs.get("label")
                 if label:
@@ -57,7 +56,7 @@ class Hist2D(BaseHist):
         user_kwargs["typ"] = "Histo2D"
 
         bins = [bins_x, bins_y]
-        th2_dict = dict(log="", density=True)
+        th2_dict = dict(log="")
         for ax_idx, ax_name in enumerate(name.split(":")):
             for pattern in name_defaults:
                 if re.search(pattern, ax_name):
@@ -86,8 +85,13 @@ class Hist2D(BaseHist):
                         th2_dict["log"] += "z"
 
                     #density true only if density is setted for both axis or in user_kwargs
-                    density = pattern_kwargs.pop("density", False)
-                    th2_dict["density"] = density and th2_dict["density"]
+                    if "density" in pattern_kwargs:
+                        density = pattern_kwargs.pop("density", False)
+                        if "density" in th2_dict:
+                            th2_dict["density"] = th2_dict["density"] and density
+                        else:
+                            th2_dict["density"] = density
+
 
                     break
         assert all(bins), "Bins are not defined neither in the user arguments nor in the name_defaults"

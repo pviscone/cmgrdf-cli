@@ -7,6 +7,7 @@
 - Disabled cache by default
 - Added plotFormats option
 - tree.add forward the kwargs to all the flowsteps
+- Plots have better handling of the `log` and `density` options. `density` can be `axis` or `counts`
 
 fix:
 - Added safeguards against empty regions (0 events)
