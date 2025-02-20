@@ -11,6 +11,7 @@ fix:
 - Added stack signal option
 - Disabled cache by default
 - Added plotFormats option
+- tree.add forward the kwargs to all the flowsteps
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles

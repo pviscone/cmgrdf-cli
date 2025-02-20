@@ -1,6 +1,7 @@
 import pygraphviz as PG
 import os
 import copy
+import re
 from CMGRDF import Flow
 from collections import OrderedDict
 
@@ -10,13 +11,20 @@ class Tree:
         self.leaves=set()
         self.heads=set()
 
-    def add(self, name, obj, parent=None):
+    def add(self, name, obj, parent=None, **kwargs):
         if not isinstance(obj, list):
             obj = [obj]
 
+        for k, v in kwargs.items():
+            for i in range(len(obj)):
+                if k=="samplePattern":
+                    obj[i].sample = re.compile(v + "$") if v else None  # regex pattern
+                else:
+                    setattr(obj[i], k, v)
+
         if isinstance(parent, list|set|tuple):
             for p in parent:
-                self.add(name, obj, parent=p)
+                self.add(name, obj, parent=p, **kwargs)
             return
 
         if parent and "{leaf}" in name:
@@ -41,14 +49,14 @@ class Tree:
         else:
             self.heads.add(segment.name)
 
-    def add_to_all(self, name, obj):
+    def add_to_all(self, name, obj, **kwargs):
         leaves = copy.deepcopy(self.leaves)
         for leaf in leaves:
             if "{leaf}" in name:
                 segment_name = name.format(leaf=leaf)
             else:
                 segment_name = f"{name}{leaf}"
-            self.add(segment_name, obj, parent = leaf)
+            self.add(segment_name, obj, parent = leaf, **kwargs)
             self.segments[segment_name].common_to_all = True
 
     def to_lists(self):
