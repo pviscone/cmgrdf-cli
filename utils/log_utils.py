@@ -176,7 +176,10 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                     key_dict = {"flow": flow.name, "process": proc.name, "name": cut.name, "era": era}
                     if mergeEras:
                         key_dict.pop("era")
-                    y = yields.getByKey(MultiKey(**key_dict))[-1]
+                    try:
+                        y = yields.getByKey(MultiKey(**key_dict))[-1]
+                    except AssertionError:
+                        continue
                     if not started:
                         started = True
                         if proc.isData:
