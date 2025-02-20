@@ -40,6 +40,7 @@ def run_analysis(
     mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
     noSyst   : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
     noXsec   : bool = typer.Option(False, "--noXsec", help="Ignore all the cross-sections and assign unitary weight to all the events", rich_help_panel="Configs"),
+    plotFormats: str = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
 
     #! RDF options
     ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
@@ -269,7 +270,7 @@ def run_analysis(
     if plots:
         plotter = maker.runPlots(mergeEras=mergeEras)
         PlotSetPrinter(
-            stack= not noStack, noStackSignals=not stackSignal, plotFormats="root",
+            stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
         ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#

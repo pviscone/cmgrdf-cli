@@ -10,6 +10,7 @@ fix:
 - fixed empty plot argument
 - Added stack signal option
 - Disabled cache by default
+- Added plotFormats option
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles
