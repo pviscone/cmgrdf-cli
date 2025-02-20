@@ -53,6 +53,17 @@ class AliasCollection(FlowStep):
             return FlowStep._equals(self, other) and self._params() == other._params()
         return id(self) == id(other)
 
+    def __str__(self) -> str:
+        out = f"\033[1m{self.__class__.__name__}({self.name},{self.srcColl})\033[0m\n"
+        if self.members:
+            out += f"\tmembers: {self.members}\n"
+        out += f"\tonMC: {self.onMC} onData: {self.onData} onDataDriven: {self.onDataDriven}\n"
+        if self.eras:
+            out += f"\teras: {self.eras}\n"
+        if self.sample:
+            out += f"\tsample: {self.sample}\n"
+        return out
+
     def _addToHash(self, hasher : Any) -> None:
         super()._addToHash(hasher)
         recursiveAddToHash(self._params(), hasher)
