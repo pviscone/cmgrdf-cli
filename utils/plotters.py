@@ -16,7 +16,7 @@ import matplotlib.style as mplstyle
 
 
 # cms palette list (10 colors version)
-petroff10 = [
+cms10 = [
     "#3f90da",
     "#ffa90e",
     "#bd1f01",
@@ -46,7 +46,7 @@ ggplot_palette=('#348ABD','#E24A33', '#988ED5', '#777777', '#FBC15E', '#8EBA42',
 
 hep.styles.cms.CMS["patch.linewidth"] = 2
 hep.styles.cms.CMS["lines.linewidth"] = 2
-hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", petroff10)
+hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", cms10)
 hep.styles.cms.CMS["legend.frameon"] = False
 hep.styles.cms.CMS["figure.autolayout"] = True
 hep.style.use(hep.style.CMS)
