@@ -27,6 +27,7 @@ def _eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, 
     if "_vs_" in variable:
         return
     if not os.path.exists(os.path.join(inputfolder,f'{denom}/{variable}.root')):
+        print(f"################################# Skipping variable {variable} for denominator {denom}")
         return
     os.makedirs(os.path.join(inputfolder,f'{outfolder}/{variable}/{denom}/{effplot_name}'), exist_ok=True)
     denom_file = uproot.open(os.path.join(inputfolder, f'{denom}/{variable}.root'))
@@ -42,9 +43,11 @@ def _eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, 
         eff.add_line(y=0.8, linewidth=1, color="red", linestyle="--", alpha=0.3)
         for num, num_label in nums_dict.items():
             if not os.path.exists(os.path.join(inputfolder, f'{num}/{variable}.root')):
+                print(f"################################# Skipping numerator {num} for denominator {denom}")
                 continue
             num_h = uproot.open(os.path.join(inputfolder, f'{num}/{variable}.root'))
             if sample not in num_h:
+                print(f"################################# Skipping sample {sample} in numerator {num} for denominator {denom}")
                 continue
             num_h = num_h[sample].to_hist()
             eff.add(num_h, denom_h, label=num_label)
