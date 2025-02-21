@@ -5,7 +5,7 @@ P = "root://eoscms.cern.ch//eos/cms/store/cmst3/group/xee"
 era_paths_Data = {"2023": (P, "", "")}
 era_paths_MC = {"2023": (P, "", "")}
 
-lumi["2023"] = 10
+lumi["2023"] = 23
 
 PFs = []
 PMCs = []

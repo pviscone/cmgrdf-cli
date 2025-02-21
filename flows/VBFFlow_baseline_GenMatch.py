@@ -3,10 +3,14 @@ from CMGRDF import Define, Cut
 
 from CMGRDF.collectionUtils import DefineSkimmedCollection, DefineP4, DefineFromCollection
 
-hlt = "HLT_DoubleEle6p5_eta1p22_mMax6"
-l1  = "L1_DoubleEG11_er1p2_dR_Max0p6"
+hlt = """HLT_VBF_DiPFJet105_40_Mjj1000_Detajj3p5 ||
+HLT_VBF_DiPFJet110_40_Mjj1000_Detajj3p5 ||
+HLT_VBF_DiPFJet125_45_Mjj1000_Detajj3p5 ||
+HLT_VBF_DiPFJet125_45_Mjj720_Detajj3p0 ||
+HLT_VBF_DiPFJet125_45_Mjj1050 ||
+HLT_VBF_DiPFJet125_45_Mjj1200"""
 
-def flow(dR_genMatch = 0.1):
+def flow(dR_genMatch = 0.1, JetCut = 125):
     main_flow = [
             #! ---------------------- Gen definition ---------------------- #
             DefineSkimmedCollection("GenZd", "GenPart", mask="GenPart_pdgId==32 && (GenPart_statusFlags & (1<<13)) && (GenPart_statusFlags & 1<<8)"),
@@ -19,6 +23,7 @@ def flow(dR_genMatch = 0.1):
             Cut("1GenZd", "nGenZd==1"),
             Cut("2GenEle", "nGenEle==2"),
             Cut("SameGenVtx", "deltaVtx(GenEle_vx[0],GenEle_vy[0],GenEle_vz[0], GenEle_vx[1],GenEle_vy[1],GenEle_vz[1])<0.001"),
+            Cut("nJet>=2", "nJet>=2"),
 
             #! --------------------- DiEle categorization -------------------#
             Define("_DiEle_mask","""
@@ -60,8 +65,8 @@ def flow(dR_genMatch = 0.1):
 
     tree = Tree()
     tree.add("base", main_flow)
-    tree.add("HLT", Cut("HLT", hlt, plot="HLT_6p5"), parent="base")
-    tree.add("HLT_L1", Cut("HLT_L1", l1, plot="L1EG11"), parent="HLT")
+    tree.add("HLT", Cut("HLT", hlt, plot="HLT"), parent="base")
+    tree.add("HLT_JetCut", [Cut(f"LeadJet{JetCut}", f"Jet_pt[0]>{JetCut}"), Cut(f"SubLeadJet{JetCut}", f"Jet_pt[1]>{JetCut}", plot=f"JetCut{JetCut}")], parent="HLT")
 
     tree.add("{leaf}_RECO",[
         Cut("nDiEle", "nDiElectron>0"),
@@ -71,7 +76,7 @@ def flow(dR_genMatch = 0.1):
         DefineSkimmedCollection("PFLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isPFLP"),
         DefineSkimmedCollection("LPLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isLPLP"),
         DefineFromCollection("SelectedDiEle", "MatchedDiEle", index="ROOT::VecOps::ArgMin(ROOT::VecOps::pow(MatchedDiEle_fitted_mass-GenZd_invMass,2)/MatchedDiEle_fitted_massErr)", plot = "GenMatch"),
-    ], parent=["HLT_L1", "HLT"])
+    ], parent=["HLT_JetCut", "HLT"])
 
 
     for typ in ["PFPF", "PFLP", "LPLP"]:
@@ -81,8 +86,7 @@ def flow(dR_genMatch = 0.1):
         Cut(f"Sel{typ}", f"SelectedDiEle_is{typ}", plot=f"Sel{typ}"),
         Cut("dZ", "SelectedDiEle_lep_deltaVz<1", plot="dZ"),
         Cut("QF", "SelectedDiEle_sv_prob>1.e-5 && SelectedDiEle_sv_chi2<998.", plot="QF"),
-        Cut("TrgObjMatch", "Electron_isTriggering[SelectedDiEle_l1idx] && Electron_isTriggering[SelectedDiEle_l2idx]", plot="TrgObjMatch")
-        ], parent=["HLT_L1_RECO", "HLT_RECO"]
+        ], parent=["HLT_JetCut_RECO", "HLT_RECO"]
         )
 
     return tree
