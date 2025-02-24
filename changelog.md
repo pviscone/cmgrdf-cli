@@ -9,6 +9,7 @@
 - tree.add forward the kwargs to all the flowsteps
 - Plots have better handling of the `log` and `density` options. `density` can be `axis` or `counts`
 - implemented processPattern option
+- in pyplots manually compute poissonian yerr to set yerr to 0 for empty bins
 
 fix:
 - Added safeguards against empty regions (0 events)

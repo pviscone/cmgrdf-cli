@@ -6,6 +6,20 @@ from plothist import plot_comparison
 from utils.plotters import TH1, TH2
 from utils.folders import folders
 
+#!Have to manually compute yerr because mplhep w2method callable is broken
+import mplhep
+import numpy as np
+def poisson_interval_ignore_empty(sumw, sumw2):
+    #Set to 0 yerr of empty bins
+    interval = mplhep.error_estimation.poisson_interval(sumw, sumw2)
+    lo, hi = interval[0,...], interval[1,...]
+    to_ignore = np.isnan(lo)
+    lo[to_ignore] = 0.0
+    hi[to_ignore] = 0.0
+    res = np.array([lo,hi])
+    return np.abs(res - sumw)
+
+
 def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era):
     lumitext = lumitext.format(lumi=plot_lumi, era=era)
     file = uproot.open(path)
@@ -30,7 +44,8 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
         data_hist = file.get("data", False)
         if data_hist:
             data_hist = data_hist.to_hist()
-            h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", w2method="poisson")
+            yerr = poisson_interval_ignore_empty(data_hist.values(), data_hist.variances())
+            h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", yerr=yerr)
 
         if noStack or len(bkgs) == 0:
             for process_name, process_dict in all_processes.items():
@@ -38,7 +53,8 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
                     continue
                 hist = file[process_name].to_hist()
                 color = process_dict.get("color", None)
-                h.add(hist, label=process_dict["label"], density = getattr(plot, "density", False), color = color, w2method="poisson")
+                yerr=poisson_interval_ignore_empty(hist.values(), hist.variances())
+                h.add(hist, label=process_dict["label"], density = getattr(plot, "density", False), color = color, yerr=yerr)
         else: #stack
             bkg_hist = [file[bkg].to_hist() for bkg in bkgs if bkg in file]
             bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs if bkg in file]
@@ -53,9 +69,11 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
                 stack_total = stack_total + sum(signal_hist)
             h.add(bkg_hist, label=bkg_labels, density = getattr(plot, "density", False), color = bkg_colors, stack = True, histtype = "fill")
             signal_histtype = "step" if not stackSignal else "fill"
-            h.add(signal_hist, label=signal_labels, density = getattr(plot, "density", False), color = signal_colors, stack = stackSignal, histtype = signal_histtype, w2method="poisson")
+            yerr_signal = [poisson_interval_ignore_empty(hist.values(), hist.variances()) for hist in signal_hist]
+            h.add(signal_hist, label=signal_labels, density = getattr(plot, "density", False), color = signal_colors, stack = stackSignal, histtype = signal_histtype, yerr=yerr_signal)
             h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "step", yerr=False, linewidth=1)
-            h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "band", label="Total Unc.", w2method="poisson")
+            yerr_total = poisson_interval_ignore_empty(stack_total.values(), stack_total.variances())
+            h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "band", label="Total Unc.", yerr=yerr_total)
 
             if ratio:
                 plt.setp(ax[0].get_yticklabels()[0], visible=False)
@@ -110,9 +128,11 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
             chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
             list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
-        for flow,_ in flow_plots:
-            os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
 
         #Debug
         #for data in pool_data:
         #    _drawPyPlots(data)
+
+        for flow,_ in flow_plots:
+            os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
+
