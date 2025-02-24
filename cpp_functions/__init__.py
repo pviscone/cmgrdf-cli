@@ -15,11 +15,11 @@ def load(*files, exclude=[]):
         for file in files:
             file_path = os.path.join(thisdir, file)
             print(f"Including {file_path.rsplit('/', 2)[-1]}")
-            ROOT.gROOT.ProcessLine(f'#include "{file_path}"')
+            ROOT.gInterpreter.Declare(f'#include "{file_path}"')
     else:
         for ext in cfile_ext:
             for file_path in glob.glob(os.path.join(thisdir, f"*.{ext}")):
                 if file_path.rsplit("/", 1)[-1] in exclude:
                     continue
                 print(f"Including {file_path.rsplit('/', 2)[-1]}")
-            ROOT.gROOT.ProcessLine(f'#include "{file_path}"')
+                ROOT.gInterpreter.Declare(f'#include "{file_path}"')
