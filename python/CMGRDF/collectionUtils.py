@@ -4,6 +4,7 @@ from CMGRDF.flow import Define, FlowStep
 from CMGRDF.utils import recursiveAddToHash
 
 
+
 class AliasCollection(FlowStep):
     """Make a subcollection of a collection, given a cut, bool mask, or vector of indices, and a list of members to copy"""
 
@@ -136,19 +137,27 @@ class DefineSkimmedCollection(FlowStep):
                  cut : Optional[str] = None,
                  mask : Optional[str] = None,
                  indices : Optional[str] = None,
+                 define : Optional[str] = None,
                  redefine : bool = False,
                  **options):
         super().__init__(name, **options)
+        if name==srcColl:
+            redefine = True
+
+        if redefine:
+            srcColl = name
+
         self.srcColl = srcColl
         self.members = list(members) if members is not None else None
         self.optMembers = list(optMembers or [])
         self.cut = cut
         self.mask = mask
         self.indices = indices
-        if len([x for x in (cut, mask, indices) if x is not None]) != 1:
-            raise RuntimeError(f"Error in {self.name}: must specify exactly one of cut, mask or indices")
+        self.define = define
+        if len([x for x in (cut, mask, indices, define) if x is not None]) != 1:
+            raise RuntimeError(f"Error in {self.name}: must specify exactly one of cut, mask, define or indices")
         if self.cut is not None:
-            self.mask = srcColl + "_is" + name
+            self.mask = self.cut
         self.rdf_func = "Redefine" if redefine else "Define"
 
     def _params(self) -> Any:
@@ -167,21 +176,20 @@ class DefineSkimmedCollection(FlowStep):
         cols = set(rdf.GetColumnNames())
         rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"n{self.name}" in cols or f"Friends.n{self.name}" in cols) else "Define"
 
-        if self.cut:
-            src = rdf
-            rdf = getattr(rdf, rdf_func)(self.mask, self.cut)
-            rdf._from = src
+        src = rdf
         if self.mask:
-            src = rdf
-            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum({self.mask})")
-            rdf._from = src
-            copyexpr = f"{self.srcColl}_{{m}}[{self.mask}]"
-        else:
-            assert self.indices is not None
-            src = rdf
-            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.indices}.size()")
-            rdf._from = src
-            copyexpr = f"Take({self.srcColl}_{{m}}, {self.indices})"
+            rdf = rdf.Define(f"_mask_{self.mask}", self.mask)
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum(_mask_{self.mask})")
+            copyexpr = f"{self.srcColl}_{{m}}[_mask_{self.mask}]"
+        elif self.define:
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.define}.size()")
+            copyexpr = self.define
+        elif self.indices:
+            rdf = rdf.Define(f"_indices_{self.indices}", self.indices)
+            rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"_indices_{self.indices}.size()")
+            copyexpr = f"Take({self.srcColl}_{{m}}, _indices_{self.indices})"
+        rdf._from = src
+
         for m in members:
             rdf_func = "Redefine" if self.rdf_func == "Redefine" and (f"{self.name}_{m}" in cols or f"Friends.{self.name}_{m}" in cols) else "Define"
             src = rdf
