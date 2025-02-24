@@ -15,6 +15,7 @@ fix:
 - fixed empty plot argument
 - caught exception in print_yield to handle Cut with samplePattern
 - corrected print yield handling of zero events after cuts
+- fixed simoultaneous log and density th2 pyplots
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles

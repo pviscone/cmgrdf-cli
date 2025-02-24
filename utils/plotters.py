@@ -227,23 +227,27 @@ class TH2(BasePlotter):
     def add(self, hist, **kwargs):
         hist=convert_to_hist(hist)
         hist = hist[*self.rebin]
-        if self.zlog:
-            kwargs["norm"] = colors.LogNorm(vmin=self.zlim[0], vmax=self.zlim[1])
 
         if "cmap" in kwargs:
             kwargs["cmap"].set_under('w',1)
+
         if kwargs.get("density", False):
-            kwargs.pop("density")
-            hep.hist2dplot(hist, ax=self.ax, **kwargs)
-        else:
             kwargs.pop("density")
             kwargs.pop("cmin")
             data = hist.density().T
             data[data == 0] = np.nan
-            im = self.ax.imshow(data, origin = "lower", aspect = "auto", interpolation='none', extent=[hist.axes[0].edges[0],hist.axes[0].edges[-1],hist.axes[1].edges[0],hist.axes[1].edges[-1]], **kwargs)
+            if self.zlog:
+                kwargs["norm"] = colors.LogNorm(vmin=max(1e-5, np.nanmin(data)) if self.zlim[0] is None else self.zlim[1] , vmax=1. if self.zlim[1] is None else self.zlim[1])
+            im = self.ax.imshow(data, origin = "lower", aspect = "auto", interpolation='nearest', extent=[hist.axes[0].edges[0],hist.axes[0].edges[-1],hist.axes[1].edges[0],hist.axes[1].edges[-1]], **kwargs)
             divider = make_axes_locatable(self.ax)
             cax = divider.append_axes('right', size='5%', pad=0.05)
             self.fig.colorbar(im, cax=cax, orientation='vertical')
+        else:
+            if self.zlog:
+                kwargs["norm"] = colors.LogNorm(vmin=self.zlim[0], vmax=self.zlim[1])
+            kwargs.pop("density")
+            hep.hist2dplot(hist, ax=self.ax, **kwargs)
+
 
 
 
