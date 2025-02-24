@@ -1,5 +1,6 @@
 import importlib
 import os
+import re
 import types
 import shutil
 
@@ -89,3 +90,6 @@ def copy_file_to_subdirectories(src_file, target_folder, ignore=[]):
             if skip:
                 continue
             shutil.copy(src_file, target_dir)
+
+def is_in_command(pattern):
+    return bool(re.match(pattern, os.environ["cmgrdf_cli_command"]))

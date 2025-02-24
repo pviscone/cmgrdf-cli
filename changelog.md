@@ -13,6 +13,7 @@
 - reformatted parse_function util to accept None return arguments
 - added declare argument to declare cpp code after str manipulation
 - saved cli command in cmgrdf_cli_command env var
+- added is_in_command util to perform regex matching on the cli command
 
 fix:
 - Added safeguards against empty regions (0 events)
