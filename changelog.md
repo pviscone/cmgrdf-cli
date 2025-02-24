@@ -20,3 +20,4 @@ cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles
 - implemented gensumw == nevents with genSumWeightName = "_nevents_"
 - Implemented AliasCollection
+- Implemented `define` argument in DefineSkimmedCollection
