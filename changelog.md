@@ -10,6 +10,7 @@
 - Plots have better handling of the `log` and `density` options. `density` can be `axis` or `counts`
 - implemented processPattern option
 - in pyplots manually compute poissonian yerr to set yerr to 0 for empty bins
+- reformatted parse_function util to accept None return arguments
 
 fix:
 - Added safeguards against empty regions (0 events)

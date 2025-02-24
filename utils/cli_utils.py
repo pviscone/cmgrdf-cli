@@ -38,18 +38,32 @@ def load_module(filepath):
 
 def parse_function(module, name, typ, kwargs={}):
     if module is None:
-        return typ() if typ is not Flow else Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
+        if typ is Flow:
+            return Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
+        elif typ is None:
+            return None
+        else:
+            return typ()
 
-    obj = getattr(
-        module, name, typ() if typ is not Flow else Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
-    )  # typ or function that returns typ
+    if typ is Flow:
+        obj = getattr(
+            module, name, Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
+        )  # typ or function that returns typ
+    elif typ is None:
+        obj = getattr(
+            module, name, None
+        )
+    else:
+        obj = getattr(
+            module, name, typ()
+        )  # typ or function that returns typ
 
     if not isinstance(obj, typ | types.FunctionType):
         raise ValueError(f"Expected a {typ} or a function but got {type(obj)}")
 
     if isinstance(obj, types.FunctionType):
         obj = obj(**kwargs)
-        if not isinstance(obj, typ):
+        if not ((obj is None and typ is None) or isinstance(obj, typ)):
             raise ValueError(f"The function should return an object of type {typ} but got {type(obj)}")
 
     if isinstance(obj, Flow):
