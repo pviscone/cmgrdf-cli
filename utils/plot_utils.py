@@ -92,7 +92,8 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
             hist = file[process_name].to_hist()
             h.add(hist, density = getattr(plot, "density", False))
             folder = path.replace('.root','')
-            folder = folder.rsplit('/',1)[0]+"/2D_"+folder.rsplit('/',1)[1]
+            folder2D = os.path.join(folder.rsplit('/',1)[0],"2D/")
+            folder = os.path.join(folder2D, folder.rsplit('/',1)[1])
             os.makedirs(folder, exist_ok=True)
             h.save(os.path.join(folder,f"{process_name}.pdf"))
             os.system(f"pdftocairo {os.path.join(folder,f'{process_name}.pdf')} -png -r 200 {os.path.join(folder,f'{process_name}')}")
@@ -110,3 +111,9 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
             chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
             list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
+        for flow,_ in flow_plots:
+            os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
+
+        #Debug
+        #for data in pool_data:
+        #    _drawPyPlots(data)
