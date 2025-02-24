@@ -140,12 +140,13 @@ def run_analysis(
     if disableBreakpoints:
         os.environ["PYTHONBREAKPOINT"] = "0"
 
+    #Do not remove verbosity. If RLogScopedVerbosity is not saved in a variable, it will be deleted and the verbosity will not be set
     if verbose==1:
-        ROOT.Experimental.RLogScopedVerbosity(
+        verbosity=ROOT.Experimental.RLogScopedVerbosity(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
         )
     elif verbose==2:
-        ROOT.Experimental.RLogScopedVerbosity(
+        verbosity=ROOT.Experimental.RLogScopedVerbosity(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
         )
 
