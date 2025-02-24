@@ -67,7 +67,7 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
         all_data.append(Data(data_datasets))
 
 #!Add table
-def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=False):
+def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=False, processPattern = None):
     if mccFlow is None:
         mcc_steps = []
     else:
@@ -75,6 +75,8 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
 
     #! Loop over all processes
     for (process, process_dict) in all_processes.items():
+        if processPattern and not re.match(processPattern+"$", process):
+            continue
         process_list = []
         groups_list = process_dict["groups"]
         label = process_dict["label"]
