@@ -6,9 +6,8 @@ from plothist import plot_comparison
 from utils.plotters import TH1, TH2
 from utils.folders import folders
 
-def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal):
-    if "{lumi" in lumitext:
-        lumitext = lumitext.format(lumi=plot_lumi)
+def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era):
+    lumitext = lumitext.format(lumi=plot_lumi, era=era)
     file = uproot.open(path)
     hist_type = str(type(file[list(all_processes.keys())[0]]))
     if "TH1" in hist_type:
@@ -107,7 +106,7 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         format_dict = {"era": era} if not mergeEras else {}
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
-        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
             chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
             list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
