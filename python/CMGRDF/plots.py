@@ -1,4 +1,5 @@
 from math import hypot
+import hashlib
 import re
 import os
 from array import array
@@ -27,6 +28,7 @@ class Plot(Target):
                  typ : Literal["Histo1D", "Histo2D"] = "Histo1D",
                  mcOnly : bool = False,
                  cut : Optional[str] = None,
+                 weight : Optional[str] = "weight",
                  **options):
         super().__init__(name, mcOnly=mcOnly)
         for k, v in options.items():
@@ -76,6 +78,8 @@ class Plot(Target):
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
         self.cut = cut
+        self.weight = weight
+        self.hashed_weight = weight
         self._bigHash = None
 
     def __getstate__(self):
@@ -103,14 +107,22 @@ class Plot(Target):
         self._forEquals = state['_forEquals']
 
     def _prepareExpr(self, rdf : Any, expr: str, name : str) -> tuple[Any, str]:
-        if expr in rdf.GetColumnNames():
-            return (rdf, expr)
+        hashed_weight_col = "__plot_weight_"+hashlib.sha1(self.weight.encode('utf-8')).hexdigest()
+        if self.weight != "weight":
+            if hashed_weight_col not in rdf.GetColumnNames():
+                rdf2 = rdf.Define(hashed_weight_col, self.weight)
+            self.hashed_weight = hashed_weight_col
+        else:
+            rdf2 = rdf
+
+        if expr in rdf2.GetColumnNames():
+            return (rdf2, expr)
         #print("Will create a new expression for plot "+self.name)
         if self.cut is not None:
-            rdf2 = rdf.Filter(self.cut)
+            rdf2 = rdf2.Filter(self.cut)
             rdf2 = rdf2.Define(name, expr)
         else:
-            rdf2 = rdf.Define(name, expr)
+            rdf2 = rdf2.Define(name, expr)
         rdf2._from = rdf
         return (rdf2, name)
 
@@ -122,14 +134,14 @@ class Plot(Target):
 
     def bookHisto1D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         rdf, expr = self._prepareExpr(rdf, self._expr, self.name + "__plot_expr_")
-        ret = rdf.Histo1D(self._model, expr, "weight")
+        ret = rdf.Histo1D(self._model, expr, self.hashed_weight)
         ret._from = rdf
         return ret
 
     def bookHisto2D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
         rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
-        ret = rdf.Histo2D(self._model, expr_x, expr_y, "weight")
+        ret = rdf.Histo2D(self._model, expr_x, expr_y, self.hashed_weight)
         ret._from = rdf
         return ret
 
