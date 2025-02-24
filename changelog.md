@@ -24,3 +24,4 @@ cmgrdf commit bump
 - implemented gensumw == nevents with genSumWeightName = "_nevents_"
 - Implemented AliasCollection
 - Implemented `define` argument in DefineSkimmedCollection
+- added weight argument to plot
