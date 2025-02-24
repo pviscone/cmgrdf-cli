@@ -7,7 +7,7 @@ import sys
 from rich.console import Console
 from rich import print as pprint
 import typer
-from typing import Tuple
+from typing import Tuple, List
 from typing_extensions import Annotated
 
 import ROOT
@@ -30,66 +30,67 @@ console = Console(record=True)
 @app.command()
 def run_analysis(
     #! Configs
-    cfg      : Annotated[str , typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
-    eras     : Annotated[str , typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
-    outfolder: Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
-    flow     : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] or [bold red]Tree[/bold red] object.", rich_help_panel="Configs"),
-    plots    : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] dict/list", rich_help_panel="Configs"),
-    data     : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
-    mc       : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
-    mcc      : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
-    processPattern: str = typer.Option(None, "--processPattern", help="Regex patterns to select processes mathcing the process name", rich_help_panel="Configs"),
-    noSyst   : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
-    noXsec   : bool = typer.Option(False, "--noXsec", help="Ignore all the cross-sections and assign unitary weight to all the events", rich_help_panel="Configs"),
-    plotFormats: str = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
+    cfg                  : Annotated[str, typer.Option("-c", "--cfg", help="The name of the cfg file that contains the [bold red]era_paths_Data, era_paths_MC, PFs and PMCs[/bold red]", rich_help_panel="Configs")],
+    eras                 : Annotated[str, typer.Option("-e", "--eras", help="Eras to run (comma separated)", rich_help_panel="Configs")],
+    outfolder            : Annotated[str, typer.Option("-o", "--outfolder", help="The name of the output folder", rich_help_panel="Configs")],
+    flow                 : str  = typer.Option(None, "-f", "--flow", help="The name of the flow file that contains the [bold red]flow[/bold red] or [bold red]Tree[/bold red] object.", rich_help_panel="Configs"),
+    plots                : str  = typer.Option(None, "-p", "--plots", help="The name of the plots file that contains the [bold red]plots[/bold red] dict/list", rich_help_panel="Configs"),
+    data                 : str  = typer.Option(None, "-d", "--data", help="The name of the data file that contains the [bold red]DataDict[/bold red]", rich_help_panel="Configs"),
+    mc                   : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
+    mcc                  : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
+    declare              : List[str] = typer.Option([], "--declare", help="The name of the py file that contains the [bold red]declare[/bold red] function (can be called multiple times)", rich_help_panel="Configs"),
+    processPattern       : str  = typer.Option(None, "--processPattern", help="Regex patterns to select processes mathcing the process name", rich_help_panel="Configs"),
+    noSyst               : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
+    noXsec               : bool = typer.Option(False, "--noXsec", help="Ignore all the cross-sections and assign unitary weight to all the events", rich_help_panel="Configs"),
+    plotFormats          : str  = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
 
     #! RDF options
-    ncpu     : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
-    verbose  : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
-    cache    : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
-    cachepath: str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
+    ncpu                 : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
+    verbose              : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
+    cache                : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
+    cachepath            : str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
 
     #! Debug options
-    nevents : int = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
-    disableBreakpoints: bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
+    nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
+    disableBreakpoints   : bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
 
     #! Flow options
-    disableRegions: str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
-    enableRegions : str  = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
-    noPlotsteps   : bool = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Flow Options"),
+    disableRegions       : str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    enableRegions        : str  = typer.Option("", "--enableRegions", help="Regions to enable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
+    noPlotsteps          : bool = typer.Option(False, "--noPlotsteps", help="Do not plot the steps in the middle of the flow", rich_help_panel="Flow Options"),
 
     #! Plot options
-    noPyplots    : bool        = typer.Option(False, "--noPyplots", help="Do not plot figures, just save THx root files", rich_help_panel="Plot Options"),
-    lumitext     : str         = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
-    cmstext      : str         = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
-    noRatio      : bool        = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
-    ratiotype    : str         = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
-    ratiorange   : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
-    noStack      : bool        = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
-    stackSignal  : bool        = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
-    mergeEras    : bool        = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
-    grid         : bool        = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
+    noPyplots            : bool = typer.Option(False, "--noPyplots", help="Do not plot figures, just save THx root files", rich_help_panel="Plot Options"),
+    lumitext             : str  = typer.Option("{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)", "--lumitext", help="Text to display in the top right of the plots", rich_help_panel="Plot Options"),
+    cmstext              : str  = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
+    noRatio              : bool = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
+    ratiotype            : str  = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
+    ratiorange           : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    noStack              : bool = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
+    stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
+    mergeEras            : bool = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
+    grid                 : bool = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
 
     #! Yields options
-    noYields       : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
-    mergeErasYields: bool = typer.Option(False, "--mergeErasYields", help="Merge the eras in the yields", rich_help_panel="Yields Options"),
+    noYields             : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
+    mergeErasYields      : bool = typer.Option(False, "--mergeErasYields", help="Merge the eras in the yields", rich_help_panel="Yields Options"),
 
     #! Datacard options #
-    datacards       : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
-    asimov          : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
-    autoMCStats     : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
-    autoMCstatsThreshold: int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
-    threshold       : int  = typer.Option(0.0, "--threshold", help="Minimum event yield to consider processes", rich_help_panel="Datacard Options"),
-    regularize      : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
+    datacards            : bool = typer.Option(False, "--datacards", help="Create datacards", rich_help_panel="Datacard Options"),
+    asimov               : str  = typer.Option(None, "--asimov", help="Use an Asimov dataset of the specified kind: including signal ('signal','s','sig','s+b') or background-only ('background','bkg','b','b-only')", rich_help_panel="Datacard Options"),
+    autoMCStats          : bool = typer.Option(False, "--autoMCStats", help="Use autoMCStats", rich_help_panel="Datacard Options"),
+    autoMCstatsThreshold : int  = typer.Option(10, "--autoMCStatsThreshold", help="Threshold to put on autoMCStats", rich_help_panel="Datacard Options"),
+    threshold            : int  = typer.Option(0.0, "--threshold", help="Minimum event yield to consider processes", rich_help_panel="Datacard Options"),
+    regularize           : bool = typer.Option(False, "--regularize", help="Regularize templates", rich_help_panel="Datacard Options"),
 
     #! Snapshot options
-    snapshot   : bool = typer.Option(False, "--snapshot", help=f"Save snapshots in outfolder/{folders.snap}", rich_help_panel="Snapshot Options"),
-    columnSel  : str = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
-    columnVeto : str = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
-    noMC       : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
-    noData     : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
-    MCpattern  : str = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
-    flowPattern: str = typer.Option(None, "--flowPattern", help="Regex patterns to select flows mathcing the flow name (comma separated)", rich_help_panel="Snapshot Options"),
+    snapshot             : bool = typer.Option(False, "--snapshot", help=f"Save snapshots in outfolder/{folders.snap}", rich_help_panel="Snapshot Options"),
+    columnSel            : str  = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
+    columnVeto           : str  = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
+    noMC                 : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
+    noData               : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
+    MCpattern            : str  = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
+    flowPattern          : str  = typer.Option(None, "--flowPattern", help="Regex patterns to select flows mathcing the flow name (comma separated)", rich_help_panel="Snapshot Options"),
 ):
     """
     Command line to run the analysis.
@@ -104,6 +105,7 @@ def run_analysis(
 
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
+    os.environ["cmgrdf_cli_command"] = command
 
     #! ------------------------- Sanity checks -------------------------- !#
     if data is None and mc is None:
@@ -154,28 +156,31 @@ def run_analysis(
     if ncpu > 1 and nevents == -1:
         ROOT.EnableImplicitMT(ncpu)
 
+    for dec in declare:
+        declare_module, declare_kwargs = load_module(dec)
+        parse_function(declare_module, "declare", None, declare_kwargs)
     cpp_functions.load()
     #! ----------------------== Module imports -------------------------- !#
-    eras        = eras.split(",")
-    cfg_module  , _          = load_module(cfg)
-    plots_module, plots_kwargs = load_module(plots)
-    data_module , data_kwargs  = load_module(data)
-    mc_module   , mc_kwargs    = load_module(mc)
-    mcc_module  , mcc_kwargs   = load_module(mcc)
+    eras                           = eras.split(",")
+    cfg_module    , _              = load_module(cfg)
+    plots_module  , plots_kwargs   = load_module(plots)
+    data_module   , data_kwargs    = load_module(data)
+    mc_module     , mc_kwargs      = load_module(mc)
+    mcc_module    , mcc_kwargs     = load_module(mcc)
 
     era_paths_Data = parse_function(cfg_module, "era_paths_Data", dict)
     era_paths_MC   = parse_function(cfg_module, "era_paths_MC", dict)
     PFs            = parse_function(cfg_module, "PFs", list)
     PMCs           = parse_function(cfg_module, "PMCs", list)
 
-    DataDict      = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
-    all_processes = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
-    mccFlow       = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
+    DataDict       = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
+    all_processes  = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
+    mccFlow        = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
     try:
-        plots     = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
+        plots      = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
     except ValueError:
-        plots     = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
-        plots     = {"main" : plots} if plots != [] else {}
+        plots      = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+        plots      = {"main" : plots} if plots != [] else {}
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
     print_configs(console, ncpu, nevents, nocache, cachepath, datacards, snapshot, eras, era_paths_Data, era_paths_MC, PFs, PMCs)

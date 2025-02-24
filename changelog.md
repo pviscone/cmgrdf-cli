@@ -11,6 +11,8 @@
 - implemented processPattern option
 - in pyplots manually compute poissonian yerr to set yerr to 0 for empty bins
 - reformatted parse_function util to accept None return arguments
+- added declare argument to declare cpp code after str manipulation
+- saved cli command in cmgrdf_cli_command env var
 
 fix:
 - Added safeguards against empty regions (0 events)
