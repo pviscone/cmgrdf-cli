@@ -131,7 +131,7 @@ class DefineSkimmedCollection(FlowStep):
 
     def __init__(self,
                  name : str,
-                 srcColl : str,
+                 srcColl : Optional[str] = None,
                  members : Optional[Iterable[str]] = None,
                  optMembers : Optional[Iterable[str]] = None,
                  cut : Optional[str] = None,
@@ -141,11 +141,15 @@ class DefineSkimmedCollection(FlowStep):
                  redefine : bool = False,
                  **options):
         super().__init__(name, **options)
+
+        if srcColl is None:
+            srcColl = name
+
         if name==srcColl:
             redefine = True
 
         if redefine:
-            srcColl = name
+            assert srcColl == name, "Redefine can only be used when the source collection is the same as the new collection"
 
         self.srcColl = srcColl
         self.members = list(members) if members is not None else None
