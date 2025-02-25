@@ -6,7 +6,7 @@ from utils.folders import folders
 from flows import Tree
 import copy
 import re
-
+from collections import OrderedDict
 
 def split_at_plot(flow_obj, plots_dict):
     flow_list = []
@@ -55,7 +55,7 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
         isBranched = True if any([len(s.children)>1 for _, s in flow_obj.segments.items()]) else False
         flows_dict = flow_obj.to_dict() # leaf:steps
         if enable!=[""] or disable!=[""]:
-            new_flows_dict = {}
+            new_flows_dict = OrderedDict({})
             for name in flows_dict:
                 if enable!=[""]:
                     for en_pattern in enable:
@@ -86,7 +86,7 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
 
 
 def get_identical_elem_idxs(region_flows):
-    index_map = {}
+    index_map = OrderedDict({})
     nleafs = len(region_flows)
     for row_index  in range(nleafs):
         nplotsteps = len(region_flows[row_index])
@@ -96,13 +96,13 @@ def get_identical_elem_idxs(region_flows):
                 index_map[key].append((row_index, col_index))
             else:
                 index_map[key] = [(row_index, col_index)]
-    return {key: value for key, value in index_map.items() if len(value) > 1}
+    return OrderedDict({key: value for key, value in index_map.items() if len(value) > 1})
 
 def _clean_commons(region_obj, elem_idxs, flows=False):
     nleafs = len(region_obj)
     new_region_obj = [[] for _ in range(nleafs)]
     common_idx = 0
-    common_idx_dict = {}
+    common_idx_dict = OrderedDict({})
     for _, key in enumerate(elem_idxs.keys()):
         idxs = elem_idxs[key]
         common_leafs = tuple([i for i,_ in idxs])

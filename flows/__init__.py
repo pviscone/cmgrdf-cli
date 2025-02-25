@@ -66,7 +66,7 @@ class Tree:
         return res
 
     def to_dict(self, obj=True, concatenate = True):
-        res={}
+        res=OrderedDict({})
         for leaf in self.leaves:
             res[leaf]=self.get_chain(self.segments[leaf], [])
         if obj:
