@@ -223,13 +223,10 @@ class TH2(BasePlotter):
     def __init__(self, *args, rebin=[1,1], **kwargs):
         super().__init__(*args, rebin=rebin, **kwargs)
 
-    @merge_kwargs(cmap = plt.cm.viridis, cmin=1)
+    @merge_kwargs(cmap = plt.cm.viridis, cmin=0)
     def add(self, hist, **kwargs):
         hist=convert_to_hist(hist)
         hist = hist[*self.rebin]
-
-        if "cmap" in kwargs:
-            kwargs["cmap"].set_under('w',1)
 
         if kwargs.get("density", False):
             kwargs.pop("density")
@@ -243,6 +240,10 @@ class TH2(BasePlotter):
             cax = divider.append_axes('right', size='5%', pad=0.05)
             self.fig.colorbar(im, cax=cax, orientation='vertical')
         else:
+            cmap = kwargs["cmap"](np.linspace(0, 1, 256))
+            cmap[0] = [1, 1, 1, 1]
+            kwargs["cmap"] = colors.ListedColormap(cmap)
+
             if self.zlog:
                 kwargs["norm"] = colors.LogNorm(vmin=self.zlim[0], vmax=self.zlim[1])
             kwargs.pop("density")
