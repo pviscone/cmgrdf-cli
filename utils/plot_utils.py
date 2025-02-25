@@ -7,11 +7,11 @@ from utils.plotters import TH1, TH2
 from utils.folders import folders
 
 #!Have to manually compute yerr because mplhep w2method callable is broken
-import mplhep
+from mplhep import error_estimation
 import numpy as np
 def poisson_interval_ignore_empty(sumw, sumw2):
     #Set to 0 yerr of empty bins
-    interval = mplhep.error_estimation.poisson_interval(sumw, sumw2)
+    interval = error_estimation.poisson_interval(sumw, sumw2)
     lo, hi = interval[0,...], interval[1,...]
     to_ignore = np.isnan(lo)
     lo[to_ignore] = 0.0
