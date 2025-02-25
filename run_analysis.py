@@ -53,6 +53,7 @@ def run_analysis(
     #! Debug options
     nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     disableBreakpoints   : bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
+    fullTrackeback       : bool = typer.Option(False, "--fullTrackeback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
 
     #! Flow options
     disableRegions       : str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
@@ -144,14 +145,16 @@ def run_analysis(
 
     #Do not remove verbosity. If RLogScopedVerbosity is not saved in a variable, it will be deleted and the verbosity will not be set
     if verbose==1:
-        verbosity=ROOT.Experimental.RLogScopedVerbosity(
+        verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
         )
     elif verbose==2:
-        verbosity=ROOT.Experimental.RLogScopedVerbosity(
+        verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
         )
 
+    if fullTrackeback:
+        from traceback_with_variables import activate_by_import  # noqa: F401
     #! -------------------------- RDF CONFIG ---------------------------- !#
     if ncpu > 1 and nevents == -1:
         ROOT.EnableImplicitMT(ncpu)
