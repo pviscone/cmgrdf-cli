@@ -11,107 +11,107 @@ denom_nums:
     0common_0_NoCut:
         HLT:
             0common_1_HLT: HLT
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFLP_HLT_RECO_3_SelPFLP: PF-LP
             LPLP_HLT_RECO_3_SelLPLP: LP-LP
         HLT_PFPF:
             0common_1_HLT: HLT
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_PFLP:
             0common_1_HLT: HLT
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFLP_HLT_RECO_3_SelPFLP: PF-PF
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_LPLP:
             0common_1_HLT: HLT
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             LPLP_HLT_RECO_3_SelLPLP: PF-PF
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
         HLT_JetCut:
             0common_1_HLT: HLT
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
         HLT_JetCut_PFPF:
             0common_1_HLT: HLT
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFPF_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_PFLP:
             0common_1_HLT: HLT
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             PFLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_LPLP:
             0common_1_HLT: HLT
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
             LPLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
     0common_1_HLT:
         HLT:
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFLP_HLT_RECO_3_SelPFLP: PF-LP
             LPLP_HLT_RECO_3_SelLPLP: LP-LP
         HLT_PFPF:
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_PFLP:
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             PFLP_HLT_RECO_3_SelPFLP: PF-PF
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_LPLP:
-            2common_2_GenMatch: GenMatched
+            1common_2_GenMatch: GenMatched
             LPLP_HLT_RECO_3_SelLPLP: PF-PF
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
 
         HLT_JetCut:
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
         HLT_JetCut_PFPF:
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFPF_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_PFLP:
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             PFLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_LPLP:
-            1common_2_JetCut125: "Jet $p_T > 125$ GeV"
-            1common_3_GenMatch: GenMatched
+            2common_2_JetCut125: "Jet $p_T > 125$ GeV"
+            2common_3_GenMatch: GenMatched
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
             LPLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
-    2common_2_GenMatch:
+    1common_2_GenMatch:
         HLT:
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFLP_HLT_RECO_3_SelPFLP: PF-LP
@@ -129,28 +129,28 @@ denom_nums:
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
-    1common_2_JetCut125:
+    2common_2_JetCut125:
         HLT_JetCut:
-            1common_3_GenMatch: GenMatched
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
         HLT_JetCut_PFPF:
-            1common_3_GenMatch: GenMatched
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFPF_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_PFLP:
-            1common_3_GenMatch: GenMatched
+            2common_3_GenMatch: GenMatched
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
             PFLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_JetCut_LPLP:
-            1common_3_GenMatch: GenMatched
+            2common_3_GenMatch: GenMatched
             LPLP_HLT_JetCut_RECO_4_SelLPLP: LP-LP
             LPLP_HLT_JetCut_RECO_5_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_JetCut_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-    1common_3_GenMatch:
+    2common_3_GenMatch:
         HLT_JetCut:
             PFPF_HLT_JetCut_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_JetCut_RECO_4_SelPFLP: PF-LP
