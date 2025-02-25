@@ -121,7 +121,10 @@ def _drawPyPlots(args):
 
 def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
     for era in eras:
-        format_dict = {"era": era} if not mergeEras else {}
+        format_dict = {"era": era}
+        if mergeEras:
+            format_dict = {}
+            era = eras.__str__()
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
         pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
@@ -135,4 +138,7 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
 
         for flow,_ in flow_plots:
             os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
+
+        if mergeEras:
+            break
 
