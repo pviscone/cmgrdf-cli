@@ -570,8 +570,8 @@ class Processor:
             print("Merged %d yields in %.3fs" % (len(merged), time.perf_counter() - t0))
         return merged
 
-    def runSnapshots(self, logPerformance : bool = True, hadd : bool = True) -> MultiReport:
-        rawReport = self._runAllRaw(logPerformance=logPerformance)
+    def runSnapshots(self, logPerformance : bool = True, hadd : bool = True, **kwargs) -> MultiReport:
+        rawReport = self._runAllRaw(logPerformance=logPerformance, **kwargs)
         plots = MultiReport()
         for plotKey, (proc, sample, plot, hraw, hvars) in rawReport:
             if not isinstance(plot, Snapshot):
