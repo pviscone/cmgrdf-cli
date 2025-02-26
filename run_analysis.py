@@ -52,6 +52,7 @@ def run_analysis(
 
     #! Debug options
     nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
+    targetDebug          : bool = typer.Option(False, "--targetDebug", help="Save .dot graphs of the targeds before schduling", rich_help_panel="Debug"),
     disableBreakpoints   : bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
     fullTrackeback       : bool = typer.Option(False, "--fullTrackeback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
 
@@ -255,7 +256,8 @@ def run_analysis(
 
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
             pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
-            maker.bookCutFlow(all_data, lumi, flow, eras=eras)
+            if not noYields:
+                maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
             if plots:
                 maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
@@ -278,7 +280,7 @@ def run_analysis(
     #!---------------------- Save Plots ---------------------- !#
     pprint(f"[bold red]{center_header('RUNNING')}[/bold red]")
     if plots:
-        plotter = maker.runPlots(mergeEras=mergeEras)
+        plotter = maker.runPlots(mergeEras=mergeEras, debug = targetDebug)
         PlotSetPrinter(
             stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
         ).printSet(plotter, folders.plots_path)
@@ -294,7 +296,7 @@ def run_analysis(
 
     #!---------------------- PRINT YIELDS ---------------------- !#
     if not noYields:
-        yields = maker.runYields(mergeEras=mergeErasYields)
+        yields = maker.runYields(mergeEras=mergeErasYields, debug = targetDebug)
         console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
             if len(region_flows)>1 and re.search("(\d+)common.*", flow_list[-1].name):
@@ -309,7 +311,7 @@ def run_analysis(
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
     if snapshot:
-        report = maker.runSnapshots()
+        report = maker.runSnapshots(debug = targetDebug)
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
 
     #!--------------------- SAVE LOGS ---------------------- !#
