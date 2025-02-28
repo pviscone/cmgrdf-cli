@@ -43,10 +43,19 @@ def write_log(command, cachepath):
         cachestring = ""
     # Write the command string to file
     os.makedirs(folders.log, exist_ok=True)
+
+    full_command = f"python {command} {cachestring}"
+    commandsh_path = os.path.join(folders.log, "command.sh")
+
+    #-n to not overwrite
     os.system(
-        f"cp {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(folders.log, 'command.sh')}"
+        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {commandsh_path}"
     )
-    os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(folders.log, "command.sh")}')
+
+    # Append the command to the command.sh file checking if it is already there
+    os.system(f'grep -Fxq "{full_command}" {commandsh_path} || echo "{full_command}" >> {commandsh_path}')
+    # Append the command to the command.sh file
+    #os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(folders.log, "command.sh")}')
 
     # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
     os.system(
