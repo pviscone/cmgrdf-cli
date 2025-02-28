@@ -102,10 +102,22 @@ class Tree:
                     A.add_edge(node1, node2, color = "#0032ff" if self.segments[child].common_to_all else "black")
 
         A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
+        A.write(f'{outfile}.dot')
+
+        if os.path.exists(f'{outfile}.dot'):
+            B = PG.AGraph(f'{outfile}.dot')
+            B.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
+            for node in B.nodes():
+                if node not in A.nodes():
+                    A.add_node(node)
+            for edge in B.edges():
+                if edge not in A.edges():
+                    A.add_edge(edge)
+        A.write(f'{outfile}.dot')
+
         A.draw(f'{outfile}.pdf')
         os.system(f"pdftocairo {outfile}.pdf -png -r 200 {outfile}")
         os.system(f"mv {outfile}-1.png {outfile}.png")
-        #os.system(f"termvisage {outfile}.png")
 
 
 class Segment:
