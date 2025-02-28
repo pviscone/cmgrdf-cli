@@ -93,3 +93,10 @@ def copy_file_to_subdirectories(src_file, target_folder, ignore=[]):
 
 def is_in_command(pattern):
     return bool(re.match(pattern, os.environ["cmgrdf_cli_command"]))
+
+def is_in_extra(pattern):
+    extras = os.environ["cmgrdf_cli_extra"].split(",")
+    for extra in extras:
+        if re.match(pattern, extra):
+            return True
+    return False

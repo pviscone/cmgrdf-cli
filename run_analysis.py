@@ -93,6 +93,9 @@ def run_analysis(
     noData               : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
     MCpattern            : str  = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
     flowPattern          : str  = typer.Option(None, "--flowPattern", help="Regex patterns to select flows mathcing the flow name (comma separated)", rich_help_panel="Snapshot Options"),
+
+    #! Extra options
+    extra                : str  = typer.Option("", "--extra", help="Comma separeted string stored in os.environ['cmgrdf_cli_extra']. You can use is_in_extra to match a regex pattern with one of the extra (avoid this please)", rich_help_panel="Extra Options"),
 ):
     """
     Command line to run the analysis.
@@ -107,7 +110,11 @@ def run_analysis(
 
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
+    console.print(f"[bold red]{center_header('START')}[/bold red]")
+    console.print(f"{command}\n")
+
     os.environ["cmgrdf_cli_command"] = command
+    os.environ["cmgrdf_cli_extra"] = extra
 
     #! ------------------------- Sanity checks -------------------------- !#
     if data is None and mc is None:
@@ -317,7 +324,10 @@ def run_analysis(
     #!--------------------- SAVE LOGS ---------------------- !#
     write_log(command, cachepath)
     sys.settrace(None)
-    console.save_text(os.path.join(folders.log, "report.txt"))
+    console.save_text(os.path.join(folders.log, "report.txt_temp"))
+
+    os.system(f'cat {os.path.join(folders.log, "report.txt_temp")} >> {os.path.join(folders.log, "report.txt")}')
+    os.remove(os.path.join(folders.log, "report.txt_temp"))
     copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
 
 if __name__ == "__main__":
