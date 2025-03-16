@@ -85,39 +85,39 @@ class Tree:
 
     def graphviz(self, outfile, clean_fn = lambda x: x):
         A = PG.AGraph(directed=True, strict=True, overlap=False, splines='ortho')
+
         for _, segment in self.segments.items():
             if not segment.isLeaf or segment.isHead:
                 node1 = Flow(segment.name, segment.obj).__str__().replace("\033[1m", "").replace("\033[0m", "")
                 node1_label = clean_fn(node1)
-                A.add_node(node1, label=node1_label)
+                if segment.name not in A.nodes():
+                    A.add_node(segment.name, label=node1_label)
                 for child in segment.children:
                     node2 = Flow(self.segments[child].name, self.segments[child].obj).__str__().replace("\033[1m", "").replace("\033[0m", "")
                     node2_label = clean_fn(node2)
-                    if self.segments[child].common_to_all:
-                        A.add_node(node2, label=node2_label, fillcolor="#71d0ff61", style="filled")
-                    elif self.segments[child].isLeaf:
-                        A.add_node(node2, label=node2_label, fillcolor="#8fff7161", style="filled")
-                    else:
-                        A.add_node(node2)
-                    A.add_edge(node1, node2, color = "#0032ff" if self.segments[child].common_to_all else "black")
-
-        A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
-        A.write(f'{outfile}.dot')
+                    if self.segments[child].common_to_all and self.segments[child].name not in A.nodes():
+                        A.add_node(self.segments[child].name, label=node2_label, fillcolor="#71d0ff61", style="filled")
+                    elif self.segments[child].isLeaf and self.segments[child].name not in A.nodes():
+                        A.add_node(self.segments[child].name, label=node2_label, fillcolor="#8fff7161", style="filled")
+                    elif self.segments[child].name not in A.nodes():
+                        A.add_node(self.segments[child].name, label=node2_label)
+                    A.add_edge(segment.name, self.segments[child].name, color = "#0032ff" if self.segments[child].common_to_all else "black")
 
         if os.path.exists(f'{outfile}.dot'):
             B = PG.AGraph(f'{outfile}.dot')
-            B.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
+            # Add nodes
             for node in B.nodes():
                 if node not in A.nodes():
-                    A.add_node(node)
+                    A.add_node(node, label=B.get_node(node).attr['label'], fillcolor=B.get_node(node).attr['fillcolor'], style=B.get_node(node).attr['style'])
+            # Add edges
             for edge in B.edges():
                 if edge not in A.edges():
-                    A.add_edge(edge)
-        A.write(f'{outfile}.dot')
+                    A.add_edge(edge[0], edge[1], color=B.get_edge(edge[0], edge[1]).attr['color'])
 
+        A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
         A.draw(f'{outfile}.pdf')
-        os.system(f"pdftocairo {outfile}.pdf -png -r 200 {outfile}")
-        os.system(f"mv {outfile}-1.png {outfile}.png")
+        A.write(f'{outfile}.dot')
+        os.system(f"(pdftocairo {outfile}.pdf -png -r 200 {outfile} & wait; mv {outfile}-1.png {outfile}.png) &")
 
 
 class Segment:

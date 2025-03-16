@@ -16,6 +16,7 @@
 - added is_in_command util to perform regex matching on the cli command
 - added fullTraceback debug option
 - Added Hist3D
+- Outputting in the same folder merge the different logs
 
 fix:
 - Added safeguards against empty regions (0 events)
