@@ -162,6 +162,13 @@ class Cut(SimpleExprFlowStep):
             print(f"ERROR attaching Cut({self.name}, {self.expr}")
             raise
 
+class Dummy(FlowStep):
+    def __init__(self, **options):
+        super().__init__("Dummy", **options)
+
+    def _attach(self, rdf : Any, withUncertainties : bool) -> Any:
+        return rdf
+
 
 class Range(SimpleExprFlowStep):
     def __init__(self, expr : Union[int, tuple[int, int], tuple[int, int, int], list[int]], **options):
