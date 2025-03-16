@@ -33,3 +33,5 @@ cmgrdf commit bump
 - Implemented AliasCollection
 - Implemented `define` argument in DefineSkimmedCollection
 - added weight argument to plot
+- added TH3
+- fixed behaviour for multiple defineskimmedcollection step on the same collection
