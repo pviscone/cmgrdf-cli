@@ -40,4 +40,5 @@ if [[ "$1" == "build" ]]; then
 fi
 py_ver=`python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))'`
 export PYTHONPATH=$ANALYSIS_DIR/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
+export PATH=$ANALYSIS_DIR/.venv/bin:$PATH
 cd $CURRENT_PWD
