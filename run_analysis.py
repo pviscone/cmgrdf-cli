@@ -54,7 +54,7 @@ def run_analysis(
     nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     targetDebug          : bool = typer.Option(False, "--targetDebug", help="Save .dot graphs of the targeds before schduling", rich_help_panel="Debug"),
     disableBreakpoints   : bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
-    fullTrackeback       : bool = typer.Option(False, "--fullTrackeback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
+    fullTraceback       : bool = typer.Option(False, "--fullTraceback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
 
     #! Flow options
     disableRegions       : str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
@@ -93,6 +93,7 @@ def run_analysis(
     noData               : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
     MCpattern            : str  = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
     flowPattern          : str  = typer.Option(None, "--flowPattern", help="Regex patterns to select flows mathcing the flow name (comma separated)", rich_help_panel="Snapshot Options"),
+    snapAllSteps         : bool = typer.Option(False, "--snapAllSteps", help="Snapshot all the plot steps in the flow", rich_help_panel="Snapshot Options"),
 
     #! Extra options
     extra                : str  = typer.Option("", "--extra", help="Comma separeted string stored in os.environ['cmgrdf_cli_extra']. You can use is_in_extra to match a regex pattern with one of the extra (avoid this please)", rich_help_panel="Extra Options"),
@@ -161,7 +162,7 @@ def run_analysis(
             ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
         )
 
-    if fullTrackeback:
+    if fullTraceback:
         from traceback_with_variables import activate_by_import  # noqa: F401
     #! -------------------------- RDF CONFIG ---------------------------- !#
     if ncpu > 1 and nevents == -1:
@@ -219,28 +220,38 @@ def run_analysis(
     #! -------------- Print flows table and parse flows -------------------- !#
     #list of list of flows. [i][j] i is leaf, j is plotstep. bool if tree contains a branch
     region_flows, region_plots, isBranched = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps)
-    if noPlotsteps:
-        region_flows = [[r[-1]] for r in region_flows]
-        region_plots = [[p[-1]] for p in region_plots]
-        disable_plotflag(region_flows)
-    if isBranched and not noPlotsteps:
-        region_flows, region_plots = clean_commons(region_flows, region_plots)
-    region_plots = [region_plots[idx] for idx in range(len(region_flows)) if region_flows[idx]] #remove plot elements associated to empty flow_list
-    region_flows = [flow_list for flow_list in region_flows if flow_list] #remove empty flow_list
+
+    if snapshot:
+        snap_flows = copy.deepcopy(region_flows)
+
+    def get_flows(region_flows, region_plots, isBranched, noPlotsteps):
+        if noPlotsteps:
+            region_flows = [[r[-1]] for r in region_flows]
+            region_plots = [[p[-1]] for p in region_plots] if region_plots is not None else None
+            disable_plotflag(region_flows)
+        if isBranched and not noPlotsteps:
+            region_flows, region_plots = clean_commons(region_flows, region_plots)
+        region_plots = [region_plots[idx] for idx in range(len(region_flows)) if region_flows[idx]] if region_plots is not None else None #remove plot elements associated to empty flow_list
+        region_flows = [flow_list for flow_list in region_flows if flow_list] #remove empty flow_list
+        return region_flows, region_plots
+
+    region_flows, region_plots = get_flows(region_flows, region_plots, isBranched, noPlotsteps)
+
     flow_plots = []
-    for flow_list, plot_list in zip(region_flows, region_plots):
+    for flow_list, plot_list in zip(region_flows, region_plots, strict=True):
         #! ---------------------- PRINT THE FLOW ----------------------- !#
         if not re.search("(\d+)common.*", flow_list[-1].name): #Do not print common flows
             print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
-        for _i, (flow, plot) in enumerate(zip(flow_list, plot_list)):
+        for _i, (flow, plot) in enumerate(zip(flow_list, plot_list,strict=True)):
 
             if nevents != -1:
                 flow.prepend(Range(int(nevents)))
 
             #! ------------------ Corrections handling ------------------------ !#
             # Dirty workaround to handle corrections
+            #! TO TEST AGAIN
 
             for idx, step in enumerate(flow):
                 if hasattr(step, "_isCorrection") and step.era is None and hasattr(step, "init"):
@@ -270,9 +281,12 @@ def run_analysis(
                 maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
                 flow_plots.append((flow.name, plot))
 
-            #! ---------------------- BOOK SNAPSHOT ----------------------!#
-            if snapshot:
-                snap_list = []
+    #! ---------------------- BOOK SNAPSHOT ----------------------!#
+    if snapshot:
+        snap_flows, _ = get_flows(snap_flows, None, isBranched, not snapAllSteps)
+        for snap_list in snap_flows:
+            for snap_flow in snap_list:
+                snap_data_list = []
                 for dat in all_data:
                     if dat.isData and noData:
                         continue
@@ -280,9 +294,9 @@ def run_analysis(
                         continue
                     if not dat.isData and MCpattern is not None and not any([bool(re.search(pattern, dat.name)) for pattern in MCpattern.split(",")]):
                         continue
-                    snap_list.append(dat)
-                if (flowPattern is not None and any([bool(re.search(fpattern, flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
-                    maker.book(snap_list, lumi, flow, Snapshot(folders.snap.replace("{flow}", flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+                    snap_data_list.append(dat)
+                if (flowPattern is not None and any([bool(re.search(fpattern, snap_flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
+                    maker.book(snap_data_list, lumi, snap_flow, Snapshot(folders.snap.replace("{flow}", snap_flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
 
     #!---------------------- Save Plots ---------------------- !#
     pprint(f"[bold red]{center_header('RUNNING')}[/bold red]")

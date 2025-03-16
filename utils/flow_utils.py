@@ -32,6 +32,8 @@ def split_at_plot(flow_obj, plots_dict):
             plot_list[idx] = copy.deepcopy(plot_list[idx-1])
         if bool(rematch) and rematch.group(3) in plots_dict:
             plot_list[idx]+=plots_dict[rematch.group(3)]
+        if idx==len(flow_list)-1 and "full" in plots_dict:
+            plot_list[idx]+=plots_dict["full"]
     return flow_list, plot_list #single leaf. list of flow for each plotstep. list of list of Plot to plot at each plotstep
 
 
@@ -132,8 +134,10 @@ def _clean_commons(region_obj, elem_idxs, flows=False):
 def clean_commons(region_flows, region_plots):
     elem_idxs = get_identical_elem_idxs(region_flows)
     region_flows = _clean_commons(region_flows, elem_idxs, flows = True)
-    region_plots = _clean_commons(region_plots, elem_idxs, flows = False)
-    return region_flows, region_plots
+    if region_plots is not None:
+        region_plots = _clean_commons(region_plots, elem_idxs, flows = False)
+        return region_flows, region_plots
+    return region_flows, None
 
 def disable_plotflag(region_flows):
     for leaf_idx in range(len(region_flows)):

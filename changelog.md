@@ -17,6 +17,7 @@
 - added fullTraceback debug option
 - Added Hist3D
 - Outputting in the same folder merge the different logs
+- disables snapshot for all plotsteps + snapAllSteps option
 
 fix:
 - Added safeguards against empty regions (0 events)
