@@ -15,6 +15,7 @@
 - saved cli command in cmgrdf_cli_command env var
 - added is_in_command util to perform regex matching on the cli command
 - added fullTraceback debug option
+- Added Hist3D
 
 fix:
 - Added safeguards against empty regions (0 events)

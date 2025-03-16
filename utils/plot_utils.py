@@ -1,4 +1,5 @@
 import os
+import glob
 import concurrent
 import uproot
 import matplotlib.pyplot as plt
@@ -137,7 +138,12 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         #    _drawPyPlots(data)
 
         for flow,_ in flow_plots:
-            os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
+            if len(glob.glob(os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root'))) > 0:
+                os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '2D/')}")
+
+            if len(glob.glob(os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*_vs_*.root'))) > 0:
+                os.makedirs(os.path.join(folders.plots_path.format(flow=flow, **format_dict), '3D/'), exist_ok=True)
+                os.system(f"mv {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*_vs_*.root')} {os.path.join(folders.plots_path.format(flow=flow, **format_dict), '3D/')}")
 
         if mergeEras:
             break
