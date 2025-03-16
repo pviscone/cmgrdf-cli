@@ -182,14 +182,20 @@ class DefineSkimmedCollection(FlowStep):
 
         src = rdf
         if self.mask:
-            rdf = rdf.Define(f"_mask_{self.name}_{self.srcColl}", self.mask)
+            if f"_mask_{self.name}_{self.srcColl}" not in cols:
+                rdf = rdf.Define(f"_mask_{self.name}_{self.srcColl}", self.mask)
+            else:
+                rdf = rdf.Redefine(f"_mask_{self.name}_{self.srcColl}", self.mask)
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"Sum(_mask_{self.name}_{self.srcColl})")
             copyexpr = f"{self.srcColl}_{{m}}[_mask_{self.name}_{self.srcColl}]"
         elif self.define:
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"{self.define}.size()")
             copyexpr = self.define
         elif self.indices:
-            rdf = rdf.Define(f"_indices_{self.name}_{self.srcColl}", self.indices)
+            if f"_indices_{self.name}_{self.srcColl}" not in cols:
+                rdf = rdf.Define(f"_indices_{self.name}_{self.srcColl}", self.indices)
+            else:
+                rdf = rdf.Redefine(f"_indices_{self.name}_{self.srcColl}", self.indices)
             rdf = getattr(rdf, rdf_func)(f"n{self.name}", f"_indices_{self.name}_{self.srcColl}.size()")
             copyexpr = f"Take({self.srcColl}_{{m}}, _indices_{self.name}_{self.srcColl})"
         rdf._from = src
