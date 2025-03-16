@@ -25,7 +25,7 @@ class Plot(Target):
     def __init__(self,
                  name,
                  *args : Any,
-                 typ : Literal["Histo1D", "Histo2D"] = "Histo1D",
+                 typ : Literal["Histo1D", "Histo2D", "Histo3D"] = "Histo1D",
                  mcOnly : bool = False,
                  cut : Optional[str] = None,
                  weight : Optional[str] = "weight",
@@ -58,7 +58,7 @@ class Plot(Target):
             if isinstance(args[1], list):
                 self._bins = [[float(e) for e in ax] for ax in args[1]]
             elif isinstance(args[1], tuple):
-                self._bins = tuple([float(e) if idx not in [0, 3] else int(e) for idx, e in enumerate(args[1])])
+                self._bins = tuple([float(e) if idx%3!=0 else int(e) for idx, e in enumerate(args[1])])
             else:
                 raise ValueError(f"Invalid type for bins: {type(args[1])}")
             self.attach = self.bookHisto2D
@@ -74,6 +74,29 @@ class Plot(Target):
                 nbinsx, lowx, highx, nbinsy, lowy, highy = self._bins
                 self._model = ROOT.RDF.TH2DModel(self.name, self.getOpt("title", self.name), int(nbinsx), lowx, highx, int(nbinsy), lowy, highy)
             self.template = self._model.GetHistogram()
+        elif typ == "Histo3D":
+            self._expr = args[0]
+            if isinstance(args[1], list):
+                self._bins = [[float(e) for e in ax] for ax in args[1]]
+            elif isinstance(args[1], tuple):
+                self._bins = tuple([float(e) if idx%3!=0 else int(e) for idx, e in enumerate(args[1])])
+            else:
+                raise ValueError(f"Invalid type for bins: {type(args[1])}")
+            self.attach = self.bookHisto3D
+            self.finish = self.finishHisto3D
+            self.style = self.styleHisto3D
+            self._forEquals = (self._expr, self._bins,
+                               [self.getOpt(x) for x in ("includeOverflows", "includeOverflow", "includeUnderflow")])
+            if isinstance(self._bins, list):
+                binsx = self._bins[0]
+                binsy = self._bins[1]
+                binsz = self._bins[2]
+                self._model = ROOT.RDF.TH3DModel(self.name, self.getOpt("title", self.name), len(binsx) - 1, array('f', binsx), len(binsy) - 1, array('f', binsy), len(binsz) - 1, array('f', binsz))
+            else:
+                nbinsx, lowx, highx, nbinsy, lowy, highy, nbinsz, lowz, highz = self._bins
+                self._model = ROOT.RDF.TH3DModel(self.name, self.getOpt("title", self.name), int(nbinsx), lowx, highx, int(nbinsy), lowy, highy, int(nbinsz), lowz, highz)
+            self.template = self._model.GetHistogram()
+
         else:
             raise NotImplementedError(f"Plot not implemented for {typ}")
 
@@ -139,9 +162,17 @@ class Plot(Target):
         return ret
 
     def bookHisto2D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
-        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
-        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
+        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_x")
+        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_y")
         ret = rdf.Histo2D(self._model, expr_x, expr_y, self.hashed_weight)
+        ret._from = rdf
+        return ret
+
+    def bookHisto3D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
+        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_x")
+        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_y")
+        rdf, expr_z = self._prepareExpr(rdf, self._expr.split(":")[2], self.name + "__plot_expr_z")
+        ret = rdf.Histo3D(self._model, expr_x, expr_y, expr_z, self.hashed_weight)
         ret._from = rdf
         return ret
 
@@ -163,6 +194,9 @@ class Plot(Target):
         return plot
 
     def finishHisto2D(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
+        return value
+
+    def finishHisto3D(self, value : Any, sample : Sample, era : Optional[str]) -> Any:
         return value
 
     def styleHisto(self, plot : Any, process : Process):
@@ -200,6 +234,10 @@ class Plot(Target):
         return plot
 
     def styleHisto2D(self, plot : Any, process : Process) -> Any:
+        plot = self.styleHisto(plot, process)
+        return plot
+
+    def styleHisto3D(self, plot : Any, process : Process) -> Any:
         plot = self.styleHisto(plot, process)
         return plot
 

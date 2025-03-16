@@ -43,6 +43,12 @@ def warnAboutNegativeBins(hist, histName : Optional[Any] = None) -> None:
             for b2 in range(1, hist.GetNbinsY() + 1):
                 if hist.GetBinContent(b1, b2) < 0:
                     print('Warning: histo %s has bin %d,%d with negative content %f' % (histName, b1, b2, hist.GetBinContent(b1, b2)))
+    elif 'TH3' in hist.ClassName():
+        for b1 in range(1, hist.GetNbinsX() + 1):
+                for b2 in range(1, hist.GetNbinsY() + 1):
+                    for b3 in range(1, hist.GetNbinsZ() + 1):
+                        if hist.GetBinContent(b1, b2, b3) < 0:
+                            print('Warning: histo %s has bin %d,%d,%d with negative content %f' % (histName, b1, b2, b3, hist.GetBinContent(b1, b2, b3)))
 #
 
 
@@ -724,6 +730,12 @@ class HistoWithNuisances:
                         for b2 in range(1, self.GetNbinsY() + 1):
                             hvarup.SetBinContent(b1, b2, max(self.GetBinContent(b1, b2), hup.GetBinContent(b1, b2), hdn.GetBinContent(b1, b2)) - self.GetBinContent(b1, b2))
                             hvardn.SetBinContent(b1, b2, self.GetBinContent(b1, b2) - min(self.GetBinContent(b1, b2), hup.GetBinContent(b1, b2), hdn.GetBinContent(b1, b2)))
+                elif 'TH3' in self.ClassName():
+                    for b1 in range(1, self.GetNbinsX() + 1):
+                        for b2 in range(1, self.GetNbinsY() + 1):
+                            for b3 in range(1, self.GetNbinsZ() + 1):
+                                hvarup.SetBinContent(b1, b2, b3, max(self.GetBinContent(b1, b2, b3), hup.GetBinContent(b1, b2, b3), hdn.GetBinContent(b1, b2, b3)) - self.GetBinContent(b1, b2, b3))
+                                hvardn.SetBinContent(b1, b2, b3, self.GetBinContent(b1, b2, b3) - min(self.GetBinContent(b1, b2, b3), hup.GetBinContent(b1, b2, b3), hdn.GetBinContent(b1, b2, b3)))
                 hvars[var] = [hvarup, hvardn]
             # sum in quadrature all the up envelopes and down envelopes
             if 'TH1' in self.ClassName():
@@ -735,6 +747,12 @@ class HistoWithNuisances:
                     for b2 in range(1, self.GetNbinsY() + 1):
                         htotup.SetBinContent(b1, b2, self.GetBinContent(b1, b2) + sqrt(sum([(hvars[x][0].GetBinContent(b1, b2))**2 for x in hvars])))
                         htotdn.SetBinContent(b1, b2, self.GetBinContent(b1, b2) - sqrt(sum([(hvars[x][1].GetBinContent(b1, b2))**2 for x in hvars])))
+            elif 'TH3' in self.ClassName():
+                for b1 in range(1, self.GetNbinsX() + 1):
+                    for b2 in range(1, self.GetNbinsY() + 1):
+                        for b3 in range(1, self.GetNbinsZ() + 1):
+                            htotup.SetBinContent(b1, b2, b3, self.GetBinContent(b1, b2, b3) + sqrt(sum([(hvars[x][0].GetBinContent(b1, b2, b3))**2 for x in hvars])))
+                            htotdn.SetBinContent(b1, b2, b3, self.GetBinContent(b1, b2, b3) - sqrt(sum([(hvars[x][1].GetBinContent(b1, b2, b3))**2 for x in hvars])))
         return (htotup, htotdn)
 
     def integralStatError(self, relative : bool = False) -> float:
