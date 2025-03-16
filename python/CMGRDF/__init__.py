@@ -16,7 +16,8 @@ if "ONNXRUNTIME" in os.environ:
 
 from CMGRDF.utils import MultiKey, MultiReport, localOrEOS, NormUncertainty
 from CMGRDF.data import Source, MCSample, MCGroup, DataDrivenSample, DataSample, Process, Data
-from CMGRDF.flow import Define, ReDefine, DefineDefault, Alias, Vary, Cut, AddWeight, AddWeightUncertainty, Marker, Flow, Yield, Range
+from CMGRDF.flow import Define, ReDefine, DefineDefault, Alias, Vary, Cut, AddWeight, AddWeightUncertainty, Marker, Flow, Yield, Range, Dummy
+from CMGRDF.collectionUtils import DefineSkimmedCollection, AliasCollection, DefineFromCollection, DefineP4, DefinePairs, DefineMinMass
 from CMGRDF.snapshot import Snapshot
 from CMGRDF.plots import Plot, PlotResult, PlotSetPrinter
 from CMGRDF.processor import Processor
