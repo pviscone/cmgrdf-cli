@@ -119,6 +119,16 @@ class Tree:
         A.write(f'{outfile}.dot')
         os.system(f"(pdftocairo {outfile}.pdf -png -r 200 {outfile} & wait; mv {outfile}-1.png {outfile}.png) &")
 
+    def __add__(self, tree):
+        new_obj = Tree()
+        new_obj.segments = copy.deepcopy(self.segments)
+        new_obj.leaves = copy.deepcopy(self.leaves)
+        new_obj.heads = copy.deepcopy(self.heads)
+        new_obj.segments.update(tree.segments)
+        new_obj.leaves.update(tree.leaves)
+        new_obj.heads.update(tree.heads)
+        return new_obj
+
 
 class Segment:
     def __init__(self, name, x):
