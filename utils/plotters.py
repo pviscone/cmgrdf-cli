@@ -286,7 +286,11 @@ class TEfficiency(BasePlotter):
         if self.yerr:
             mc_num = np.floor((num_h.values()**2) / num_h.variances())
             mc_den = np.ceil((den_h.values()**2) / den_h.variances())
-            err = np.nan_to_num(intervals.ratio_uncertainty(mc_num, mc_den, "efficiency"), 0)
+            try:
+                err = np.nan_to_num(intervals.ratio_uncertainty(mc_num, mc_den, "efficiency"), 0)
+            except ValueError:
+                err = np.zeros_like(eff)
+                print(f"Error in {self.name} for {num_h.name} / {den_h.name}")
             if self.fillerr:
                 self.ax.fill_between(centers, eff-err[0], eff+err[1], color=self.ax.lines[-1].get_color(),**fill_kwargs)
             else:
