@@ -1,11 +1,10 @@
 vars:
-    - GenZd_dR
-    - GenEleLead_pt
-    - GenEleSubLead_pt
-    - GenEleLead_pt
-    - GenEleSubLead_pt
-    - SelectedDiEle_fitted_mass
-    - SelectedDiEle_pt
+    GenZd_dR:
+        log: x
+    GenEleLead_pt:
+    GenEleSubLead_pt:
+    SelectedDiEle_fitted_mass:
+    SelectedDiEle_pt:
 
 denom_nums:
     0common_0_NoCut:
@@ -36,7 +35,6 @@ denom_nums:
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
-
 
         HLT6p5_L1EG11:
             0common_1_HLT_6p5: HLT6p5
@@ -94,7 +92,6 @@ denom_nums:
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
-
 
         HLT6p5_L1EG11:
             2common_2_L1EG11: L1EG11

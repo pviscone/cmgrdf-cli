@@ -93,7 +93,6 @@ def plot_efficiency(
         variables = yaml_cfg.get("vars", None) if not allvars else None
 
         legend_kwargs = dict(bbox_to_anchor=bbox_to_anchor, loc=loc, ncol=ncol, fontsize=fontsize)
-        teff_kwargs = dict(rebin=rebin, ylim=ylim, legend_kwargs=legend_kwargs, cmsloc=cmsloc, cmstext=cmstext, grid=grid)
 
         pool_data=[]
         os.makedirs(os.path.join(inputfolder, outfolder), exist_ok=True)
@@ -104,6 +103,10 @@ def plot_efficiency(
                     variables = glob.glob(os.path.join(inputfolder, f'{denom}/*.root'))
                     variables = [v.split("/")[-1].split(".root")[0] for v in variables]
                 for variable in variables:
+                    kw = variables[variable]
+                    teff_kwargs = dict(rebin=rebin, ylim=ylim, legend_kwargs=legend_kwargs, cmsloc=cmsloc, cmstext=cmstext, grid=grid)
+                    if kw is not None:
+                        teff_kwargs.update(kw)
                     pool_data.append((inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace))
 
         with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:

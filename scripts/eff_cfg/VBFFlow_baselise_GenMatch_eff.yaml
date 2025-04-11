@@ -1,11 +1,11 @@
 vars:
-    - GenZd_dR
-    - GenEleLead_pt
-    - GenEleSubLead_pt
-    - GenEleLead_pt
-    - GenEleSubLead_pt
-    - SelectedDiEle_fitted_mass
-    - SelectedDiEle_pt
+    GenZd_dR:
+        log: x
+    GenEleLead_pt:
+    GenEleSubLead_pt:
+    SelectedDiEle_fitted_mass:
+    SelectedDiEle_pt:
+
 
 denom_nums:
     0common_0_NoCut:
@@ -24,13 +24,13 @@ denom_nums:
         HLT_PFLP:
             0common_1_HLT: HLT
             1common_2_GenMatch: GenMatched
-            PFLP_HLT_RECO_3_SelPFLP: PF-PF
+            PFLP_HLT_RECO_3_SelPFLP: PF-LP
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_LPLP:
             0common_1_HLT: HLT
             1common_2_GenMatch: GenMatched
-            LPLP_HLT_RECO_3_SelLPLP: PF-PF
+            LPLP_HLT_RECO_3_SelLPLP: LP-LP
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
@@ -76,12 +76,12 @@ denom_nums:
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_PFLP:
             1common_2_GenMatch: GenMatched
-            PFLP_HLT_RECO_3_SelPFLP: PF-PF
+            PFLP_HLT_RECO_3_SelPFLP: PF-LP
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_LPLP:
             1common_2_GenMatch: GenMatched
-            LPLP_HLT_RECO_3_SelLPLP: PF-PF
+            LPLP_HLT_RECO_3_SelLPLP: LP-LP
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
@@ -121,11 +121,11 @@ denom_nums:
             PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_PFLP:
-            PFLP_HLT_RECO_3_SelPFLP: PF-PF
+            PFLP_HLT_RECO_3_SelPFLP: PF-LP
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
         HLT_LPLP:
-            LPLP_HLT_RECO_3_SelLPLP: PF-PF
+            LPLP_HLT_RECO_3_SelLPLP: LP-LP
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
 
