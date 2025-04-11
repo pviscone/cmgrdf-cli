@@ -162,16 +162,16 @@ class Plot(Target):
         return ret
 
     def bookHisto2D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
-        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_x")
-        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_y")
+        rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_y")
+        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_x")
         ret = rdf.Histo2D(self._model, expr_x, expr_y, self.hashed_weight)
         ret._from = rdf
         return ret
 
     def bookHisto3D(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
-        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_x")
+        rdf, expr_z = self._prepareExpr(rdf, self._expr.split(":")[0], self.name + "__plot_expr_z")
         rdf, expr_y = self._prepareExpr(rdf, self._expr.split(":")[1], self.name + "__plot_expr_y")
-        rdf, expr_z = self._prepareExpr(rdf, self._expr.split(":")[2], self.name + "__plot_expr_z")
+        rdf, expr_x = self._prepareExpr(rdf, self._expr.split(":")[2], self.name + "__plot_expr_x")
         ret = rdf.Histo3D(self._model, expr_x, expr_y, expr_z, self.hashed_weight)
         ret._from = rdf
         return ret
