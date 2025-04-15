@@ -78,6 +78,8 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
         #list of list of flows. [i][j] i is leaf, j is plotstep
         region_flows=[]
         region_plots=[]
+
+        #flows_dict is a dict of lists of steps. The dict contains and entry for each leaf
         for name, steps in flows_dict.items():
             flow_list, p_list = split_at_plot(Flow(name, steps), plots_dict)
             region_flows.append(flow_list)
