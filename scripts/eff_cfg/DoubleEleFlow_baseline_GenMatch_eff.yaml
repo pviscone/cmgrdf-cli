@@ -1,188 +1,209 @@
 vars:
     GenZd_dR:
         log: x
+    GenZd_p:
+    GenZd_eta:
     GenEleLead_pt:
     GenEleSubLead_pt:
     SelectedDiEle_fitted_mass:
     SelectedDiEle_pt:
+    GenEleLead_eta:
+    GenEleSubLead_eta:
 
 denom_nums:
+    #GEN
     0common_0_NoCut:
+        #RECO vs GEN
+        RECO:
+            4common_1_GenMatch: GenMatched
+            PFPF_base_RECO_2_SelPFPF: PF-PF
+            PFLP_base_RECO_2_SelPFLP: PF-LP
+            LPLP_base_RECO_2_SelLPLP: LP-LP
+        RECO_PFPF:
+            4common_1_GenMatch: GenMatched
+            PFPF_base_RECO_2_SelPFPF: PF-PF
+            PFPF_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            PFPF_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFPF_base_RECO_5_TrgObjMatch: TrgObjMatch
+        RECO_PFLP:
+            4common_1_GenMatch: GenMatched
+            PFLP_base_RECO_2_SelPFLP: PF-PF
+            PFLP_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            PFLP_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFLP_base_RECO_5_TrgObjMatch: TrgObjMatch
+        RECO_LPLP:
+            4common_1_GenMatch: GenMatched
+            LPLP_base_RECO_2_SelLPLP: PF-PF
+            LPLP_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            LPLP_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            LPLP_base_RECO_5_TrgObjMatch: TrgObjMatch
+
+        #HLT vs GEN
         HLT6p5:
-            0common_1_HLT_6p5: HLT6p5
-            2common_2_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            3common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFLP_HLT_RECO_3_SelPFLP: PF-LP
             LPLP_HLT_RECO_3_SelLPLP: LP-LP
         HLT6p5_PFPF:
-            0common_1_HLT_6p5: HLT6p5
-            2common_2_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            3common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFPF_HLT_RECO_6_TrgObjMatch: TrgObjMatch
         HLT6p5_PFLP:
-            0common_1_HLT_6p5: HLT6p5
-            2common_2_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            3common_2_GenMatch: GenMatched
             PFLP_HLT_RECO_3_SelPFLP: PF-PF
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
         HLT6p5_LPLP:
-            0common_1_HLT_6p5: HLT6p5
-            2common_2_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            3common_2_GenMatch: GenMatched
             LPLP_HLT_RECO_3_SelLPLP: PF-PF
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
 
+        #HLT+L1 vs GEN
         HLT6p5_L1EG11:
-            0common_1_HLT_6p5: HLT6p5
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
             LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
         HLT6p5_L1EG11_PFPF:
-            0common_1_HLT_6p5: HLT6p5
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
             PFPF_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFPF_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
         HLT6p5_L1EG11_PFLP:
-            0common_1_HLT_6p5: HLT6p5
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
             PFLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
         HLT6p5_L1EG11_LPLP:
-            0common_1_HLT_6p5: HLT6p5
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            1common_1_HLT_6p5: HLT6p5
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
             LPLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
 
-    0common_1_HLT_6p5:
+    #HLT
+    1common_1_HLT_6p5:
+        #RECO vs HLT
         HLT6p5:
-            2common_2_GenMatch: GenMatched
+            3common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFLP_HLT_RECO_3_SelPFLP: PF-LP
             LPLP_HLT_RECO_3_SelLPLP: LP-LP
         HLT6p5_PFPF:
-            2common_2_GenMatch: GenMatched
+            3common_2_GenMatch: GenMatched
             PFPF_HLT_RECO_3_SelPFPF: PF-PF
             PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFPF_HLT_RECO_6_TrgObjMatch: TrgObjMatch
         HLT6p5_PFLP:
-            2common_2_GenMatch: GenMatched
+            3common_2_GenMatch: GenMatched
             PFLP_HLT_RECO_3_SelPFLP: PF-PF
             PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
         HLT6p5_LPLP:
-            2common_2_GenMatch: GenMatched
+            3common_2_GenMatch: GenMatched
             LPLP_HLT_RECO_3_SelLPLP: PF-PF
             LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
 
+        #L1+RECO vs HLT
         HLT6p5_L1EG11:
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
             PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
             LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
         HLT6p5_L1EG11_PFPF:
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
             PFPF_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFPF_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFPF_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
         HLT6p5_L1EG11_PFLP:
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
             PFLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             PFLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             PFLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
         HLT6p5_L1EG11_LPLP:
-            1common_2_L1EG11: L1EG11
-            1common_3_GenMatch: GenMatched
+            2common_2_L1EG11: L1EG11
+            2common_3_GenMatch: GenMatched
             LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
             LPLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
             LPLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
             LPLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
 
-    2common_2_GenMatch:
-        HLT6p5:
-            PFPF_HLT_RECO_3_SelPFPF: PF-PF
-            PFLP_HLT_RECO_3_SelPFLP: PF-LP
-            LPLP_HLT_RECO_3_SelLPLP: LP-LP
-        HLT6p5_PFPF:
-            PFPF_HLT_RECO_3_SelPFPF: PF-PF
-            PFPF_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
-            PFPF_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFPF_HLT_RECO_6_TrgObjMatch: TrgObjMatch
-        HLT6p5_PFLP:
-            PFLP_HLT_RECO_3_SelPFLP: PF-PF
-            PFLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
-            PFLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
-        HLT6p5_LPLP:
-            LPLP_HLT_RECO_3_SelLPLP: PF-PF
-            LPLP_HLT_RECO_4_dZ: "$dZ \\leq 1cm$"
-            LPLP_HLT_RECO_5_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            LPLP_HLT_RECO_6_TrgObjMatch: TrgObjMatch
+    #L1
+    2common_2_L1EG11:
+        #RECO vs HLT+L1
+        HLT6p5_L1EG11:
+            2common_3_GenMatch: GenMatched
+            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
+            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
+            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
+        HLT6p5_L1EG11_PFPF:
+            2common_3_GenMatch: GenMatched
+            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
+            PFPF_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
+            PFPF_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFPF_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
+        HLT6p5_L1EG11_PFLP:
+            2common_3_GenMatch: GenMatched
+            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
+            PFLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
+            PFLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
+        HLT6p5_L1EG11_LPLP:
+            2common_3_GenMatch: GenMatched
+            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
+            LPLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
+            LPLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            LPLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
 
-    1common_2_L1EG11:
-        HLT6p5_L1EG11:
-            1common_3_GenMatch: GenMatched
-            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
-            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
-            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
-        HLT6p5_L1EG11_PFPF:
-            1common_3_GenMatch: GenMatched
-            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
-            PFPF_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            PFPF_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFPF_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
-        HLT6p5_L1EG11_PFLP:
-            1common_3_GenMatch: GenMatched
-            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
-            PFLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            PFLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
-        HLT6p5_L1EG11_LPLP:
-            1common_3_GenMatch: GenMatched
-            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
-            LPLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            LPLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            LPLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
-    1common_3_GenMatch:
-        HLT6p5_L1EG11:
-            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
-            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
-            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
-        HLT6p5_L1EG11_PFPF:
-            PFPF_HLT_L1_RECO_4_SelPFPF: PF-PF
-            PFPF_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            PFPF_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFPF_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
-        HLT6p5_L1EG11_PFLP:
-            PFLP_HLT_L1_RECO_4_SelPFLP: PF-LP
-            PFLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            PFLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            PFLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
-        HLT6p5_L1EG11_LPLP:
-            LPLP_HLT_L1_RECO_4_SelLPLP: LP-LP
-            LPLP_HLT_L1_RECO_5_dZ: "$dZ \\leq 1cm$"
-            LPLP_HLT_L1_RECO_6_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
-            LPLP_HLT_L1_RECO_7_TrgObjMatch: TrgObjMatch
+
+    #RECO only
+    4common_1_GenMatch:
+        #RECO breakdown
+        RECO:
+            PFPF_base_RECO_2_SelPFPF: PF-PF
+            PFLP_base_RECO_2_SelPFLP: PF-LP
+            LPLP_base_RECO_2_SelLPLP: LP-LP
+        RECO_PFPF:
+            PFPF_base_RECO_2_SelPFPF: PF-PF
+            PFPF_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            PFPF_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFPF_base_RECO_5_TrgObjMatch: TrgObjMatch
+        RECO_PFLP:
+            PFLP_base_RECO_2_SelPFLP: PF-PF
+            PFLP_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            PFLP_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            PFLP_base_RECO_5_TrgObjMatch: TrgObjMatch
+        RECO_LPLP:
+            LPLP_base_RECO_2_SelLPLP: PF-PF
+            LPLP_base_RECO_3_dZ: "$dZ \\leq 1cm$"
+            LPLP_base_RECO_4_QF: "$SV_{prob} > 1e-5$, $SV_{\\chi^2} < 998$"
+            LPLP_base_RECO_5_TrgObjMatch: TrgObjMatch
+
