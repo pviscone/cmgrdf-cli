@@ -29,6 +29,7 @@ fix:
 - fixed verbosity option
 - wrong indentation caused missing cpp imports
 - common flows were randomly created due to the usage of dict instead of orderedDict
+- added cmin guards for logz hist2d
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles

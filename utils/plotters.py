@@ -230,7 +230,8 @@ class TH2(BasePlotter):
 
         if kwargs.get("density", False):
             kwargs.pop("density")
-            kwargs.pop("cmin")
+            kwargs.pop("cmin", None)
+            kwargs.pop("cmax", None)
             data = hist.density().T
             data[data == 0] = np.nan
             if self.zlog:
@@ -245,6 +246,8 @@ class TH2(BasePlotter):
             kwargs["cmap"] = colors.ListedColormap(cmap)
 
             if self.zlog:
+                kwargs.pop("cmin", None)
+                kwargs.pop("cmax", None)
                 kwargs["norm"] = colors.LogNorm(vmin=self.zlim[0], vmax=self.zlim[1])
             kwargs.pop("density")
             hep.hist2dplot(hist, ax=self.ax, **kwargs)
