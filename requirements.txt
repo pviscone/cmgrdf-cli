@@ -7,3 +7,4 @@ boost_histogram==1.5.1
 mplhep==0.3.55
 mplhep_data==0.0.4
 traceback_with_variables==2.2.0
+ordered-set==4.1.0

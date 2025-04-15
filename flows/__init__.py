@@ -4,12 +4,13 @@ import copy
 import re
 from CMGRDF import Flow
 from collections import OrderedDict
+from ordered_set import OrderedSet
 
 class Tree:
     def __init__(self):
         self.segments=OrderedDict({})
-        self.leaves=set()
-        self.heads=set()
+        self.leaves=OrderedSet()
+        self.heads=OrderedSet()
 
     def add(self, name, obj, parent=None, **kwargs):
         if not isinstance(obj, list):
@@ -134,7 +135,7 @@ class Segment:
     def __init__(self, name, x):
         self.name = name
         self.obj = x
-        self.children=set()
+        self.children=OrderedSet()
         self.parent = None
         self.common_to_all = False
         self.isLeaf = False

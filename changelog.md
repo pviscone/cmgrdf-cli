@@ -30,6 +30,7 @@ fix:
 - wrong indentation caused missing cpp imports
 - common flows were randomly created due to the usage of dict instead of orderedDict
 - added cmin guards for logz hist2d
+- using orderedSets instead of sets in trees to avoid random ordering of common flow segments
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles
