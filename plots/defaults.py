@@ -15,6 +15,11 @@ histo3d_defaults = OrderedDict()
 
 # The first matched pattern will be used
 name_defaults = OrderedDict({
+    "(.*)_p$": dict(
+        bins=(40, 0, 500),
+        label="($1) $|p|$ [GeV]",
+        log="counts"
+    ),
     "(.*)_(?:pt|invPt)(.*)": dict(
         bins=(40, 0, 80),
         label="($1) ($2) $p_{T}$ [GeV]",
