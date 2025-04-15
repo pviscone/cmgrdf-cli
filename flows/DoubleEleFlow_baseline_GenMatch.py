@@ -52,8 +52,7 @@ def flow(dR_genMatch = 0.1):
             ),
 
             #! --------------------------- GenZd reco ---------------------- #
-            Define("GenZd_invMass","(GenEle_p4[0]+GenEle_p4[1]).mass()"),
-            Define("GenZd_invPt","(GenEle_p4[0]+GenEle_p4[1]).pt()"),
+            Define("GenZd_p4","(GenEle_p4[0]+GenEle_p4[1])"),
             Define("GenZd_dR","ROOT::VecOps::DeltaR(GenEle_eta[0],GenEle_eta[1],GenEle_phi[0],GenEle_phi[1])"),
             Cut("noCut", "1",  plot="NoCut")
         ]
@@ -70,8 +69,8 @@ def flow(dR_genMatch = 0.1):
         DefineSkimmedCollection("PFPFMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isPFPF"),
         DefineSkimmedCollection("PFLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isPFLP"),
         DefineSkimmedCollection("LPLPMatchedDiEle", "MatchedDiEle",mask = "MatchedDiEle_isLPLP"),
-        DefineFromCollection("SelectedDiEle", "MatchedDiEle", index="ROOT::VecOps::ArgMin(ROOT::VecOps::pow(MatchedDiEle_fitted_mass-GenZd_invMass,2)/MatchedDiEle_fitted_massErr)", plot = "GenMatch"),
-    ], parent=["HLT_L1", "HLT"])
+        DefineFromCollection("SelectedDiEle", "MatchedDiEle", index="ROOT::VecOps::ArgMin(ROOT::VecOps::pow(MatchedDiEle_fitted_mass-GenZd_p4.mass(),2)/MatchedDiEle_fitted_massErr)", plot = "GenMatch"),
+    ], parent=["HLT_L1", "HLT", "base"])
 
 
     for typ in ["PFPF", "PFLP", "LPLP"]:
@@ -82,7 +81,7 @@ def flow(dR_genMatch = 0.1):
         Cut("dZ", "SelectedDiEle_lep_deltaVz<1", plot="dZ"),
         Cut("QF", "SelectedDiEle_sv_prob>1.e-5 && SelectedDiEle_sv_chi2<998.", plot="QF"),
         Cut("TrgObjMatch", "Electron_isTriggering[SelectedDiEle_l1idx] && Electron_isTriggering[SelectedDiEle_l2idx]", plot="TrgObjMatch")
-        ], parent=["HLT_L1_RECO", "HLT_RECO"]
+        ], parent=["HLT_L1_RECO", "HLT_RECO", "base_RECO"]
         )
 
     return tree
