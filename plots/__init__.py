@@ -1,7 +1,7 @@
 from CMGRDF import Plot
 import copy
 import re
-
+import numpy as np
 from plots.defaults import global_defaults, histo1d_defaults, histo2d_defaults, histo3d_defaults, name_defaults
 
 class BaseHist(Plot):
@@ -45,7 +45,6 @@ class Hist(BaseHist):
                 pattern_kwargs["log"] = log
 
                 break
-
         super().__init__(histo1d_defaults, pattern_kwargs, user_kwargs, name, expr, bins)
 
 
@@ -62,6 +61,7 @@ class Hist2D(BaseHist):
                 if re.search(pattern, ax_name):
                     pattern_kwargs = copy.deepcopy(name_defaults[pattern])
                     bins[ax_idx] = pattern_kwargs.pop("bins", bins[ax_idx]) if bins[ax_idx] is None else bins[ax_idx]
+
                     label = pattern_kwargs.pop("label", None)
                     if label:
                         groups = re.match(pattern, ax_name).groups()
@@ -102,8 +102,7 @@ class Hist2D(BaseHist):
         else:
             for ax_idx in range(2):
                 if isinstance(bins[ax_idx], tuple):
-                    bins[ax_idx] = [bins[ax_idx][1]+bins[ax_idx][2]*i/bins[ax_idx][0] for i in range(bins[ax_idx][0]+1)]
-
+                    bins[ax_idx] = np.linspace(bins[ax_idx][1], bins[ax_idx][2], bins[ax_idx][0]+1).tolist()
         name = name.replace(":", "_vs_")
         super().__init__(histo2d_defaults, th2_dict, user_kwargs, name, expr, bins)
 
