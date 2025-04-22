@@ -1,6 +1,7 @@
 # Check if the script is being sourced in bash, otherwise raise an error
-export ANALYSIS_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
-export PYTHONPATH=$ANALYSIS_DIR/scripts:$PYTHONPATH
+export CMGRDF_CLI=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+export ANALYSIS_DIR="$(dirname "$CMGRDF_CLI")"
+
 CURRENT_SHELL=$(ps -p $$ -o comm=)
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     echo "ZSH can't source the cvmfs scripts. You must source it in bash and then return to zsh" >&2
@@ -27,7 +28,7 @@ else
 fi
 
 CURRENT_PWD=$(pwd)
-cd $ANALYSIS_DIR/cmgrdf-prototype
+cd $CMGRDF_CLI/cmgrdf-prototype
 # Check if the user wants to build cmgrdf
 if [[ "$1" == "build" ]]; then
     make clean
@@ -36,9 +37,9 @@ fi
 # Set the environment variables
 eval $(make env)
 if [[ "$1" == "build" ]]; then
-    pip install -r $ANALYSIS_DIR/requirements.txt --prefix $ANALYSIS_DIR/.venv --no-deps --ignore-installed
+    pip install -r $CMGRDF_CLI/requirements.txt --prefix $CMGRDF_CLI/.venv --no-deps --ignore-installed
 fi
 py_ver=`python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))'`
-export PYTHONPATH=$ANALYSIS_DIR/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
-export PATH=$ANALYSIS_DIR/.venv/bin:$PATH
+export PYTHONPATH=$ANALYSIS_DIR:$CMGRDF_CLI:$CMGRDF_CLI/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
+export PATH=$CMGRDF_CLI/.venv/bin:$ANALYSIS_DIR:$CMGRDF_CLI:$CMGRDF_CLI/scripts:$PATH
 cd $CURRENT_PWD
