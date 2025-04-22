@@ -34,6 +34,7 @@ fix:
 - using orderedSets instead of sets in trees to avoid random ordering of common flow segments
 - fixed mixed bin definition for th2
 - delayed drawpyplot import from plots submodule to allow prior definition of defaults
+- safeguard to avoid crash in stacked plots without signals
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles

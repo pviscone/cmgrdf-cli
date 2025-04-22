@@ -205,6 +205,8 @@ class TH1(BasePlotter):
     @merge_kwargs()
     def add(self, hist, **kwargs):
         if isinstance(hist, list):
+            if len(hist) == 0:
+                return
             hist = [convert_to_hist(h) for h in hist]
             hist = [h[self.rebin] for h in hist]
         else:
