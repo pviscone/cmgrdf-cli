@@ -315,8 +315,6 @@ def run_analysis(
             sys.settrace(None) #to be faster
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
             DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
-            accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plot_utils.py"))
-            accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plotters.py"))
             sys.settrace(trace_calls)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
