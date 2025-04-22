@@ -1,10 +1,11 @@
 #need to specify dependencies not included in cvmfs here
 typer==0.15.1
 shellingham==1.5.4
-plothist==1.2.6
-hist==2.8.0
-boost_histogram==1.5.1
-mplhep==0.3.55
+plothist==1.4.0
+plothist-utils==0.0.1
+hist==2.8.1
+boost_histogram==1.5.2
+mplhep==0.3.59
 mplhep_data==0.0.4
 traceback_with_variables==2.2.0
 ordered-set==4.1.0
