@@ -19,6 +19,7 @@
 - Outputting in the same folder merge the different logs
 - disables snapshot for all plotsteps + snapAllSteps option
 - added ncpuPyPlot option
+- save yields tables also as csv
 
 fix:
 - Added safeguards against empty regions (0 events)

@@ -4,7 +4,7 @@ from CMGRDF import Cut, MultiKey
 from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
-
+from rich_tools import table_to_df
 from cmgrdf_cli.utils.folders import folders
 from cmgrdf_cli.utils.cli_utils import center_header
 
@@ -160,7 +160,7 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                 table.add_column("Plot", justify="center")
                 started = False
                 for cut in flow:
-                    if type(cut) != Cut:
+                    if not isinstance(cut, Cut):
                         continue
                     key_dict = {"flow": flow.name, "process": proc.name, "name": cut.name, "era": era}
                     if mergeEras:
@@ -218,9 +218,14 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                 if mergeEras: format_dict.pop("era")
                 os.makedirs(folders.tables_path.format(**format_dict), exist_ok=True)
                 format_dict["name"] = proc.name
-                with open(folders.tables.format(**format_dict), "wt") as report_file:
+                txt_path = folders.tables.format(**format_dict)
+                with open(txt_path, "wt") as report_file:
                     flow_console = Console(file=report_file)
                     flow_console.print(table)
+                df = table_to_df(table)
+                txt_dir = os.path.dirname(txt_path)
+                os.makedirs(os.path.join(txt_dir, "csv"), exist_ok=True)
+                df.to_csv(os.path.join(txt_dir, "csv", txt_path.rsplit("/",1)[-1].replace(".txt",".csv")))
                 console.print(table)
                 console.print("\n")
                 if mergeEras:
