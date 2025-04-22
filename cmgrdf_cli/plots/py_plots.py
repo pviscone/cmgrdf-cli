@@ -1,6 +1,7 @@
 import os
 import glob
 import concurrent
+import traceback
 import uproot
 import matplotlib.pyplot as plt
 from plothist import plot_comparison
@@ -124,6 +125,8 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
                 os.system(f"mv {os.path.join(folder,f'{process_name}-1.png')} {os.path.join(folder,f'{process_name}.png')}")
     except Exception as e:
         print(f"Error in {path}: {e}")
+        print(traceback.format_exc())
+
 
 def _drawPyPlots(args):
     return __drawPyPlots(*args)
