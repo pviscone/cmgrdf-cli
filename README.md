@@ -1,4 +1,10 @@
 [TOC]
+#### LO instructions
+After setup:
+`run_analysis.py --help`
+
+Now let's go NLO
+
 
 # Setup
 
@@ -7,8 +13,8 @@ Clone this repository with the `--recursive` option, so `cmgrdf-prototype` is al
 **Note: cmgrdf works both on el8 and el9 machines. But el9 is preferred.**
 
 ```bash
-git clone --recursive ssh://git@gitlab.cern.ch:7999/darkphoton-ee/dp-ee-main.git
-cd dp-ee-main
+git clone --recursive https://github.com/pviscone/cmgrdf-cli.git
+cd cmgrdf-cli
 ```
 The setup.sh script will setup everything needed.
 
@@ -26,6 +32,7 @@ After the first time, you can just run
 source setup.sh
 ```
 
+**NB. when you `git pull` submodules are not updated, you should always use `git pull --recurse-submodules`**
 
 >**WARNINGS**
 >1. In case you have problems with el8, you can use an el9 container
@@ -38,6 +45,7 @@ source setup.sh
 More information can be found in the [cmg-rdf](https://gitlab.cern.ch/cms-new-cmgtools/cmgrdf-prototype) repository.
 
 ### Debug
+> If you want to have a dump of all the variables in the scope in the traceback you can use `--fullTraceback`
 
 The fastest way to debug the code is to put a breakpoint in the code where you want to stop and use pbd in the interact mode.
 
@@ -79,22 +87,39 @@ Outside the interact mode you can use the following commmands to move in the cod
 
 </details>
 
+### Performance notes
+Belive it or not, the slowest part of the framework could be the plotting. And I am not talking about the filling of the histograms but the actual rendering of pdf an png.
+
+If you don't need the images, use `--noPyplots`
+
 ---
 
 
 # Configuration files
+The mandatory configuration files are `cfg` that contains the base paths, `eras` a comma-separated list of eras to run, and `outfolder` the destination folder
+
+Other main configuration are `flows`, `plots`, `data` and `mc`.
+To the respective options you can pass a python file that contains the expected object (as explained in this README) or a method that return that object.
+
+To define the arguments of the method in the CLI the syntax is the following
+
+`run_analysis.py --flows flows/conf.py:arg1=1,arg2=2,arg3=\"string\"`
+
 
 ### cpp_functions
-In the `cpp_functions` folder you can define cpp ROOT functions to use if the RDF calls.
+With the `--cpp_folder` argument you can pass the path to a folder that contains cpp ROOT functions to use if the RDF calls.
 All the cpp functions defined in this folder are passed to the ROOT interpreter.
+The default is `cpp` (relative to `PWD`)
+
+You can also use `--declare` (multiple times) to include `.py` files that contains a `declare` method that take some argument and run `ROOT.gInterpreter.Declare()`
 
 
 > **Achtung!**
-> 1. Put always `#pragma once` at the beginning of the cpp files.
+> 1. Put always and include guard (`#ifndef ... #define ... #endif`) at the beginning of the cpp files.
 > 2. Some common functions are already defined in cmgrdf `cmgrdf-prototype/include/functions.h`
 
 ### CFGs
-In the `cfg` folder you can find the configuration files that are used to define the Data/MC sample and their friend paths.
+In the `cfg` configuration file you can define the path to Data/MC sample and their friends.
 
 The paths of the samples are defined respectively in `era_paths_MC` and `era_paths_Data` dictionaries.
 
@@ -105,10 +130,16 @@ era_paths_Data={
 }
 ```
 You can use as placeholder for era, sample name and subera the following strings: `{era}`, `{name}`, `{subera}`
+You can define the name of friends tree for data in the list `PFs` and for MC in the list `PMCs`
+
+Here you can define also new eras
+```python
+from CMGRDF.cms.eras import lumis as lumi
+lumi["new_era"]=138
+```
 
 ### Sample definition
-
-The definition of the samples is in the `data` directory and is JSON-like.
+`data` and `mc` configuration filed define the samples in JSON-like manner.
 
 The format of the data dictionary is the following
 
@@ -139,8 +170,8 @@ dicts={
         "eras": era_list #OPTIONAL, eras where the sample is present
     ]
     "label":label,
-    "color": hex_color, #cms palette in from data.MC import cms10 (list)
-    "normUncertainty": 1.5
+    "color": hex_color, #cms palette in from cmgrdf_cli.data import cms10 (list)
+    "normUncertainty": 1.5 #systematic
     },
     ...#other processes
 }
@@ -191,6 +222,12 @@ flow.add("SR",
     Cut("SRcut", SR_expression), #Here flowstep or lists of flowsteps
     parent="main_flow"
 )
+
+flow.add("SR2",
+    Cut("SRcut2", SR_expression), #Here flowstep or lists of flowsteps
+    parent="main_flow"
+)
+
 flow.add("CR1",
     Cut("CR1cut", CR1_expression),
     parent="main_flow"
@@ -203,36 +240,65 @@ flow.add_to_all("Skim",Cut("object_selection", expr))
 ```
 In this way you have 3 regions that have a first piece (main_flow) in common, then different selections (SR, CR1, CR2) that are appended to the `main_flow` node using the `add` method with the argument `parent` and then another selection appended at the end to the all regions using the method `add_to_all`
 
+**You can decide to make plots in the middle of the flow assigning a `plot` string attribute to a given flowstep.**
+
 ### Plots
 The plot config file contains a list of plots or a list of list of plots or a dict of list of plots or a function that returns one of these objects.
 
-In case you want to make plots at different steps of the cutflow:
-- if `plots` is a list of plots then at each step all the plots are plotted
-- if `plots` is a dict of list of plots, each list of plots is plotted at the step that has the flowstep `plot` argument equal to the dict key. You can define a key `"main"` that is plotted by default if no key is specified for a given flowstep `plot` argument
 
-Currently only 1D and 2D histograms are supported (e.g. no TEfficiency)
+`plots` is a dict of list of plots, each list of plots is plotted at the step that has the flowstep `plot` argument equal to the dict key.
 
-Instead of using `Plot` objects from CMGRDF, you can use `Hist` (for 1D) and `Hist2D` (for 2D).
+- You can define a key `"main"` that is plotted by default if no key is specified for a given flowstep `plot` argument
+- You can define a key `full` that is plotted only at the end of the leafs
+- For all the other keys, they will be plotted from the flowstep with `plot` equal `key` to the end of the flow
 
-`from plots import Hist`
+Instead of using `Plot` objects from CMGRDF, you can use `Hist` (for 1D) and `Hist2D` (for 2D) and Hist3D (for 3D but without python plotting) (TH3 are not tested).
+
+`from cmgrdf_cli.plots import Hist`
 
 They work exactly like CMGRDF `Plots` objects but with Hist you can make advantage of defaults arguments.
 
-In `plots/defaults.py` you can set default arguments for the histogram. You can find 5 dictionaries:
+In `cmgrdf_cli/defaults.py` you can set default arguments for the histogram. You can find 5 dictionaries:
 - global_defaults : These arguments are passed to all the histograms
 - histo1d_defaults: These arguments are passed to all the 1D histograms
 - histo2d_defaults: These arguments are passed to all the 2D histograms
 - name_defaults : Here you can define a regex pattern as a key and a dictionary for each regex pattern. The first regex pattern that will match the name of a `Hist` object or the axis name of a `Hist2D` object will have the defined arguments applied
 
+**name_defaults are default per axis**, the arguments can be:
+    - `bins`: the binning like in CMGRDF plots
+    - `log`: `"axis"` or `counts` (or both, comma-separated)
+    - `label`: label of the axis, where you can take advantage of regex group matching e.g`"($1) $p_T$ [GeV]"`
+    - `density` (bool)
+
+for TH2:
+    - `log="z"` is triggered if at least one of the axis has `log="counts"`
+    - `density` is triggered if both axis have `density=True`
 
 Of course, you can ovverride the defalut values just defining a new one in the `Hist` definition
 The priority is
 
 ` global_defaults < histo1d_defaults < branch_defaults < user defined`
 
+The arguments defined in the `Hist`, `Hist2D`, etc. objects are passed directly to the plotters defined in `cmgrdf_cli/plots/plotters.py`
 
 The config file must contain a list of Hists or a function that returns a list of Hists called `plots`.
 You can edit the defaults just importing them in your config and editing them.
+**NB, you must edit the defaults BEFORE importing anything from cmgrdf_cli.plots**
+e.g.
+```python
+from cmgrdf_cli import defaults
+defaults.name_defaults = OrderedDict({
+    "(.*)_ptFrac(.*)": dict(
+        bins=(64, 0, 64),
+        label="($1) $p_{T}/\sum p_{T}$",
+        log="counts",
+    ),})
+
+from cmgrdf_cli.plots import Hist
+plots={
+    "main":[...]
+}
+```
 
 #### Main Plot arguments
 - bins: if tuple is ROOT-like (nbin, lowedge, highedge) or python-list of binedges
@@ -278,7 +344,7 @@ To run the analysis you can use the `run_analysis.py` CLI, use --help to see all
 Basically the idea is to pass the name of the config files to run the analysis, e.g.
 
 ```bash
-python run_analysis.py --cfg cfg/cfg_example.py --data data/data_example.py --mc data/MCProcesses_example.py --flow flows/flow_example.py  --plots plots/plots_example.py -o temp --eras 2023
+run_analysis.py --cfg cfg_example.py --data data_example.py --mc MCProcesses_example.py --flow flow_example.py  --plots plots_example.py -o temp --eras 2023
 ```
 
 The needed arguments are:
@@ -344,4 +410,18 @@ Options +Indexes
     </FilesMatch>
 </IfModule>
 ```
+</details>
+
+---
+<details>
+<summary>TODO:</summary>
+
+- Define a proper interface for named_defaults and pattern_kwargs
+- Define `AddDataDrivenSample` (for FakeRates)
+- Instead of `0common_1_plot` assign the actual name of the flow segment block (instead of "common") (this is a mess)
+- Test TH3
+- Optimize pyplotting
+- Distributed rdataframe (can lead to complications)
+- Documentation (and the world peace)
+- I am forgotting something for sure...
 </details>
