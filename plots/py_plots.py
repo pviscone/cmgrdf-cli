@@ -137,13 +137,15 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
         pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
-        with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
-            chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
-            list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
-
-        #Debug
-        #for data in pool_data:
-        #    _drawPyPlots(data)
+        if ncpu>1:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
+                chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
+                list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
+        elif ncpu==1:
+            for data in pool_data:
+                _drawPyPlots(data)
+        else:
+            raise ValueError("ncpu must be greater than 0")
 
         for flow,_ in flow_plots:
             if len(glob.glob(os.path.join(folders.plots_path.format(flow=flow, **format_dict), '*_vs_*.root'))) > 0:

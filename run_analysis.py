@@ -73,6 +73,7 @@ def run_analysis(
     stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras            : bool = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     grid                 : bool = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
+    ncpuPyPlot          : int  = typer.Option(multiprocessing.cpu_count(), "--ncpuPyPlot", help="Number of cpus to use for python plotting", rich_help_panel="Plot Options"),
 
     #! Yields options
     noYields             : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
@@ -311,7 +312,7 @@ def run_analysis(
         if not noPyplots:
             sys.settrace(None) #to be faster
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpu, stackSignal=stackSignal)
+            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyPlot, stackSignal=stackSignal)
             accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plot_utils.py"))
             accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plotters.py"))
             sys.settrace(trace_calls)
