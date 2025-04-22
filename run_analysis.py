@@ -39,6 +39,7 @@ def run_analysis(
     mc                   : str  = typer.Option(None, "-m", "--mc", help="The name of the mc file that contains the [bold red]all_processes[/bold red] dict", rich_help_panel="Configs"),
     mcc                  : str  = typer.Option(None, "-mcc", "--mcc", help="The name of the mcc file that contains the [bold red]mccFlow[/bold red]", rich_help_panel="Configs"),
     declare              : List[str] = typer.Option([], "--declare", help="The name of the py file that contains the [bold red]declare[/bold red] function (can be called multiple times)", rich_help_panel="Configs"),
+    cpp_folder           : str  = typer.Option("cpp", "--cpp_folder", help="Path to the [bold red]folder that contains the cpp files to include[/bold red]", rich_help_panel="Configs"),
     processPattern       : str  = typer.Option(None, "--processPattern", help="Regex patterns to select processes mathcing the process name", rich_help_panel="Configs"),
     noSyst               : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
     noXsec               : bool = typer.Option(False, "--noXsec", help="Ignore all the cross-sections and assign unitary weight to all the events", rich_help_panel="Configs"),
@@ -54,7 +55,7 @@ def run_analysis(
     nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
     targetDebug          : bool = typer.Option(False, "--targetDebug", help="Save .dot graphs of the targeds before schduling", rich_help_panel="Debug"),
     disableBreakpoints   : bool = typer.Option(False, "--bp", help="Disable breakpoints", rich_help_panel="Debug"),
-    fullTraceback       : bool = typer.Option(False, "--fullTraceback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
+    fullTraceback        : bool = typer.Option(False, "--fullTraceback", help="Print full list of variables in the traceback", rich_help_panel="Debug"),
 
     #! Flow options
     disableRegions       : str  = typer.Option("", "--disableRegions", help="Regions to disable (regex patterns comma separated). Work on flow Trees", rich_help_panel="Flow Options"),
@@ -171,7 +172,7 @@ def run_analysis(
     for dec in declare:
         declare_module, declare_kwargs = load_module(dec)
         parse_function(declare_module, "declare", None, declare_kwargs)
-    cpp_functions.load()
+    cpp_functions.load(cpp_folder)
     #! ----------------------== Module imports -------------------------- !#
     eras                           = eras.split(",")
     cfg_module    , _              = load_module(cfg)
