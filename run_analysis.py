@@ -21,7 +21,7 @@ import cpp_functions
 from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
 from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot, accessed_files
 from utils.flow_utils import parse_flows, clean_commons, disable_plotflag
-from utils.plot_utils import DrawPyPlots
+from plots.py_plots import DrawPyPlots
 from utils.folders import folders
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)

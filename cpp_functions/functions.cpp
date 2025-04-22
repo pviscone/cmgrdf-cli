@@ -1,9 +1,6 @@
-#pragma once
-#include "ROOT/RVec.hxx"
-#include "Math/Vector4Dfwd.h"
+#ifndef __FUNCTIONS_CPP__
+#define __FUNCTIONS_CPP__
 
-using namespace ROOT::VecOps;
-using namespace ROOT::Math;
 using namespace ROOT;
 
 auto generator = TRandom();
@@ -13,3 +10,5 @@ auto generator = TRandom();
 float if3(bool cond, float iftrue, float iffalse) {
     return cond ? iftrue : iffalse;
 }
+
+#endif

@@ -7,7 +7,7 @@ sys.path.append(os.environ["ANALYSIS_DIR"])
 
 import uproot
 import glob
-from utils.plotters import TEfficiency, set_palette, ggplot_palette
+from plots.plotters import TEfficiency, set_palette, ggplot_palette
 from utils.cli_utils import copy_file_to_subdirectories
 import concurrent
 import typer
