@@ -20,7 +20,7 @@ from cmgrdf_cli.data import AddMC, AddData, all_data, processtable, datatable, M
 from cmgrdf_cli.flows.SFs import BranchCorrection
 from cmgrdf_cli import cpp_functions
 from cmgrdf_cli.utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
-from cmgrdf_cli.utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot, accessed_files
+from cmgrdf_cli.utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from cmgrdf_cli.utils.flow_utils import parse_flows, clean_commons, disable_plotflag
 from cmgrdf_cli.utils.folders import folders
 
