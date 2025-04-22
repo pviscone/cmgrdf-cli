@@ -3,11 +3,12 @@ import os
 import re
 import types
 import shutil
+import sys
 
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import SimpleExprFlowStep
 
-from flows import Tree
+from cmgrdf_cli.flows import Tree
 
 def center_header(text, s="-", padding=0, max_width=150):
     text=f" {text} "
@@ -27,13 +28,21 @@ def center_header(text, s="-", padding=0, max_width=150):
 def load_module(filepath):
     if filepath is not None:
         if filepath.count(":") == 0:
-            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")), {}
+            module_name = filepath.split(".py")[0].replace("/", ".")
+            kwargs = {}
         elif filepath.count(":") == 1:
             filepath, args = filepath.split(":")
+            module_name = filepath.split(".py")[0].replace("/", ".")
+            filepath = os.path.join(os.getcwd(), filepath)
             kwargs = eval(f"dict({args})")
-            return importlib.import_module(filepath.split(".py")[0].replace("/", ".")), kwargs
         else:
             raise ValueError("The filepath should contain at most one ':' to specify the function arguments")
+        filepath = os.path.join(os.getcwd(), filepath)
+        spec = importlib.util.spec_from_file_location(module_name, filepath)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module, kwargs
     return None, {}
 
 

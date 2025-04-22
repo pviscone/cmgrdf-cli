@@ -4,8 +4,8 @@ import concurrent
 import uproot
 import matplotlib.pyplot as plt
 from plothist import plot_comparison
-from plots.plotters import TH1, TH2
-from utils.folders import folders
+from cmgrdf_cli.plots.plotters import TH1, TH2
+from cmgrdf_cli.utils.folders import folders
 
 #!Have to manually compute yerr because mplhep w2method callable is broken
 from mplhep import error_estimation

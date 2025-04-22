@@ -1,5 +1,5 @@
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
-from flows.SFs import BaseCorrection, BranchCorrection, Declare
+from cmgrdf_cli.flows.SFs import BaseCorrection, BranchCorrection, Declare
 
 
 #!TODO There is no smearings for 2023, I am using 2022 for now just as example. FIX

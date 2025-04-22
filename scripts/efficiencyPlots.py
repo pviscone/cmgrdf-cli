@@ -1,14 +1,12 @@
-
+#!/usr/bin/env python
 #%%
 import os
 import sys
 
-sys.path.append(os.environ["ANALYSIS_DIR"])
-
 import uproot
 import glob
-from plots.plotters import TEfficiency, set_palette, ggplot_palette
-from utils.cli_utils import copy_file_to_subdirectories
+from cmgrdf_cli.plots.plotters import TEfficiency, set_palette, ggplot_palette
+from cmgrdf_cli.utils.cli_utils import copy_file_to_subdirectories
 import concurrent
 import typer
 from typing_extensions import Annotated
@@ -109,15 +107,19 @@ def plot_efficiency(
                         teff_kwargs.update(kw)
                     pool_data.append((inputfolder, outfolder, denom, effplot_name, nums_dict, variable, teff_kwargs, noReplace))
 
-        with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
-            chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
-            list(executor.map(eff_plot, pool_data, chunksize = chunksize))
-        #for data in pool_data:
-        #    eff_plot(*data)
+        if ncpu > 1:
+            with concurrent.futures.ProcessPoolExecutor(ncpu) as executor:
+                chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
+                list(executor.map(eff_plot, pool_data, chunksize = chunksize))
+        elif ncpu == 1:
+            for data in pool_data:
+                eff_plot(data)
+        else:
+            raise ValueError("Number of cpus must be greater than 0")
 
         os.makedirs(os.path.join(inputfolder, outfolder, "scripts"), exist_ok=True)
         os.makedirs(os.path.join(inputfolder, outfolder, "scripts", "eff_cfg"), exist_ok=True)
-        os.system(f"cp {os.environ['ANALYSIS_DIR']}/scripts/efficiencyPlots.py {os.path.join(inputfolder, outfolder, 'scripts')}")
+        os.system(f"cp {os.environ['CMGRDF_CLI']}/scripts/efficiencyPlots.py {os.path.join(inputfolder, outfolder, 'scripts')}")
         os.system(f"cp {os.path.abspath(cfgfile)} {os.path.join(inputfolder, outfolder, 'scripts', 'eff_cfg')}")
 
         command = " ".join(sys.argv).replace('"', r'\\\"')

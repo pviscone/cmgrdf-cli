@@ -1,4 +1,4 @@
-from flows.SFs import BaseCorrection, Declare
+from cmgrdf_cli.flows.SFs import BaseCorrection, Declare
 from CMGRDF import AddWeightUncertainty, AddWeight
 from CMGRDF.CorrectionlibFactory import CorrectionlibFactory
 

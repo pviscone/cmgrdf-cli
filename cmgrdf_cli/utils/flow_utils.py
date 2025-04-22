@@ -1,9 +1,9 @@
 from rich.table import Table
 from CMGRDF import Flow, Cut
 from CMGRDF.flow import FlowStep
-from utils.cli_utils import load_module, parse_function
-from utils.folders import folders
-from flows import Tree
+from cmgrdf_cli.utils.cli_utils import load_module, parse_function
+from cmgrdf_cli.utils.folders import folders
+from cmgrdf_cli.flows import Tree
 import copy
 import re
 from collections import OrderedDict

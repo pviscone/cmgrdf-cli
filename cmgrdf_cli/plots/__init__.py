@@ -2,7 +2,7 @@ from CMGRDF import Plot
 import copy
 import re
 import numpy as np
-from plots.defaults import global_defaults, histo1d_defaults, histo2d_defaults, histo3d_defaults, name_defaults
+from cmgrdf_cli.defaults import global_defaults, histo1d_defaults, histo2d_defaults, histo3d_defaults, name_defaults
 
 class BaseHist(Plot):
     def __init__(self, type_kwargs, pattern_kwargs, user_kwargs, name, expr, bins=None):

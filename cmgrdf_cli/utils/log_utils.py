@@ -5,14 +5,12 @@ from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
 
-from utils.folders import folders
-from utils.cli_utils import center_header
+from cmgrdf_cli.utils.folders import folders
+from cmgrdf_cli.utils.cli_utils import center_header
 
-import __main__
-
-main_dir = os.path.dirname(__main__.__file__)  # Path to dp-ee-main folder
+main_dir = os.environ["ANALYSIS_DIR"]  # Path to analysis folder
+cmgrdf_dir = os.environ["CMGRDF_CLI"]  # Path to cmgrdf-cli folder
 accessed_files = []  # List to store the paths of .py files
-
 
 # Trace all the imported py files
 def trace_calls(frame, event, arg):
@@ -23,8 +21,8 @@ def trace_calls(frame, event, arg):
         abs_path = os.path.abspath(filename)
         if (
             abs_path not in accessed_files
-            and abs_path.startswith(main_dir)
-            and not abs_path.startswith(os.path.join(main_dir, "cmgrdf-prototype"))
+            and (abs_path.startswith(main_dir) and not abs_path.startswith(cmgrdf_dir))
+            and not abs_path.startswith(os.path.join(cmgrdf_dir, "cmgrdf-prototype"))
         ):
             accessed_files.append(abs_path)
     return trace_calls
@@ -49,7 +47,7 @@ def write_log(command, cachepath):
 
     #-n to not overwrite
     os.system(
-        f"cp -n {os.path.join(main_dir, 'utils/command_template.sh')} {commandsh_path}"
+        f"cp -n {os.path.join(cmgrdf_dir, 'cmgrdf_cli/utils/command_template.sh')} {commandsh_path}"
     )
 
     # Append the command to the command.sh file checking if it is already there
@@ -63,32 +61,14 @@ def write_log(command, cachepath):
     )
     os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(folders.log, 'cmgrdf_commit.txt')}")
 
-    # Write dp-ee-main commit hash and, eventually, git diff to dp-ee-main_commit.txt
+    # Write cmgrdf_cli commit hash and, eventually, git diff to cmgrdf_cli_commit.txt
     os.system(
-        f"cd {os.environ['ANALYSIS_DIR']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'dpeemain_commit.txt')}"
+        f"cd {os.environ['CMGRDF_CLI']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'cmgrdf_cli_commit.txt')}"
     )
-    os.system(f"cd {os.environ['ANALYSIS_DIR']} && git diff >> {os.path.join(folders.log, 'dpeemain_commit.txt')}")
-    # Copy setup.sh to log folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'setup.sh')} {folders.log}")
-    # Copy requirements.txt to log folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'requirements.txt')} {folders.log}")
+    os.system(f"cd {os.environ['CMGRDF_CLI']} && git diff >> {os.path.join(folders.log, 'cmgrdf_cli_commit.txt')}")
 
     # Copy all the accessed files to the log folder
     copy_imports()
-    # Always copy the cpp functions
-    os.system(f"cp -r --force {os.path.join(main_dir, 'cpp_functions')} {folders.log}")
-    # Always copy the command template
-    os.makedirs(os.path.join(folders.log, "utils"), exist_ok=True)
-    os.system(
-        f"cp -r --force {os.path.join(main_dir, 'utils/command_template.sh')} {os.path.join(folders.log, 'utils')}"
-    )
-    # Always copy the CLI file
-    os.system(f"cp -r --force {os.path.join(main_dir, 'run_analysis.py')} {folders.log}")
-    # Always copy the flow.SFs module
-    os.makedirs(os.path.join(folders.log, "flows"), exist_ok=True)
-    os.system(f"cp -r --force {os.path.join(main_dir, 'flows/SFs')} {os.path.join(folders.log, 'flows/')}")
-    #Always copy the scripts folder
-    os.system(f"cp -r --force {os.path.join(main_dir, 'scripts')} {folders.log}")
     return
 
 

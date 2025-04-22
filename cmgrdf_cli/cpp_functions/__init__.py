@@ -1,5 +1,5 @@
 import ROOT
-
+from cmgrdf_cli.utils.log_utils import accessed_files
 import glob
 import os
 
@@ -22,3 +22,4 @@ def load(folder, *files, exclude=[]):
                     continue
                 print(f"Including {file_path.rsplit('/', 2)[-1]}")
                 ROOT.gInterpreter.Declare(f'#include "{file_path}"')
+                accessed_files.append(os.path.abspath(file_path))
