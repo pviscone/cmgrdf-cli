@@ -18,6 +18,7 @@
 - Added Hist3D
 - Outputting in the same folder merge the different logs
 - disables snapshot for all plotsteps + snapAllSteps option
+- added ncpuPyPlot option
 
 fix:
 - Added safeguards against empty regions (0 events)
@@ -32,6 +33,7 @@ fix:
 - added cmin guards for logz hist2d
 - using orderedSets instead of sets in trees to avoid random ordering of common flow segments
 - fixed mixed bin definition for th2
+- delayed drawpyplot import from plots submodule to allow prior definition of defaults
 
 cmgrdf commit bump
 - Plots cleaned, just TH object saved in TFiles

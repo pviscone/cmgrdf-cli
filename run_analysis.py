@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import copy
 import multiprocessing
 import os
@@ -15,14 +16,13 @@ from CMGRDF import Processor, PlotSetPrinter, Flow, Range, SimpleCache, MultiKey
 from CMGRDF.cms.eras import lumis as lumi
 from CMGRDF.stat import DatacardWriter
 
-from data import AddMC, AddData, all_data, processtable, datatable, MCtable
-from flows.SFs import BranchCorrection
-import cpp_functions
-from utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
-from utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot, accessed_files
-from utils.flow_utils import parse_flows, clean_commons, disable_plotflag
-from plots.py_plots import DrawPyPlots
-from utils.folders import folders
+from cmgrdf_cli.data import AddMC, AddData, all_data, processtable, datatable, MCtable
+from cmgrdf_cli.flows.SFs import BranchCorrection
+from cmgrdf_cli import cpp_functions
+from cmgrdf_cli.utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
+from cmgrdf_cli.utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot, accessed_files
+from cmgrdf_cli.utils.flow_utils import parse_flows, clean_commons, disable_plotflag
+from cmgrdf_cli.utils.folders import folders
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -73,7 +73,7 @@ def run_analysis(
     stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras            : bool = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     grid                 : bool = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
-    ncpuPyPlot          : int  = typer.Option(multiprocessing.cpu_count(), "--ncpuPyPlot", help="Number of cpus to use for python plotting", rich_help_panel="Plot Options"),
+    ncpuPyplots          : int  = typer.Option(multiprocessing.cpu_count(), "--ncpuPyplots", help="Number of cpus to use for python plotting", rich_help_panel="Plot Options"),
 
     #! Yields options
     noYields             : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
@@ -310,9 +310,11 @@ def run_analysis(
 
         #!---------------------- Draw Plots ---------------------- !#
         if not noPyplots:
+            #!Import must stay here, no .plots import before setting defaults
+            from cmgrdf_cli.plots.py_plots import DrawPyPlots
             sys.settrace(None) #to be faster
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyPlot, stackSignal=stackSignal)
+            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
             accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plot_utils.py"))
             accessed_files.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "plotters.py"))
             sys.settrace(trace_calls)
