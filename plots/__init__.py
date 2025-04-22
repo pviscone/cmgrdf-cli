@@ -133,7 +133,7 @@ class Hist3D(BaseHist):
         else:
             for ax_idx in range(3):
                 if isinstance(bins[ax_idx], tuple):
-                    bins[ax_idx] = [bins[ax_idx][1]+bins[ax_idx][2]*i/bins[ax_idx][0] for i in range(bins[ax_idx][0]+1)]
+                    bins[ax_idx] = np.linspace(bins[ax_idx][1], bins[ax_idx][2], bins[ax_idx][0]+1).tolist()
 
         name = name.replace(":", "_vs_")
         super().__init__(histo3d_defaults, th3_dict, user_kwargs, name, expr, bins)
