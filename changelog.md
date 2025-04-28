@@ -1,3 +1,8 @@
+## 1.2.0
+- removed ANALYSIS_DIR env var
+-  added cmg_checkout command
+
+
 ## 1.1.0
 - Added matplotlib fast style
 - Adjusted errorbars for efficiency plots on hist with reweighted entries

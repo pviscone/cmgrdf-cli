@@ -1,6 +1,5 @@
 # Check if the script is being sourced in bash, otherwise raise an error
 export CMGRDF_CLI=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
-export ANALYSIS_DIR="$(dirname "$CMGRDF_CLI")"
 
 CURRENT_SHELL=$(ps -p $$ -o comm=)
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
@@ -40,6 +39,6 @@ if [[ "$1" == "build" ]]; then
     pip install -r $CMGRDF_CLI/requirements.txt --prefix $CMGRDF_CLI/.venv --no-deps --ignore-installed
 fi
 py_ver=`python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))'`
-export PYTHONPATH=$ANALYSIS_DIR:$CMGRDF_CLI:$CMGRDF_CLI/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
-export PATH=$CMGRDF_CLI/.venv/bin:$ANALYSIS_DIR:$CMGRDF_CLI:$CMGRDF_CLI/scripts:$PATH
+export PYTHONPATH=$CMGRDF_CLI:$CMGRDF_CLI/.venv/lib/python$py_ver/site-packages:$PYTHONPATH
+export PATH=$CMGRDF_CLI/.venv/bin:$CMGRDF_CLI:$CMGRDF_CLI/scripts:$CMGRDF_CLI/bin:$PATH
 cd $CURRENT_PWD

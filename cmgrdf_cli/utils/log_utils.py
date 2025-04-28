@@ -8,7 +8,7 @@ from rich_tools import table_to_df
 from cmgrdf_cli.utils.folders import folders
 from cmgrdf_cli.utils.cli_utils import center_header
 
-main_dir = os.environ["ANALYSIS_DIR"]  # Path to analysis folder
+main_dir = os.environ["PWD"]  # Path to current shell directory
 cmgrdf_dir = os.environ["CMGRDF_CLI"]  # Path to cmgrdf-cli folder
 accessed_files = []  # List to store the paths of .py files
 

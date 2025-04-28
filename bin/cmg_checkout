@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+CURRENT_DIR=$PWD
+cd $CMGRDF_CLI
+git checkout --recurse-submodules $@
+cd $CURRENT_DIR
