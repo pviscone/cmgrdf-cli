@@ -1,4 +1,17 @@
 from collections import OrderedDict
+import importlib
+import os
+import inspect
+
+def load_defaults(module_relative_path):
+    frame = inspect.currentframe()
+    filename = frame.f_back.f_code.co_filename
+    del frame
+    abs_path = os.path.abspath(filename)
+    abs_path = os.path.dirname(abs_path)
+    spec = importlib.util.spec_from_file_location("defaults", os.path.join(abs_path, module_relative_path))
+    foo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(foo)
 
 # Priority: global_defaults < histo1d_defaults < branch_defaults < user defined
 global_defaults = OrderedDict()

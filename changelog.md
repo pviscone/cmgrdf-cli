@@ -1,6 +1,8 @@
 ## 1.2.0
 - removed ANALYSIS_DIR env var
--  added cmg_checkout command
+- added cmg_checkout command
+- added method to load defaults
+
 
 
 ## 1.1.0
