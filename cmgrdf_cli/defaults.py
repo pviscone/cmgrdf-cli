@@ -9,7 +9,7 @@ def load_defaults(module_relative_path):
     del frame
     abs_path = os.path.abspath(filename)
     abs_path = os.path.dirname(abs_path)
-    spec = importlib.util.spec_from_file_location("defaults", os.path.join(abs_path, module_relative_path))
+    spec = importlib.util.spec_from_file_location("defaults", os.path.join(abs_path, f"{module_relative_path}.py"))
     foo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(foo)
 

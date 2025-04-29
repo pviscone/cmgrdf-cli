@@ -13,7 +13,7 @@ from hist import rebin as Rebin
 from matplotlib import colors
 from rich import print as pprint
 import matplotlib.style as mplstyle
-
+import matplotlib as mpl
 
 # cms palette list (10 colors version)
 cms10 = [
@@ -50,7 +50,13 @@ hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", cms10)
 hep.styles.cms.CMS["legend.frameon"] = False
 hep.styles.cms.CMS["figure.autolayout"] = True
 hep.style.use(hep.style.CMS)
+
+#mpl.use('agg')
 mplstyle.use('fast')
+mpl.rcParams['path.simplify'] = True
+#mpl.rcParams['path.simplify_threshold'] = 0.5
+#mpl.rcParams['agg.path.chunksize'] = 10000
+
 
 def set_palette(palette):
     hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", palette)
