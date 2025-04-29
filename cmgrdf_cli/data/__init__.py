@@ -138,7 +138,7 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
             #FIXME probably accumulating paths!!!
             for sample_name in samples:
                 sample_dict = samples[sample_name]
-                xsec = sample_dict.get("xsec", "xsec") if not noXsec else None
+                xsec = float(sample_dict.get("xsec", "xsec")) if not noXsec else None
                 group_xsec = group_xsec + xsec if (xsec is not None and group_xsec is not None) else None
 
                 MCtable.add_row("", "", sample_name, str(xsec), "", "")
