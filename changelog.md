@@ -2,6 +2,7 @@
 - removed ANALYSIS_DIR env var
 - added cmg_checkout command
 - added method to load defaults
+- added option to plot arbitrary ratios
 
 
 

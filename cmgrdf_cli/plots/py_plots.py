@@ -22,7 +22,7 @@ def poisson_interval_ignore_empty(sumw, sumw2):
     return np.abs(res - sumw)
 
 
-def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era):
+def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, era):
     try:
         lumitext = lumitext.format(lumi=plot_lumi, era=era)
         file = uproot.open(path)
@@ -31,12 +31,21 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
             fig, ax = None ,[None, None]
             bkgs = [process_name for process_name, process_dict in all_processes.items() if not process_dict.get("signal", False)]
             signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False)]
-            if ratio and len(bkgs) > 0:
+
+            if (doRatio and
+                ("data" in ratio and "data" not in file) or
+                ("total" in ratio and noStack) or
+                (ratio[0] not in file and ratio[0] != "total") or
+                (ratio[1] not in file and ratio[1] != "total")
+                ):
+                doRatio = False
+
+            if doRatio:
                 fig, ax =plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.}, sharex=True)
 
             h = TH1(cmstext = cmstext,
                 lumitext= lumitext,
-                xlabel = plot.xlabel if not ratio else None,
+                xlabel = plot.xlabel if not doRatio else None,
                 ylabel = "Density" if getattr(plot, "density", False) else "Events",
                 log = plot.log,
                 fig = fig,
@@ -80,19 +89,31 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
                 yerr_total = poisson_interval_ignore_empty(stack_total.values(), stack_total.variances())
                 h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "band", label="Total Unc.", yerr=yerr_total)
 
-                if ratio:
-                    plt.setp(ax[0].get_yticklabels()[0], visible=False)
-                    ax[0].set_xlabel("")
-                    plot_comparison(
-                        data_hist,
-                        stack_total,
-                        xlabel=plot.xlabel,
-                        comparison=ratiotype,
-                        ax=ax[1],
-                        h1_label="Data",
-                        h2_label="Pred.",
-                        comparison_ylim = ratiorange
-                        )
+            if doRatio:
+                if ratio[0]=="total":
+                    num_ratio = stack_total
+                else:
+                    num_ratio = file[ratio[0]].to_hist()
+                if ratio[1]=="total":
+                    den_ratio = stack_total
+                else:
+                    den_ratio = file[ratio[1]].to_hist()
+                if getattr(plot, "density", False):
+                    num_ratio = num_ratio/num_ratio.integrate(0).value
+                    den_ratio = den_ratio/den_ratio.integrate(0).value
+
+                plt.setp(ax[0].get_yticklabels()[0], visible=False)
+                ax[0].set_xlabel("")
+                plot_comparison(
+                    num_ratio,
+                    den_ratio,
+                    xlabel=plot.xlabel,
+                    comparison=ratiotype,
+                    ax=ax[1],
+                    h1_label=ratio[0],
+                    h2_label=ratio[1],
+                    comparison_ylim = ratiorange
+                    )
 
             pdf_Path = path.replace('.root','.pdf')
             png_Path = path.replace('.root','')
@@ -131,7 +152,7 @@ def __drawPyPlots(path, all_processes, plot, plot_lumi, cmstext, lumitext, noSta
 def _drawPyPlots(args):
     return __drawPyPlots(*args)
 
-def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
+def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
     for era in eras:
         format_dict = {"era": era}
         if mergeEras:
@@ -139,7 +160,7 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
             era = eras.__str__()
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
-        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, ratio, ratiorange, ratiotype, grid, stackSignal, era) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        pool_data=[(path, all_processes, plot, plot_lumi, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, era) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         if ncpu>1:
             with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu) as executor:
                 chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
