@@ -5,8 +5,24 @@ import os
 
 cfile_ext = ("cpp", "cxx", "cc", "c++", "c", "C", "CPP", "h", "hxx", "hpp", "hh", "H")
 
+def add_include_path(path):
+    #if p is a subpath of any of the paths in accessed_files, do not add it
+    if not any([p in os.path.abspath(path) for p in accessed_files]):
+        accessed_files.append(os.path.abspath(path))
+    ROOT.gInterpreter.AddIncludePath(path)
+
+def include(path):
+    #if p is a subpath of any of the paths in accessed_files, do not add it
+    if not any([p in os.path.abspath(path) for p in accessed_files]):
+        accessed_files.append(os.path.abspath(path))
+    ROOT.gInterpreter.Declare(f'#include "{path}"')
+    print(f"Including {path.rsplit('/', 2)[-1]}")
+
+def declare(cpp_string):
+    ROOT.gInterpreter.Declare(cpp_string)
 
 def load(folder, *files, exclude=[]):
+    ROOT.gInterpreter.AddIncludePath(folder)
     if files and exclude:
         raise ValueError("Both 'files' and 'exclude' cannot be specified at the same time.")
 
