@@ -18,7 +18,7 @@ from CMGRDF.stat import DatacardWriter
 
 from cmgrdf_cli.data import AddMC, AddData, all_data, processtable, datatable, MCtable
 from cmgrdf_cli.flows.SFs import BranchCorrection
-from cmgrdf_cli import cpp_functions
+from cmgrdf_cli import cpp
 from cmgrdf_cli.utils.cli_utils import load_module, parse_function, copy_file_to_subdirectories, center_header
 from cmgrdf_cli.utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from cmgrdf_cli.utils.flow_utils import parse_flows, clean_commons, disable_plotflag
@@ -111,6 +111,7 @@ def run_analysis(
 
     The functions should have just keyword arguments.
     """
+    sys.path.append(os.environ["PWD"])
 
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
@@ -171,7 +172,7 @@ def run_analysis(
     for dec in declare:
         declare_module, declare_kwargs = load_module(dec)
         parse_function(declare_module, "declare", None, declare_kwargs)
-    cpp_functions.load(cpp_folder)
+    cpp.load(cpp_folder)
     #! ----------------------== Module imports -------------------------- !#
     eras                           = eras.split(",")
     cfg_module    , _              = load_module(cfg)
