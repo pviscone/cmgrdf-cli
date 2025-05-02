@@ -34,6 +34,13 @@ class Tree:
 
         if parent and "{leaf}" in name:
             segment_name = name.format(leaf=parent)
+        elif parent and re.match("\{leaf-\d+\}", name):
+            back_steps = int(name.split("{leaf-")[1].split("}")[0])-1
+            segment_name = parent
+            for _ in range(back_steps):
+                segment_name = self.segments[segment_name].parent
+            #replace {leaf-x} where x is a number with segment_name
+            segment_name = re.sub(r"\{leaf-\d+\}", segment_name, name)
         else:
             segment_name = name
 
@@ -59,6 +66,13 @@ class Tree:
         for leaf in leaves:
             if "{leaf}" in name:
                 segment_name = name.format(leaf=leaf)
+            elif re.match("\{leaf-\d+\}", name):
+                back_steps = int(name.split("{leaf-")[1].split("}")[0])-1
+                segment_name = leaf
+                for _ in range(back_steps):
+                    segment_name = self.segments[segment_name].parent
+                #replace {leaf-x} where x is a number with segment_name
+                segment_name = re.sub(r"\{leaf-\d+\}", segment_name, name)
             else:
                 segment_name = f"{name}{leaf}"
             self.add(segment_name, obj, parent = leaf, **kwargs)

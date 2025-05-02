@@ -6,7 +6,7 @@
 - pyplots reformatted and optimized
 - option to snap only selected eras
 - Tree kwargs safeguard to not overwrite flowstep options
-
+- Tree segment naming now can use {leaf-n} to get the name of the n-th parent
 
 
 ## 1.1.0
