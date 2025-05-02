@@ -5,6 +5,7 @@
 - added option to plot arbitrary ratios
 - pyplots reformatted and optimized
 - option to snap only selected eras
+- Tree kwargs safeguard to not overwrite flowstep options
 
 
 

@@ -19,7 +19,11 @@ class Tree:
         for k, v in kwargs.items():
             for i in range(len(obj)):
                 if k=="samplePattern":
+                    if obj[i].sample is not None:
+                        continue
                     obj[i].sample = re.compile(v + "$") if v else None  # regex pattern
+                elif k in obj[i].__dir__():
+                    continue
                 else:
                     setattr(obj[i], k, v)
 
