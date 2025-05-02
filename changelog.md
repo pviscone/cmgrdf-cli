@@ -4,6 +4,7 @@
 - added method to load defaults
 - added option to plot arbitrary ratios
 - pyplots reformatted and optimized
+- option to snap only selected eras
 
 
 

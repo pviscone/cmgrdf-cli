@@ -92,6 +92,7 @@ def run_analysis(
     snapshot             : bool = typer.Option(False, "--snapshot", help=f"Save snapshots in outfolder/{folders.snap}", rich_help_panel="Snapshot Options"),
     columnSel            : str  = typer.Option(None, "--columnSel", help="Columns to select (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
     columnVeto           : str  = typer.Option(None, "--columnVeto", help="Columns to veto (regex pattern). Comma separated", rich_help_panel="Snapshot Options"),
+    eraSel               : str  = typer.Option(None, "--eraSel", help="Eras to snap. Comma separated. (Default all eras)", rich_help_panel="Snapshot Options"),
     noMC                 : bool = typer.Option(False, "--noMC", help="Do not snapshot MC samples", rich_help_panel="Snapshot Options"),
     noData               : bool = typer.Option(False, "--noData", help="Do not snapshot data samples", rich_help_panel="Snapshot Options"),
     MCpattern            : str  = typer.Option(None, "--MCpattern", help="Regex patterns to select MC samples mathcing the process name (comma separated)", rich_help_panel="Snapshot Options"),
@@ -297,7 +298,7 @@ def run_analysis(
                         continue
                     snap_data_list.append(dat)
                 if (flowPattern is not None and any([bool(re.search(fpattern, snap_flow.name)) for fpattern in flowPattern.split(",")])) or flowPattern is None:
-                    maker.book(snap_data_list, lumi, snap_flow, Snapshot(folders.snap.replace("{flow}", snap_flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eras)
+                    maker.book(snap_data_list, lumi, snap_flow, Snapshot(folders.snap.replace("{flow}", snap_flow.name), columnSel=columnSel.split(",") if columnSel is not None else None, columnVeto=columnVeto.split(",") if columnVeto is not None else None, compression=None), eras = eraSel.split(",") if eraSel is not None else eras)
 
     #!---------------------- Save Plots ---------------------- !#
     pprint(f"[bold red]{center_header('RUNNING')}[/bold red]")
