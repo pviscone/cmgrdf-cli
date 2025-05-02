@@ -313,3 +313,81 @@ class TEfficiency(BasePlotter):
         sys.stderr = sys.__stderr__
 
 
+class TRate(BasePlotter):
+    def __init__(
+        self,
+        *args,
+        yerr=True,
+        ylabel="Rate [kHz]",
+        log="y",
+        fillerr=False,
+        avxalpha=0.15,
+        **kwargs,
+    ):
+        super().__init__(*args, ylabel=ylabel, log=log, **kwargs)
+        self.yerr = yerr
+        self.fillerr = fillerr
+        self.avxalpha = avxalpha
+
+    @merge_kwargs(
+        markeredgecolor="black",
+        markersize=7,
+        linewidth=3,
+        errcapsize=2,
+        errlinewidth=1,
+        errzorder=-99,
+        fillalpha=0.3,
+    )
+    def add(self, hist, **kwargs):
+        keys = list(kwargs.keys())
+        err_kwargs = {
+            key.split("err")[1]: kwargs.pop(key)
+            for key in keys
+            if key.startswith("err")
+        }
+        fill_kwargs = {
+            key.split("fill")[1]: kwargs.pop(key)
+            for key in keys
+            if key.startswith("fill")
+        }
+        hist = convert_to_hist(hist)[self.rebin]
+
+        if "marker" not in kwargs:
+            kwargs["marker"] = self.markers_copy.pop(0)
+            if len(self.markers_copy) == 0:
+                self.markers_copy = self.markers.copy()
+
+        edges = hist.axes[0].edges[:-1]
+        rate = []
+        rate_err = []
+        for idx, _ in enumerate(edges):
+            integral = hist.integrate(0, idx)
+            rate.append(integral.value)
+            rate_err.append(integral.variance**0.5)
+        rate = np.array(rate)
+        rate_err = np.array(rate_err)
+
+        self.ax.plot(edges, rate, **kwargs)
+        if self.yerr and not self.fillerr:
+            xerr = np.diff(hist.axes[0].edges) / 2
+            self.ax.errorbar(
+                edges,
+                rate,
+                yerr=rate_err,
+                xerr=xerr,
+                fmt="none",
+                color=self.ax.lines[-1].get_color(),
+                **err_kwargs,
+            )
+        elif self.yerr and self.fillerr:
+            self.ax.fill_between(
+                edges,
+                rate - rate_err,
+                rate + rate_err,
+                color=self.ax.lines[-1].get_color(),
+                **fill_kwargs,
+            )
+
+        sys.stderr = open(os.devnull, "w")
+        self.ax.legend(**self.legend_kwargs)
+        sys.stderr = sys.__stderr__
