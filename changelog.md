@@ -7,7 +7,7 @@
 - option to snap only selected eras
 - Tree kwargs safeguard to not overwrite flowstep options
 - Tree segment naming now can use {leaf-n} to get the name of the n-th parent
-
+- now you can add `plot_kwargs` to the process dict, kwargs will be passed to the plotter add method
 
 ## 1.1.0
 - Added matplotlib fast style

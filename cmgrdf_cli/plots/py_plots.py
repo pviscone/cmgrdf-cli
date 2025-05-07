@@ -52,8 +52,9 @@ def plot_th1(fig, ax, file, plot, data_hist):
             continue
         hist = file[process_name].to_hist()
         color = process_dict.get("color", None)
+        plot_kwargs = process_dict.get("plot_kwargs", {})
         yerr=poisson_interval_ignore_empty(hist.values(), hist.variances())
-        h.add(hist, label=process_dict["label"], density = getattr(plot, "density", False), color = color, yerr=yerr)
+        h.add(hist, label=process_dict["label"], density = getattr(plot, "density", False), color = color, yerr=yerr, **plot_kwargs)
     return h
 
 def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
