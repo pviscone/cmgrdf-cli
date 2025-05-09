@@ -22,7 +22,6 @@ class Hist(BaseHist):
             if re.search(pattern, name):
                 pattern_kwargs = copy.deepcopy(name_defaults[pattern])
                 pattern_kwargs.setdefault("label", None)
-                pattern_kwargs.setdefault("log", "")
 
                 label = pattern_kwargs.get("label")
                 if label:
@@ -35,14 +34,15 @@ class Hist(BaseHist):
                 bins = pattern_kwargs.pop("bins", bins) if bins is None else bins
 
                 #log
-                log = pattern_kwargs.pop("log", "")
-                log_l = log.split(",")
-                log = ""
-                if "axis" in log_l:
-                    log += "x"
-                elif "counts" in log_l:
-                    log += "y"
-                pattern_kwargs["log"] = log
+                if "log" in pattern_kwargs:
+                    log = pattern_kwargs.pop("log", "")
+                    log_l = log.split(",")
+                    log = ""
+                    if "axis" in log_l:
+                        log += "x"
+                    elif "counts" in log_l:
+                        log += "y"
+                    pattern_kwargs["log"] = log
 
                 break
         super().__init__(histo1d_defaults, pattern_kwargs, user_kwargs, name, expr, bins)
