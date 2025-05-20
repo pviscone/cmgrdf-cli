@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import os
 import re
 import types
@@ -12,7 +13,7 @@ from cmgrdf_cli.flows import Tree
 
 def center_header(text, s="-", padding=0, max_width=150):
     text=f" {text} "
-    term_width = os.get_terminal_size().columns
+    term_width = shutil.get_terminal_size().columns
     if max_width is not None:
         term_width = min(term_width, max_width)
     max_padding = term_width // 2
