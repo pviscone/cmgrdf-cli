@@ -95,7 +95,7 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
     return h, stack_total
 
 def plot_ratio(ax, file, plot, stack_total):
-    if "total in ratio":
+    if "total" in ratio:
         assert stack_total is not None, "stack_total is None, cannot plot ratio"
 
     if ratio[0]=="total":
