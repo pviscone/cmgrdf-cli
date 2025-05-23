@@ -6,6 +6,7 @@ import ROOT  # type: ignore
 import os
 import os.path
 import glob
+import XRootD.client.glob_funcs as xrdglob
 from CMGRDF.utils import recursiveHash, safeName, NormUncertainty, eosToUrl
 if TYPE_CHECKING:
     from CMGRDF.flow import Hook
@@ -25,7 +26,10 @@ class Source:
                  era : Optional[str] = None,
                  friends : Optional[Sequence[Union[str, tuple[str, str]]]] = None):
         if isinstance(files, str):
-            files = glob.glob(files) if '*' in files else [files]
+            if files.startswith("root://"):
+                files = xrdglob.glob(files) if '*' in files else [files]
+            else:
+                files = glob.glob(files) if '*' in files else [files]
         else:
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
