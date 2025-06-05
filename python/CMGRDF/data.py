@@ -33,7 +33,7 @@ class Source:
 
             if files.startswith("root://"):
                 files = xrdglob.glob(files) if '*' in files else [files]
-            if files.startswith("dataset="):
+            elif files.startswith("dataset="):
                 dataset=files.split("dataset=",1)[1]
                 files = os.popen(f'dasgoclient -query="file dataset={dataset}"').read().split("\n")[:-1]
                 files = [f"root://cms-xrd-global.cern.ch/{f}" for f in files]
