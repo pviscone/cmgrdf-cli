@@ -11,6 +11,8 @@
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
 
+cmgrdf commit bump
+- Added XRootD globbing
 
 ## 1.1.0
 - Added matplotlib fast style
