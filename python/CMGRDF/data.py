@@ -26,10 +26,23 @@ class Source:
                  era : Optional[str] = None,
                  friends : Optional[Sequence[Union[str, tuple[str, str]]]] = None):
         if isinstance(files, str):
+            slc = False
+            if "[" in files:
+                assert files.endswith("]"), "Error, files must end with ] if it contains a slice"
+                slc = files.split("[", 1)[1].split("]", 1)[0]
+
             if files.startswith("root://"):
                 files = xrdglob.glob(files) if '*' in files else [files]
+            if files.startswith("dataset="):
+                dataset=files.split("dataset=",1)[1]
+                files = os.popen(f'dasgoclient -query="file dataset={dataset}"').read().split("\n")[:-1]
+                files = [f"root://cms-xrd-global.cern.ch/{f}" for f in files]
             else:
                 files = glob.glob(files) if '*' in files else [files]
+
+            if slc:
+                files = eval(f"files[{slc}]")
+
         else:
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
