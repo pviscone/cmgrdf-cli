@@ -11,6 +11,7 @@
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
 - Moved yaxis scientific notation on the left to avoit overlap with CMS
+- Fixed plotting for data only (+added xerr if data only)
 
 cmgrdf commit bump
 - Added XRootD globbing

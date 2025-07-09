@@ -45,7 +45,10 @@ def plot_th1(fig, ax, file, plot, data_hist):
 
     if data_hist:
         yerr = poisson_interval_ignore_empty(data_hist.values(), data_hist.variances())
-        h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", yerr=yerr)
+        data_hist_kwargs = {}
+        if len(all_processes)==0:
+            data_hist_kwargs["xerr"] = True
+        h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", yerr=yerr, **data_hist_kwargs)
 
     for process_name, process_dict in all_processes.items():
         if process_name not in file:
@@ -158,7 +161,12 @@ def __drawPyPlots(path, plot, plot_lumi):
     try:
         lumitext = original_lumitext.format(lumi=plot_lumi, era=era)
         file = uproot.open(path)
-        hist_type = str(type(file[list(all_processes.keys())[0]]))
+        if len(all_processes) >0:
+            hist_type = str(type(file[list(all_processes.keys())[0]]))
+        else:
+            hist_type = str(type(file["data"]))
+            doRatio = False
+
         if "TH1" in hist_type:
             fig, ax = None ,[None, None]
             data_hist, bkgs, signals = parse_hist_file(file)
@@ -180,7 +188,7 @@ def __drawPyPlots(path, plot, plot_lumi):
             else:
                 h, stack_total = plot_stack(fig, ax, file, plot, data_hist, bkgs, signals)
 
-            if doRatio:
+            if doRatio and stack_total is not None:
                 ax = plot_ratio(ax, file, plot, stack_total)
             save_plot1D(h, path)
 
@@ -190,6 +198,9 @@ def __drawPyPlots(path, plot, plot_lumi):
                     continue
                 h = plot_th2(file, plot, process_name)
                 save_plot2D(h, path, process_name)
+            if "data" in file:
+                h = plot_th2(file, plot, "data")
+                save_plot2D(h, path, "data")
     except Exception as e:
         print(f"Error in {path}: {e}")
         print(traceback.format_exc())
