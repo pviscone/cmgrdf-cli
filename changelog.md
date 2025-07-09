@@ -10,6 +10,7 @@
 - now you can add `plot_kwargs` to the process dict, kwargs will be passed to the plotter add method (only for non stacked, to be implemented for the rest)
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
+- Moved yaxis scientific notation on the left to avoit overlap with CMS
 
 cmgrdf commit bump
 - Added XRootD globbing

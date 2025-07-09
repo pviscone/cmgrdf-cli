@@ -225,6 +225,8 @@ class TH1(BasePlotter):
 
         if kwargs.get("histtype") == "fill":
             self.ax.set_axisbelow(True)
+            
+        self.ax.yaxis.offsetText.set_position((-0.1, 0))
 
 
 class TH2(BasePlotter):
