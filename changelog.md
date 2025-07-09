@@ -13,6 +13,7 @@ fix:
 
 cmgrdf commit bump
 - Added XRootD globbing
+- Fixed files slicing handling
 
 ## 1.1.0
 - Added matplotlib fast style
