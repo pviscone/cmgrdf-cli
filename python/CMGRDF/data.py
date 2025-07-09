@@ -30,7 +30,7 @@ class Source:
             if "[" in files:
                 assert files.endswith("]"), "Error, files must end with ] if it contains a slice"
                 slc = files.split("[", 1)[1].split("]", 1)[0]
-
+                files = files.rsplit("[", 1)[0]
             if files.startswith("root://"):
                 files = xrdglob.glob(files) if '*' in files else [files]
             elif files.startswith("dataset="):
@@ -39,10 +39,8 @@ class Source:
                 files = [f"root://cms-xrd-global.cern.ch/{f}" for f in files]
             else:
                 files = glob.glob(files) if '*' in files else [files]
-
             if slc:
                 files = eval(f"files[{slc}]")
-
         else:
             assert (len(files) >= 1)
             assert (not any(("*" in f) for f in files))
