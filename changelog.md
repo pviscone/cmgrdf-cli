@@ -8,10 +8,14 @@
 - Tree kwargs safeguard to not overwrite flowstep options
 - Tree segment naming now can use {leaf-n} to get the name of the n-th parent
 - now you can add `plot_kwargs` to the process dict, kwargs will be passed to the plotter add method (only for non stacked, to be implemented for the rest)
+- implemented S/sqrt(S+B) as ratiotype
+- implemented log scale option for ratio plot (e.g --ratiotype "S/sqrt(S+B):log)
+
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
 - Moved yaxis scientific notation on the left to avoit overlap with CMS
 - Fixed plotting for data only (+added xerr if data only)
+- Fixed ratio plotting in absence of total stack
 
 cmgrdf commit bump
 - Added XRootD globbing

@@ -68,7 +68,8 @@ def run_analysis(
     cmstext              : str  = typer.Option("Preliminary", "--cmstext", help="Text to display in the top left of the plots", rich_help_panel="Plot Options"),
     noRatio              : bool = typer.Option(False, "--noRatio", help="Enable ratio plot (data/bkg). need stacks and data", rich_help_panel="Plot Options"),
     ratio                : Tuple[str, str] = typer.Option(("data", "total"), "--ratio", help="What to divide in the ratio plot. Format: (num, den)", rich_help_panel="Plot Options"),
-    ratiotype            : str  = typer.Option("split_ratio", "--ratiotype", help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference)", rich_help_panel="Plot Options"),
+    ratiotype            : str  = typer.Option("split_ratio", "--ratiotype",
+                                help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference, S/sqrt(S+B)). You can add ':log' to plot the ratio in log scale", rich_help_panel="Plot Options"),
     ratiorange           : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack              : bool = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
@@ -129,7 +130,11 @@ def run_analysis(
     if noXsec and lumitext=="{lumi:.1f} $fb^{{-1}}$ (13.6 TeV)":
         lumitext = "(13.6 TeV)"
 
-    assert ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference'"
+    if ":" in ratiotype:
+        ratiotype_ = ratiotype.split(":")[0]
+    else:
+        ratiotype_ = ratiotype
+    assert ratiotype_ in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference", "S/sqrt(S+B)"], "ratiotype should be one of 'ratio', 'split_ratio', 'pull', 'efficiency', 'asymmetry', 'difference', 'relative_difference', 'S/sqrt(S+B)'"
 
     if datacards:
         assert plots is not None, "You need to provide the plots file to create the datacards"

@@ -98,6 +98,7 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
     return h, stack_total
 
 def plot_ratio(ax, file, plot, stack_total):
+    global ratiotype
     if "total" in ratio:
         assert stack_total is not None, "stack_total is None, cannot plot ratio"
 
@@ -109,22 +110,66 @@ def plot_ratio(ax, file, plot, stack_total):
         den_ratio = stack_total
     else:
         den_ratio = file[ratio[1]].to_hist()
-    if getattr(plot, "density", False):
-        num_ratio = num_ratio/num_ratio.integrate(0).value
-        den_ratio = den_ratio/den_ratio.integrate(0).value
+
+    if ":" in ratiotype:
+        ratiotype, scale = ratiotype.split(":")
+    else:
+        scale = None
+
+    #Do not normalize sensitivity
+    if getattr(plot, "density", False) and ratiotype not in ["S/sqrt(S+B)"]:
+        num_ratio_norm = num_ratio.integrate(0)
+        den_ratio_norm = den_ratio.integrate(0)
+        if not isinstance(num_ratio_norm, float):
+            num_ratio_norm = num_ratio_norm.value
+        if not isinstance(den_ratio_norm, float):
+            den_ratio_norm = den_ratio_norm.value
+        num_ratio = num_ratio / num_ratio_norm
+        den_ratio = den_ratio / den_ratio_norm
 
     plt.setp(ax[0].get_yticklabels()[0], visible=False)
     ax[0].set_xlabel("")
-    plot_comparison(
-        num_ratio,
-        den_ratio,
-        xlabel=plot.xlabel,
-        comparison=ratiotype,
-        ax=ax[1],
-        h1_label=ratio[0],
-        h2_label=ratio[1],
-        comparison_ylim = ratiorange
+
+    if ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"]:
+        plot_comparison(
+            num_ratio,
+            den_ratio,
+            xlabel=plot.xlabel,
+            comparison=ratiotype,
+            ax=ax[1],
+            h1_label=ratio[0],
+            h2_label=ratio[1],
+            comparison_ylim = ratiorange
+            )
+    else:
+        centers = num_ratio.axes[0].centers
+        # for each custom ratiotype, set ratio_values, yerr, ylabel, and label
+        if ratiotype == "S/sqrt(S+B)":
+            ratio_values = np.nan_to_num(num_ratio.values() / np.sqrt(den_ratio.values() + num_ratio.values()))
+            def error_fun(S, B):
+                err = np.zeros_like(S)
+                mask = np.bitwise_or(S>0, B>0)
+                err[mask] = np.sqrt(((1/np.sqrt(S[mask]+B[mask]) - S[mask]/(2*(S[mask]+B[mask])**1.5))**2)*S[mask] + (S[mask]/(2*(S[mask]+B[mask])**1.5))**2*B[mask])
+                return err
+            yerr = error_fun(num_ratio.values(), den_ratio.values())
+            ylabel = r"$\frac{S}{\sqrt{S+B}}$"
+            label = None
+        ax[1].errorbar(
+            centers,
+            ratio_values,
+            yerr=yerr,
+            fmt='o',
+            color='black',
+            label=label
         )
+        if label:
+            ax[1].legend()
+        ax[1].set_ylabel(ylabel)
+        ax[1].set_xlabel(plot.xlabel)
+        ax[1].set_ylim(ratiorange)
+    if scale == "log":
+        ax[1].set_yscale("log")
+
     return ax
 
 # plot single process
@@ -157,7 +202,7 @@ def save_plot2D(h, path, process_name):
     os.system(f"(pdftocairo {os.path.join(folder,f'{process_name}.pdf')} -png -r 200 {os.path.join(folder,f'{process_name}')} & wait; mv {os.path.join(folder,f'{process_name}-1.png')} {os.path.join(folder,f'{process_name}.png')}) &")
 
 def __drawPyPlots(path, plot, plot_lumi):
-    global all_processes, lumitext, noStack, doRatio, ratio, era
+    global all_processes, lumitext, noStack, doRatio, ratio, ratiotype, era
     try:
         lumitext = original_lumitext.format(lumi=plot_lumi, era=era)
         file = uproot.open(path)
@@ -170,12 +215,12 @@ def __drawPyPlots(path, plot, plot_lumi):
         if "TH1" in hist_type:
             fig, ax = None ,[None, None]
             data_hist, bkgs, signals = parse_hist_file(file)
-
             if (doRatio and
                 ("data" in ratio and "data" not in file) or
                 ("total" in ratio and noStack) or
                 (ratio[0] not in file and ratio[0] != "total") or
-                (ratio[1] not in file and ratio[1] != "total")
+                (ratio[1] not in file and ratio[1] != "total") or
+                ("total" in ratio and stack_total is None)
                 ):
                 doRatio = False
 
@@ -188,7 +233,7 @@ def __drawPyPlots(path, plot, plot_lumi):
             else:
                 h, stack_total = plot_stack(fig, ax, file, plot, data_hist, bkgs, signals)
 
-            if doRatio and stack_total is not None:
+            if doRatio:
                 ax = plot_ratio(ax, file, plot, stack_total)
             save_plot1D(h, path)
 
