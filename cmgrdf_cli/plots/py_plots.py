@@ -146,12 +146,12 @@ def plot_ratio(ax, file, plot, stack_total):
         # for each custom ratiotype, set ratio_values, yerr, ylabel, and label
         if ratiotype == "S/sqrt(S+B)":
             ratio_values = np.nan_to_num(num_ratio.values() / np.sqrt(den_ratio.values() + num_ratio.values()))
-            def error_fun(S, B):
+            def error_fun(S, B, sigma2S, sigma2B):
                 err = np.zeros_like(S)
                 mask = np.bitwise_or(S>0, B>0)
-                err[mask] = np.sqrt(((1/np.sqrt(S[mask]+B[mask]) - S[mask]/(2*(S[mask]+B[mask])**1.5))**2)*S[mask] + (S[mask]/(2*(S[mask]+B[mask])**1.5))**2*B[mask])
+                err[mask] = np.sqrt(((1/np.sqrt(S[mask]+B[mask]) - S[mask]/(2*(S[mask]+B[mask])**1.5))**2)*sigma2S[mask] + (S[mask]/(2*(S[mask]+B[mask])**1.5))**2*sigma2B[mask])
                 return err
-            yerr = error_fun(num_ratio.values(), den_ratio.values())
+            yerr = error_fun(num_ratio.values(), den_ratio.values(), num_ratio.variances(), den_ratio.variances())
             ylabel = r"$\frac{S}{\sqrt{S+B}}$"
             label = None
         ax[1].errorbar(
