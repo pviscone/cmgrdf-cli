@@ -215,24 +215,24 @@ def __drawPyPlots(path, plot, plot_lumi):
         if "TH1" in hist_type:
             fig, ax = None ,[None, None]
             data_hist, bkgs, signals = parse_hist_file(file)
-
-            if noStack or len(bkgs) == 0:
-                h = plot_th1(fig, ax, file, plot, data_hist)
-                stack_total = None
-            else:
-                h, stack_total = plot_stack(fig, ax, file, plot, data_hist, bkgs, signals)
             
             if (doRatio and
                 ("data" in ratio and "data" not in file) or
                 ("total" in ratio and noStack) or
                 (ratio[0] not in file and ratio[0] != "total") or
                 (ratio[1] not in file and ratio[1] != "total") or
-                ("total" in ratio and stack_total is None)
+                ("total" in ratio and (noStack or len(bkgs) == 0))
                 ):
                 doRatio = False
 
             if doRatio:
                 fig, ax =plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.}, sharex=True)
+
+            if noStack or len(bkgs) == 0:
+                h = plot_th1(fig, ax, file, plot, data_hist)
+                stack_total = None
+            else:
+                h, stack_total = plot_stack(fig, ax, file, plot, data_hist, bkgs, signals)
 
             if doRatio:
                 ax = plot_ratio(ax, file, plot, stack_total)
