@@ -30,7 +30,7 @@ def parse_hist_file(file):
         data_hist = data_hist.to_hist()
     return data_hist, bkgs, signals
 
-def plot_th1(fig, ax, file, plot, data_hist):
+def plot_th1(fig, ax, file, plot, data_hist, signals):
     h = TH1(cmstext = cmstext,
         lumitext= lumitext,
         xlabel = plot.xlabel if not doRatio else None,
@@ -54,10 +54,14 @@ def plot_th1(fig, ax, file, plot, data_hist):
         if process_name not in file:
             continue
         hist = file[process_name].to_hist()
+        mlt_lab = ""
+        if process_name in signals and signalMultiplier!=1.:
+            hist *= signalMultiplier
+            mlt_lab = f" X {signalMultiplier:.1f}"
         color = process_dict.get("color", None)
         plot_kwargs = process_dict.get("plot_kwargs", {})
         yerr=poisson_interval_ignore_empty(hist.values(), hist.variances())
-        h.add(hist, label=process_dict["label"], density = getattr(plot, "density", False), color = color, yerr=yerr, **plot_kwargs)
+        h.add(hist, label=process_dict["label"]+mlt_lab, density = getattr(plot, "density", False), color = color, yerr=yerr, **plot_kwargs)
     return h
 
 def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
@@ -81,8 +85,11 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
     bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs if bkg in file]
     bkg_colors = [all_processes[bkg].get("color", None) for bkg in bkgs if bkg in file]
 
-    signal_hist = [file[signal].to_hist() for signal in signals if signal in file]
-    signal_labels = [all_processes[signal]["label"] for signal in signals if signal in file]
+    signal_hist = [file[signal].to_hist()*signalMultiplier for signal in signals if signal in file]
+    mlt_lab = ""
+    if signalMultiplier !=1.:
+        mlt_lab = f" X {signalMultiplier:.1f}"
+    signal_labels = [all_processes[signal]["label"]+mlt_lab for signal in signals if signal in file]
     signal_colors = [all_processes[signal].get("color", None) for signal in signals if signal in file]
 
     stack_total = sum(bkg_hist)
@@ -229,7 +236,7 @@ def __drawPyPlots(path, plot, plot_lumi):
                 fig, ax =plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.}, sharex=True)
 
             if noStack or len(bkgs) == 0:
-                h = plot_th1(fig, ax, file, plot, data_hist)
+                h = plot_th1(fig, ax, file, plot, data_hist, signals)
                 stack_total = None
             else:
                 h, stack_total = plot_stack(fig, ax, file, plot, data_hist, bkgs, signals)
@@ -255,8 +262,8 @@ def __drawPyPlots(path, plot, plot_lumi):
 def _drawPyPlots(args):
     return __drawPyPlots(*args)
 
-def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRatio_, ratio_, ratiorange_, ratiotype_, grid_, stackSignal_, era_):
-    global all_processes, cmstext, original_lumitext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, era
+def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRatio_, ratio_, ratiorange_, ratiotype_, grid_, stackSignal_, signalMultiplier_, era_):
+    global all_processes, cmstext, original_lumitext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era
     all_processes = all_processes_
     cmstext = cmstext_
     lumitext = lumitext_
@@ -268,9 +275,10 @@ def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRat
     ratiotype = ratiotype_
     grid = grid_
     stackSignal = stackSignal_
+    signalMultiplier = signalMultiplier_
     era = era_
 
-def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
+def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
     for era in eras:
         format_dict = {"era": era}
         if mergeEras:
@@ -280,12 +288,12 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, cmstext,
         plots = [plot for (_, plots) in flow_plots for plot in plots]
         pool_data=[(path, plot, plot_lumi) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
         if ncpu>1:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu, initializer = _drawPyPlotsInitializer, initargs=(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, era)) as executor:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu, initializer = _drawPyPlotsInitializer, initargs=(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era)) as executor:
                 chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
                 list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
         elif ncpu==1:
             for data in pool_data:
-                _drawPyPlotsInitializer(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, era)
+                _drawPyPlotsInitializer(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era)
                 _drawPyPlots(data)
         else:
             raise ValueError("ncpu must be greater than 0")

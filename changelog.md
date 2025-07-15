@@ -10,6 +10,7 @@
 - now you can add `plot_kwargs` to the process dict, kwargs will be passed to the plotter add method (only for non stacked, to be implemented for the rest)
 - implemented S/sqrt(S+B) as ratiotype
 - implemented log scale option for ratio plot (e.g --ratiotype "S/sqrt(S+B):log)
+- implemented --signalMultiplier option
 
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default

@@ -75,6 +75,7 @@ def run_analysis(
     stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras            : bool = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     grid                 : bool = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
+    signalMultiplier     : float= typer.Option(1., "--signalMultiplier", help="Factor for scaling signal histograms", rich_help_panel="Plot Options"),
     ncpuPyplots          : int  = typer.Option(multiprocessing.cpu_count(), "--ncpuPyplots", help="Number of cpus to use for python plotting", rich_help_panel="Plot Options"),
 
     #! Yields options
@@ -319,7 +320,7 @@ def run_analysis(
             from cmgrdf_cli.plots.py_plots import DrawPyPlots
             sys.settrace(None) #to be faster
             plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, cmstext, lumitext, noStack, not noRatio, ratio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
+            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, not noRatio, ratio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
             sys.settrace(trace_calls)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
