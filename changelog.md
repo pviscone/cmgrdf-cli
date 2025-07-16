@@ -11,12 +11,14 @@
 - implemented S/sqrt(S+B) as ratiotype
 - implemented log scale option for ratio plot (e.g --ratiotype "S/sqrt(S+B):log)
 - implemented --signalMultiplier option
+- implemented drawOnly option
 
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
 - Moved yaxis scientific notation on the left to avoit overlap with CMS
 - Fixed plotting for data only (+added xerr if data only)
 - Fixed ratio plotting in absence of total stack
+- Fixed comparison plot on data histograms
 
 cmgrdf commit bump
 - Added XRootD globbing

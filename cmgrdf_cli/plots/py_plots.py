@@ -4,12 +4,23 @@ import concurrent
 import traceback
 import uproot
 import matplotlib.pyplot as plt
+import hist
 from plothist import plot_comparison
 from cmgrdf_cli.plots.plotters import TH1, TH2
 from cmgrdf_cli.utils.folders import folders
 
 from mplhep import error_estimation
 import numpy as np
+
+def convertToWeightStorage(h):
+    if h.storage_type()==hist.storage.Weight():
+        return h
+    else:
+        new_h = hist.Hist(*h.axes, storage = hist.storage.Weight())
+        for idx in np.ndindex(h.shape):
+            value = h[idx]
+            new_h[idx] = (value, value)
+        return new_h 
 
 #!Have to manually compute yerr because mplhep w2method callable is broken
 def poisson_interval_ignore_empty(sumw, sumw2):
@@ -105,7 +116,6 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
     return h, stack_total
 
 def plot_ratio(ax, file, plot, stack_total):
-    global ratiotype
     if "total" in ratio:
         assert stack_total is not None, "stack_total is None, cannot plot ratio"
 
@@ -119,12 +129,16 @@ def plot_ratio(ax, file, plot, stack_total):
         den_ratio = file[ratio[1]].to_hist()
 
     if ":" in ratiotype:
-        ratiotype, scale = ratiotype.split(":")
+        ratiotype_, scale = ratiotype.split(":")
     else:
+        ratiotype_ = ratiotype
         scale = None
 
+    num_ratio = convertToWeightStorage(num_ratio)
+    den_ratio = convertToWeightStorage(den_ratio)
+    
     #Do not normalize sensitivity
-    if getattr(plot, "density", False) and ratiotype not in ["S/sqrt(S+B)"]:
+    if getattr(plot, "density", False) and ratiotype_ not in ["S/sqrt(S+B)"]:
         num_ratio_norm = num_ratio.integrate(0)
         den_ratio_norm = den_ratio.integrate(0)
         if not isinstance(num_ratio_norm, float):
@@ -137,21 +151,21 @@ def plot_ratio(ax, file, plot, stack_total):
     plt.setp(ax[0].get_yticklabels()[0], visible=False)
     ax[0].set_xlabel("")
 
-    if ratiotype in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"]:
-        plot_comparison(
+    if ratiotype_ in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"]:
+        ax[1] = plot_comparison(
             num_ratio,
             den_ratio,
             xlabel=plot.xlabel,
-            comparison=ratiotype,
+            comparison=ratiotype_,
             ax=ax[1],
-            h1_label=ratio[0],
-            h2_label=ratio[1],
+            h1_label=ratio[0].replace("_","\_"),
+            h2_label=ratio[1].replace("_","\_"),
             comparison_ylim = ratiorange
             )
     else:
         centers = num_ratio.axes[0].centers
-        # for each custom ratiotype, set ratio_values, yerr, ylabel, and label
-        if ratiotype == "S/sqrt(S+B)":
+        # for each custom ratiotype_, set ratio_values, yerr, ylabel, and label
+        if ratiotype_ == "S/sqrt(S+B)":
             ratio_values = np.nan_to_num(num_ratio.values() / np.sqrt(den_ratio.values() + num_ratio.values()))
             def error_fun(S, B, sigma2S, sigma2B):
                 err = np.zeros_like(S)
@@ -159,7 +173,6 @@ def plot_ratio(ax, file, plot, stack_total):
                 err[mask] = np.sqrt(((1/np.sqrt(S[mask]+B[mask]) - S[mask]/(2*(S[mask]+B[mask])**1.5))**2)*sigma2S[mask] + (S[mask]/(2*(S[mask]+B[mask])**1.5))**2*sigma2B[mask])
                 return err
             yerr = error_fun(num_ratio.values(), den_ratio.values(), num_ratio.variances(), den_ratio.variances())
-            ylabel = r"$\frac{S}{\sqrt{S+B}}$"
             label = None
         ax[1].errorbar(
             centers,
@@ -208,10 +221,10 @@ def save_plot2D(h, path, process_name):
     h.save(os.path.join(folder,f"{process_name}.pdf"))
     os.system(f"(pdftocairo {os.path.join(folder,f'{process_name}.pdf')} -png -r 200 {os.path.join(folder,f'{process_name}')} & wait; mv {os.path.join(folder,f'{process_name}-1.png')} {os.path.join(folder,f'{process_name}.png')}) &")
 
-def __drawPyPlots(path, plot, plot_lumi):
+def __drawPyPlots(path, plot):
     global all_processes, lumitext, noStack, doRatio, ratio, ratiotype, era
     try:
-        lumitext = original_lumitext.format(lumi=plot_lumi, era=era)
+        lumitext = original_lumitext.format(lumi=lumi_dict[era], era=era)
         file = uproot.open(path)
         if len(all_processes) >0:
             hist_type = str(type(file[list(all_processes.keys())[0]]))
@@ -262,8 +275,10 @@ def __drawPyPlots(path, plot, plot_lumi):
 def _drawPyPlots(args):
     return __drawPyPlots(*args)
 
-def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRatio_, ratio_, ratiorange_, ratiotype_, grid_, stackSignal_, signalMultiplier_, era_):
-    global all_processes, cmstext, original_lumitext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era
+def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRatio_, ratio_, ratiorange_, ratiotype_, grid_, stackSignal_, signalMultiplier_, era_, lumi_dict_):
+    global all_processes, cmstext, original_lumitext, lumitext, noStack
+    global doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier
+    global lumi_dict, era
     all_processes = all_processes_
     cmstext = cmstext_
     lumitext = lumitext_
@@ -277,8 +292,9 @@ def _drawPyPlotsInitializer(all_processes_, cmstext_, lumitext_, noStack_, doRat
     stackSignal = stackSignal_
     signalMultiplier = signalMultiplier_
     era = era_
+    lumi_dict = lumi_dict_
 
-def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
+def DrawPyPlots(lumi_dict, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid=False, ncpu=None, stackSignal=False):
     for era in eras:
         format_dict = {"era": era}
         if mergeEras:
@@ -286,14 +302,14 @@ def DrawPyPlots(plots_lumi, eras, mergeEras, flow_plots, all_processes, signalMu
             era = eras.__str__()
         paths=[os.path.join(folders.plots_path.format(flow=flow, **format_dict), f"{plot.name}.root") for (flow, plots) in flow_plots for plot in plots]
         plots = [plot for (_, plots) in flow_plots for plot in plots]
-        pool_data=[(path, plot, plot_lumi) for path, plot, plot_lumi in zip(paths, plots, plots_lumi)]
+        pool_data=[(path, plot) for path, plot in zip(paths, plots)]
         if ncpu>1:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu, initializer = _drawPyPlotsInitializer, initargs=(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era)) as executor:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=ncpu, initializer = _drawPyPlotsInitializer, initargs=(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era, lumi_dict)) as executor:
                 chunksize = len(pool_data)//ncpu if len(pool_data)//ncpu > 0 else 1
                 list(executor.map(_drawPyPlots, pool_data, chunksize = chunksize))
         elif ncpu==1:
             for data in pool_data:
-                _drawPyPlotsInitializer(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era)
+                _drawPyPlotsInitializer(all_processes, cmstext, lumitext, noStack, doRatio, ratio, ratiorange, ratiotype, grid, stackSignal, signalMultiplier, era, lumi_dict)
                 _drawPyPlots(data)
         else:
             raise ValueError("ncpu must be greater than 0")

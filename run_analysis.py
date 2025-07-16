@@ -70,13 +70,14 @@ def run_analysis(
     ratio                : Tuple[str, str] = typer.Option(("data", "total"), "--ratio", help="What to divide in the ratio plot. Format: (num, den)", rich_help_panel="Plot Options"),
     ratiotype            : str  = typer.Option("split_ratio", "--ratiotype",
                                 help="Type of ratio plot (ratio, split_ratio, pull, efficiency, asymmetry, difference, relative_difference, S/sqrt(S+B)). You can add ':log' to plot the ratio in log scale", rich_help_panel="Plot Options"),
-    ratiorange           : Tuple[float, float] = typer.Option(None, "--ratioRange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
+    ratiorange           : Tuple[float, float] = typer.Option(None, "--ratiorange", help="The range of the ratio plot", rich_help_panel="Plot Options"),
     noStack              : bool = typer.Option(False, "--noStack", help="Disable stacked histograms for backgrounds", rich_help_panel="Plot Options"),
     stackSignal          : bool = typer.Option(False, "--stackSignal", help="Add signal processes to stacked histograms together with the bkg", rich_help_panel="Plot Options"),
     mergeEras            : bool = typer.Option(False, "--mergeEras", help="Merge the eras in the plots (and datacards)", rich_help_panel="Plot Options"),
     grid                 : bool = typer.Option(False, "--grid", help="Enable grid", rich_help_panel="Plot Options"),
     signalMultiplier     : float= typer.Option(1., "--signalMultiplier", help="Factor for scaling signal histograms", rich_help_panel="Plot Options"),
     ncpuPyplots          : int  = typer.Option(multiprocessing.cpu_count(), "--ncpuPyplots", help="Number of cpus to use for python plotting", rich_help_panel="Plot Options"),
+    drawOnly             : bool = typer.Option(False, "--drawOnly", help="Only draw plots starting from saved root files", rich_help_panel="Plot Options"),
 
     #! Yields options
     noYields             : bool = typer.Option(False, "--noYields", help="Disable the yields", rich_help_panel="Yields Options"),
@@ -115,7 +116,7 @@ def run_analysis(
     The functions should have just keyword arguments.
     """
     sys.path.append(os.environ["PWD"])
-
+    
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
     console.print(f"[bold red]{center_header('START')}[/bold red]")
@@ -227,7 +228,7 @@ def run_analysis(
 
     #! -------------- Print flows table and parse flows -------------------- !#
     #list of list of flows. [i][j] i is leaf, j is plotstep. bool if tree contains a branch
-    region_flows, region_plots, isBranched = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps)
+    region_flows, region_plots, isBranched = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps, graphviz = not drawOnly)
 
     if snapshot:
         snap_flows = copy.deepcopy(region_flows)
@@ -248,7 +249,7 @@ def run_analysis(
     flow_plots = []
     for flow_list, plot_list in zip(region_flows, region_plots, strict=True):
         #! ---------------------- PRINT THE FLOW ----------------------- !#
-        if not re.search("(\d+)common.*", flow_list[-1].name): #Do not print common flows
+        if not re.search("(\d+)common.*", flow_list[-1].name) and not drawOnly: #Do not print common flows
             print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
@@ -282,15 +283,16 @@ def run_analysis(
 
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
             pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
-            if not noYields:
+            if not noYields and not drawOnly:
                 maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
             if plots:
-                maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
+                if not drawOnly:
+                    maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
                 flow_plots.append((flow.name, plot))
 
     #! ---------------------- BOOK SNAPSHOT ----------------------!#
-    if snapshot:
+    if snapshot and not drawOnly:
         snap_flows, _ = get_flows(snap_flows, None, isBranched, not snapAllSteps)
         for snap_list in snap_flows:
             for snap_flow in snap_list:
@@ -309,22 +311,23 @@ def run_analysis(
     #!---------------------- Save Plots ---------------------- !#
     pprint(f"[bold red]{center_header('RUNNING')}[/bold red]")
     if plots:
-        plotter = maker.runPlots(mergeEras=mergeEras, debug = targetDebug)
-        PlotSetPrinter(
-            stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
-        ).printSet(plotter, folders.plots_path)
+        if not drawOnly:
+            plotter = maker.runPlots(mergeEras=mergeEras, debug = targetDebug)
+        
+            PlotSetPrinter(
+                stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
+            ).printSet(plotter, folders.plots_path)
 
         #!---------------------- Draw Plots ---------------------- !#
         if not noPyplots:
             #!Import must stay here, no .plots import before setting defaults
             from cmgrdf_cli.plots.py_plots import DrawPyPlots
             sys.settrace(None) #to be faster
-            plot_lumi = [plotter._items[i][1].lumi for i in range(len(plotter._items))]
-            DrawPyPlots(plot_lumi, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, not noRatio, ratio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
+            DrawPyPlots(lumi, eras, mergeEras, flow_plots, all_processes, signalMultiplier, cmstext, lumitext, noStack, not noRatio, ratio, ratiorange, ratiotype, grid=grid, ncpu=ncpuPyplots, stackSignal=stackSignal)
             sys.settrace(trace_calls)
 
     #!---------------------- PRINT YIELDS ---------------------- !#
-    if not noYields:
+    if not noYields and not drawOnly:
         yields = maker.runYields(mergeEras=mergeErasYields, debug = targetDebug)
         console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
@@ -333,24 +336,25 @@ def run_analysis(
             print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
 
     #!------------------- CREATE DATACARDS ---------------------- !#
-    if datacards:
+    if datacards and not drawOnly:
         pprint(f"[bold red]{center_header('Saving datacards')}[/bold red]")
         cardMaker = DatacardWriter(regularize=regularize, autoMCStats=autoMCStats, autoMCStatsThreshold=autoMCstatsThreshold, threshold=threshold, asimov=asimov)
         cardMaker.makeCards(plotter, MultiKey(), folders.cards)
 
     #!------------------- SAVE SNAPSHOT ---------------------- !#
-    if snapshot:
+    if snapshot and not drawOnly:
         report = maker.runSnapshots(debug = targetDebug)
         print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern)
 
     #!--------------------- SAVE LOGS ---------------------- !#
-    write_log(command, cachepath)
+    if not drawOnly:
+        write_log(command, cachepath)
     sys.settrace(None)
-    console.save_text(os.path.join(folders.log, "report.txt_temp"))
-
-    os.system(f'cat {os.path.join(folders.log, "report.txt_temp")} >> {os.path.join(folders.log, "report.txt")}')
-    os.remove(os.path.join(folders.log, "report.txt_temp"))
-    copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
+    if not drawOnly:
+        console.save_text(os.path.join(folders.log, "report.txt_temp"))
+        os.system(f'cat {os.path.join(folders.log, "report.txt_temp")} >> {os.path.join(folders.log, "report.txt")}')
+        os.remove(os.path.join(folders.log, "report.txt_temp"))
+        copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
 
 if __name__ == "__main__":
     app()

@@ -37,7 +37,7 @@ def split_at_plot(flow_obj, plots_dict):
     return flow_list, plot_list #single leaf. list of flow for each plotstep. list of list of Plot to plot at each plotstep
 
 
-def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noPlotsteps=False):
+def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noPlotsteps=False, graphviz = True):
     assert enable==[""] or disable==[""], "Cannot enable and disable at the same time"
 
     isBranched=False
@@ -70,9 +70,10 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
             flows_dict = new_flows_dict
         for name in flows_dict:
             flow_table.add_row(flow_config, name)
-        flow_obj.graphviz(f"{folders.outfolder}/verbose_tree")
-        flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
-        flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
+        if graphviz:
+            flow_obj.graphviz(f"{folders.outfolder}/verbose_tree")
+            flow_obj.graphviz(f"{folders.outfolder}/tree", clean_fn=lambda x : re.sub(r"\n\tonMC.*(True|False)","", x))     #Remove onData/onMC/onDataDriven info
+            flow_obj.graphviz(f"{folders.outfolder}/cut_tree", clean_fn=lambda x : x.split("\n")[0]+"\n\n"+"\n\n".join([b for b in re.sub(r"\n\tonMC.*(True|False)","", x).split("\n\n") if bool(re.search("(.|\t)\d+\. Cut\(.*(.|\n)",b))])) #Cuts only
         console.print(flow_table)
 
         #list of list of flows. [i][j] i is leaf, j is plotstep
