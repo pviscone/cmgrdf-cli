@@ -1,5 +1,6 @@
 import os
 import glob
+import copy
 import concurrent
 import traceback
 import uproot
@@ -66,7 +67,7 @@ def plot_th1(fig, ax, file, plot, data_hist, signals):
             continue
         hist = file[process_name].to_hist()
         mlt_lab = ""
-        if process_name in signals and signalMultiplier!=1.:
+        if process_name in signals and signalMultiplier!=1. and not getattr(plot, "density", False):
             hist *= signalMultiplier
             mlt_lab = f" X {signalMultiplier:.1f}"
         color = process_dict.get("color", None)
@@ -98,7 +99,7 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
 
     signal_hist = [file[signal].to_hist()*signalMultiplier for signal in signals if signal in file]
     mlt_lab = ""
-    if signalMultiplier !=1.:
+    if signalMultiplier !=1. and not getattr(plot, "density", False):
         mlt_lab = f" X {signalMultiplier:.1f}"
     signal_labels = [all_processes[signal]["label"]+mlt_lab for signal in signals if signal in file]
     signal_colors = [all_processes[signal].get("color", None) for signal in signals if signal in file]
@@ -147,9 +148,15 @@ def plot_ratio(ax, file, plot, stack_total):
             den_ratio_norm = den_ratio_norm.value
         num_ratio = num_ratio / num_ratio_norm
         den_ratio = den_ratio / den_ratio_norm
+        scale = None
+        ratiorange_ = (0.2,1.8)
+    else:
+        ratiorange_ = copy.deepcopy(ratiorange)
 
     plt.setp(ax[0].get_yticklabels()[0], visible=False)
     ax[0].set_xlabel("")
+    h1_label = all_processes[ratio[0]]["label"].replace("_","\_") if ratio[0] not in ["data", "total"] else ratio[0]
+    h2_label = all_processes[ratio[1]]["label"].replace("_","\_") if ratio[1] not in ["data", "total"] else ratio[1]
 
     if ratiotype_ in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"]:
         ax[1] = plot_comparison(
@@ -158,9 +165,9 @@ def plot_ratio(ax, file, plot, stack_total):
             xlabel=plot.xlabel,
             comparison=ratiotype_,
             ax=ax[1],
-            h1_label=ratio[0].replace("_","\_"),
-            h2_label=ratio[1].replace("_","\_"),
-            comparison_ylim = ratiorange
+            h1_label=h1_label,
+            h2_label=h2_label,
+            comparison_ylim = ratiorange_
             )
     else:
         centers = num_ratio.axes[0].centers
@@ -186,7 +193,7 @@ def plot_ratio(ax, file, plot, stack_total):
             ax[1].legend()
         ax[1].set_ylabel(ylabel)
         ax[1].set_xlabel(plot.xlabel)
-        ax[1].set_ylim(ratiorange)
+        ax[1].set_ylim(ratiorange) #not change with density=True (ratiorange instead of ratiorange_)
     if scale == "log":
         ax[1].set_yscale("log")
 

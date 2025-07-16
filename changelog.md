@@ -12,6 +12,8 @@
 - implemented log scale option for ratio plot (e.g --ratiotype "S/sqrt(S+B):log)
 - implemented --signalMultiplier option
 - implemented drawOnly option
+- fixed ratiorange for density plots
+- plotratio label from process labels instead of process names
 
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default
