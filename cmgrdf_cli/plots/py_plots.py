@@ -24,7 +24,10 @@ def convertToWeightStorage(h):
         return new_h 
 
 #!Have to manually compute yerr because mplhep w2method callable is broken
-def poisson_interval_ignore_empty(sumw, sumw2):
+def poisson_interval_ignore_empty(histogram):
+    histogram = convertToWeightStorage(histogram)
+    sumw = histogram.values()
+    sumw2 = histogram.variances()
     #Set to 0 yerr of empty bins
     interval = error_estimation.poisson_interval(sumw, sumw2)
     lo, hi = interval[0,...], interval[1,...]
@@ -56,7 +59,7 @@ def plot_th1(fig, ax, file, plot, data_hist, signals):
     )
 
     if data_hist:
-        yerr = poisson_interval_ignore_empty(data_hist.values(), data_hist.variances())
+        yerr = poisson_interval_ignore_empty(data_hist)
         data_hist_kwargs = {}
         if len(all_processes)==0:
             data_hist_kwargs["xerr"] = True
@@ -72,7 +75,7 @@ def plot_th1(fig, ax, file, plot, data_hist, signals):
             mlt_lab = f" X {signalMultiplier:.1f}"
         color = process_dict.get("color", None)
         plot_kwargs = process_dict.get("plot_kwargs", {})
-        yerr=poisson_interval_ignore_empty(hist.values(), hist.variances())
+        yerr=poisson_interval_ignore_empty(hist)
         h.add(hist, label=process_dict["label"]+mlt_lab, density = getattr(plot, "density", False), color = color, yerr=yerr, **plot_kwargs)
     return h
 
@@ -90,7 +93,7 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
     )
 
     if data_hist:
-        yerr = poisson_interval_ignore_empty(data_hist.values(), data_hist.variances())
+        yerr = poisson_interval_ignore_empty(data_hist)
         h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", yerr=yerr)
 
     bkg_hist = [file[bkg].to_hist() for bkg in bkgs if bkg in file]
@@ -109,10 +112,10 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
         stack_total = stack_total + sum(signal_hist)
     h.add(bkg_hist, label=bkg_labels, density = getattr(plot, "density", False), color = bkg_colors, stack = True, histtype = "fill")
     signal_histtype = "step" if not stackSignal else "fill"
-    yerr_signal = [poisson_interval_ignore_empty(hist.values(), hist.variances()) for hist in signal_hist]
+    yerr_signal = [poisson_interval_ignore_empty(hist) for hist in signal_hist]
     h.add(signal_hist, label=signal_labels, density = getattr(plot, "density", False), color = signal_colors, stack = stackSignal, histtype = signal_histtype, yerr=yerr_signal)
     h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "step", yerr=False, linewidth=1)
-    yerr_total = poisson_interval_ignore_empty(stack_total.values(), stack_total.variances())
+    yerr_total = poisson_interval_ignore_empty(stack_total)
     h.add(stack_total, density = getattr(plot, "density", False), color = "black", histtype = "band", label="Total Unc.", yerr=yerr_total)
     return h, stack_total
 
