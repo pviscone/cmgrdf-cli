@@ -1,4 +1,4 @@
 [submodule "cmgrdf-prototype"]
 	path = cmgrdf-prototype
 	url = ssh://git@gitlab.cern.ch:7999/cms-new-cmgtools/cmgrdf-prototype.git
-	branch = pviscone_dev
+	branch = dpee
