@@ -155,8 +155,8 @@ def plot_ratio(ax, file, plot, stack_total):
 
     plt.setp(ax[0].get_yticklabels()[0], visible=False)
     ax[0].set_xlabel("")
-    h1_label = all_processes[ratio[0]]["label"].replace("_","\_") if ratio[0] not in ["data", "total"] else ratio[0]
-    h2_label = all_processes[ratio[1]]["label"].replace("_","\_") if ratio[1] not in ["data", "total"] else ratio[1]
+    h1_label = all_processes[ratio[0]]["label"].replace("_",r"\_") if ratio[0] not in ["data", "total"] else ratio[0]
+    h2_label = all_processes[ratio[1]]["label"].replace("_",r"\_") if ratio[1] not in ["data", "total"] else ratio[1]
 
     if ratiotype_ in ["ratio", "split_ratio", "pull", "efficiency", "asymmetry", "difference", "relative_difference"]:
         ax[1] = plot_comparison(
