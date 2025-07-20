@@ -16,11 +16,13 @@ fi
 # Check which platform is being used and source the correct cvmfs script
 source /etc/os-release
 if [[ "$PLATFORM_ID" == "platform:el8" ]]; then
-    echo "You are using el8. It should work, otherwise, use an el9 container:"
+    export PLATFORM="el8"
+    echo "Warning: Dask distributed submission work only on el9."
     echo "apptainer shell -B /eos -B /afs -B /cvmfs /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/sft/docker/alma9:latest"
     source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el8-gcc11-opt/setup.sh
 elif [[ "$PLATFORM_ID" == "platform:el9" ]]; then
-    source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
+    export PLATFORM="el9"
+    source /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc15-opt/setup.sh
 else
     echo "Unsupported platform: $PLATFORM_ID. You must use el8 or el9 (preferred)"
     return 1
