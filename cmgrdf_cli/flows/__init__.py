@@ -34,7 +34,7 @@ class Tree:
 
         if parent and "{leaf}" in name:
             segment_name = name.format(leaf=parent)
-        elif parent and re.match("\{leaf-\d+\}", name):
+        elif parent and re.match(r"\{leaf-\d+\}", name):
             back_steps = int(name.split("{leaf-")[1].split("}")[0])-1
             segment_name = parent
             for _ in range(back_steps):
@@ -66,7 +66,7 @@ class Tree:
         for leaf in leaves:
             if "{leaf}" in name:
                 segment_name = name.format(leaf=leaf)
-            elif re.match("\{leaf-\d+\}", name):
+            elif re.match(r"\{leaf-\d+\}", name):
                 back_steps = int(name.split("{leaf-")[1].split("}")[0])-1
                 segment_name = leaf
                 for _ in range(back_steps):
@@ -134,9 +134,12 @@ class Tree:
                     A.add_edge(edge[0], edge[1], color=B.get_edge(edge[0], edge[1]).attr['color'])
 
         A.layout(prog='dot', args="-Nshape=box -Gfontsize=15 -Nfontsize=15 -Efontsize=15")
-        A.draw(f'{outfile}.pdf')
         A.write(f'{outfile}.dot')
-        os.system(f"(pdftocairo {outfile}.pdf -png -r 200 {outfile} & wait; mv {outfile}-1.png {outfile}.png) &")
+        if os.environ.get("PLATFORM", "el8") == "el8":
+            A.draw(f'{outfile}.pdf')    
+            os.system(f"(pdftocairo {outfile}.pdf -png -r 200 {outfile} & wait; mv {outfile}-1.png {outfile}.png) &")
+        else:
+            A.draw(f'{outfile}.svg')  
 
     def __add__(self, tree):
         new_obj = Tree()
