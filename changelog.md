@@ -14,6 +14,7 @@
 - implemented drawOnly option
 - fixed ratiorange for density plots
 - plotratio label from process labels instead of process names
+- Implemented distributed submission on HTCondor (lxplus9)
 
 fix:
 - log option in histo1d_defaults was always overriden by the pattern_kwarg default

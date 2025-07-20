@@ -46,10 +46,11 @@ def run_analysis(
     plotFormats          : str  = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
 
     #! RDF options
-    ncpu                 : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
+    ncpu                 : int  = typer.Option(-1, "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose              : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
     cache                : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
     cachepath            : str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
+    distributed          : str  = typer.Option(None, "--distributed", help=f"Enable distributed processing (options to pass to lxdask_worker_submit.py)", rich_help_panel="RDF Options"),
 
     #! Debug options
     nevents              : int  = typer.Option(-1, "-n", "--nevents", help="Number of events to process for each file. -1 means all events (nevents != -1 will run on single thread) NB! The genEventSumw is not recomputed, is the one of the full sample", rich_help_panel="Debug"),
@@ -116,7 +117,7 @@ def run_analysis(
     The functions should have just keyword arguments.
     """
     sys.path.append(os.environ["PWD"])
-    
+
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
     console.print(f"[bold red]{center_header('START')}[/bold red]")
@@ -174,13 +175,22 @@ def run_analysis(
     if fullTraceback:
         from traceback_with_variables import activate_by_import  # noqa: F401
     #! -------------------------- RDF CONFIG ---------------------------- !#
-    if ncpu > 1 and nevents == -1:
+    if distributed is None:
+        if ncpu == -1:
+            ncpu = multiprocessing.cpu_count()
+    else:
+        if ncpu == -1:
+            ncpu = 1
+        distributed+= f" --ncpu {ncpu}"
+
+    if ncpu > 1 and nevents == -1 and distributed is None:
         ROOT.EnableImplicitMT(ncpu)
 
     for dec in declare:
         declare_module, declare_kwargs = load_module(dec)
         parse_function(declare_module, "declare", None, declare_kwargs)
-    cpp.load(cpp_folder)
+
+    cpp.load(cpp_folder, distributed=distributed is not None)
     #! ----------------------== Module imports -------------------------- !#
     eras                           = eras.split(",")
     cfg_module    , _              = load_module(cfg)
@@ -215,16 +225,30 @@ def run_analysis(
     #! ---------------------- Print MCCs -------------------------- !#
     print_mcc(console, mccFlow)
 
+    #! -------------------- Processor Kwargs ---------------------- !#
+    processor_kwargs = {}
+
+    #! ---------------------- Distributed ------------------------- !#
+    if distributed:
+        from CMGRDF.data import Source
+        Source.useDefinePerSample = False
+        if int(ROOT.__version__.split(".")[1])<36:
+            raise Exception("To enable dask submission you need ROOT 6.36. Move to lxplus9")
+        from cmgrdf_cli.utils.distributed_utils import get_schedulerProc_and_client
+        scheduler_process, client = get_schedulerProc_and_client(distributed, ncpu)
+        processor_kwargs["executor"] = ('dask', client)
+
+
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
         os.makedirs(folders.cache, exist_ok=True)
-        cache = SimpleCache(folders.cache)
+        processor_kwargs["cache"] = SimpleCache(folders.cache)
     elif nocache is False:
-        cache = SimpleCache(cachepath)
+        processor_kwargs["cache"] = SimpleCache(cachepath)
     else:
         cachepath = -1
-        cache = None
-    maker = Processor(cache=cache)
+        processor_kwargs["cache"] = None
+    maker = Processor(**processor_kwargs)
 
     #! -------------- Print flows table and parse flows -------------------- !#
     #list of list of flows. [i][j] i is leaf, j is plotstep. bool if tree contains a branch
@@ -249,7 +273,7 @@ def run_analysis(
     flow_plots = []
     for flow_list, plot_list in zip(region_flows, region_plots, strict=True):
         #! ---------------------- PRINT THE FLOW ----------------------- !#
-        if not re.search("(\d+)common.*", flow_list[-1].name) and not drawOnly: #Do not print common flows
+        if not re.search(r"(\d+)common.*", flow_list[-1].name) and not drawOnly: #Do not print common flows
             print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
@@ -313,7 +337,7 @@ def run_analysis(
     if plots:
         if not drawOnly:
             plotter = maker.runPlots(mergeEras=mergeEras, debug = targetDebug)
-        
+
             PlotSetPrinter(
                 stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
             ).printSet(plotter, folders.plots_path)
@@ -331,7 +355,7 @@ def run_analysis(
         yields = maker.runYields(mergeEras=mergeErasYields, debug = targetDebug)
         console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
-            if len(region_flows)>1 and re.search("(\d+)common.*", flow_list[-1].name):
+            if len(region_flows)>1 and re.search(r"(\d+)common.*", flow_list[-1].name):
                 continue
             print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
 
@@ -355,6 +379,23 @@ def run_analysis(
         os.system(f'cat {os.path.join(folders.log, "report.txt_temp")} >> {os.path.join(folders.log, "report.txt")}')
         os.remove(os.path.join(folders.log, "report.txt_temp"))
         copy_file_to_subdirectories(os.path.join(os.environ["CMGRDF"], "externals/index.php"), folders.outfolder, ignore=[folders.cache, folders.log])
+
+    if distributed:
+        if client:
+            client.close()
+            print("Dask client closed.")
+
+        if scheduler_process.is_alive():
+            print(f"Terminating Dask scheduler process (PID: {scheduler_process.pid})...")
+            scheduler_process.terminate()
+            scheduler_process.join(timeout=10)
+            if scheduler_process.is_alive():
+                print("Dask scheduler did not terminate gracefully, killing it...")
+                scheduler_process.kill()
+                scheduler_process.join()
+            print("Dask scheduler process terminated.")
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     app()

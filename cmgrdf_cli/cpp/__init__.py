@@ -1,5 +1,6 @@
 import ROOT
 from cmgrdf_cli.utils.log_utils import accessed_files
+from CMGRDF.init import Declare
 import glob
 import os
 
@@ -21,7 +22,7 @@ def include(path):
 def declare(cpp_string):
     ROOT.gInterpreter.Declare(cpp_string)
 
-def load(folder, *files, exclude=[]):
+def load(folder, *files, exclude=[], distributed = False):
     ROOT.gInterpreter.AddIncludePath(folder)
     if files and exclude:
         raise ValueError("Both 'files' and 'exclude' cannot be specified at the same time.")
@@ -30,12 +31,22 @@ def load(folder, *files, exclude=[]):
         for file in files:
             file_path = os.path.join(folder, file)
             print(f"Including {file_path.rsplit('/', 2)[-1]}")
-            ROOT.gInterpreter.Declare(f'#include "{file_path}"')
+
+            if not distributed:
+                ROOT.gInterpreter.Declare(f'#include "{file_path}"')
+            else:
+                Declare(open(file_path).read())
+
     else:
         for ext in cfile_ext:
             for file_path in glob.glob(os.path.join(folder, f"*.{ext}")):
                 if file_path.rsplit("/", 1)[-1] in exclude:
                     continue
                 print(f"Including {file_path.rsplit('/', 2)[-1]}")
-                ROOT.gInterpreter.Declare(f'#include "{file_path}"')
+
+                if not distributed:
+                    ROOT.gInterpreter.Declare(f'#include "{file_path}"')
+                else:
+                    Declare(open(file_path).read())
+
                 accessed_files.append(os.path.abspath(file_path))
