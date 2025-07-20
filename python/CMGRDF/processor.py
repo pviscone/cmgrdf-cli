@@ -399,7 +399,7 @@ class Processor:
                 from CMGRDF.init import RunDistributedInitializer
                 RunDistributedInitializer(self._executor[1])
                 from CMGRDF.init import DistributedInitializerCode
-                ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
+                ROOT.RDF.Distributed.initialize(exec, DistributedInitializerCode())
             self._reports = self._bookCutFlowReports() if makeCutFlowReports else []
             t0 = time.perf_counter()
             r0 = resource.getrusage(resource.RUSAGE_SELF)
@@ -445,7 +445,7 @@ class Processor:
                 from CMGRDF.init import RunDistributedInitializer
                 RunDistributedInitializer(self._executor[1])
                 from CMGRDF.init import DistributedInitializerCode
-                ROOT.RDF.Experimental.Distributed.initialize(exec, DistributedInitializerCode())
+                ROOT.RDF.Distributed.initialize(exec, DistributedInitializerCode())
             t0 = time.perf_counter()
             n0 = len(self._trees)
             print(f"I have a total of {n0} sources to process")
