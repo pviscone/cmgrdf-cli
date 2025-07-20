@@ -29,6 +29,8 @@ if __name__ == '__main__':
     parser.add_argument("-e", "--envfile", help="environment setup file")
     parser.add_argument("-j", "--ncpu", help="number of CPU cores per job (for internal ROOT multithreading)", default=1, type=int)
     parser.add_argument("-m", "--mem", help="memory per core, in GiB", default=2, type=float)
+    parser.add_argument("-a", "--accountingGroup", help="accounting group for the job (default is 'cmgrdf')", default="")
+    parser.add_argument("-t", "--toTransfer", help="Comma separated list of files to transfer", default = "")
     parser.add_argument("--logdir", help="directory for logs")
     parser.add_argument("nworkers", help="number of workers", type=int)
     parser.add_argument("time", help="job duration", nargs="?", default="8h")
@@ -41,22 +43,30 @@ if __name__ == '__main__':
         raise RuntimeError(f"Time should be <number> or <number><unit>, with <uint> = s, m, h, d; got {args.time}")
     (num, unit) = (args.time, 's') if args.time[-1].isdigit() else (args.time[:-1], args.time[-1])
     runtime_secs = int(num) * ({'s': 1, 'm': 60, 'h': 3600, 'd': 24 * 3600}[unit])
+    if args.accountingGroup:
+        accounting_group = f"+AccountingGroup = \"{args.accountingGroup}\"\n"
+    else:
+        accounting_group = ""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".sub") as fp:
         CMGRDF = os.environ['CMGRDF']
-        fp.write(f"""
+        condor_settings=f"""
 CMGRDF = {CMGRDF}
 Universe = vanilla
 Log = {logdir}/job$(Sep).condor
 Output = {logdir}/job$(Sep).out
 Error = {logdir}/job$(Sep).err
 getenv      = True
+transfer_input_files = {args.toTransfer}
 transfer_output_files = ""
 RequestCpus = {args.ncpu}
 +MaxRuntime = {runtime_secs}
+{accounting_group}
 
 Executable = $(CMGRDF)/examples/condor_runner.sh
 Arguments = {envscript} {scheduler} --nworkers 1 --nthreads 1 --memory-limit {args.ncpu * args.mem:.1f}GiB --worker-port 10000:10100
 
-Queue {args.nworkers}\n""".lstrip())
+Queue {args.nworkers}\n""".lstrip()
+        print(f"Submitting with the following settings:\n{condor_settings}")
+        fp.write(condor_settings)
         fp.flush()
         subprocess.check_call(["condor_submit", fp.name])
