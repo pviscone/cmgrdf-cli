@@ -46,7 +46,7 @@ def run_analysis(
     plotFormats          : str  = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
 
     #! RDF options
-    ncpu                 : int  = typer.Option(multiprocessing.cpu_count(), "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
+    ncpu                 : int  = typer.Option(-1, "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
     verbose              : int  = typer.Option(0, "-v", "--verbose", help="Enable RDF verbosity (1 info, 2 debug + 18)", rich_help_panel="RDF Options"),
     cache                : bool = typer.Option(False, "--cache", help="Enable caching", rich_help_panel="RDF Options"),
     cachepath            : str  = typer.Option(None, "--cachepath", help=f"Path to the cache folder (Default is outfolder/{folders.cache})", rich_help_panel="RDF Options"),
@@ -117,7 +117,7 @@ def run_analysis(
     The functions should have just keyword arguments.
     """
     sys.path.append(os.environ["PWD"])
-    
+
     sys.settrace(trace_calls)
     command = " ".join(sys.argv).replace('"', r'\\\"')
     console.print(f"[bold red]{center_header('START')}[/bold red]")
@@ -175,6 +175,14 @@ def run_analysis(
     if fullTraceback:
         from traceback_with_variables import activate_by_import  # noqa: F401
     #! -------------------------- RDF CONFIG ---------------------------- !#
+    if distributed is None:
+        if ncpu == -1:
+            ncpu = multiprocessing.cpu_count()
+    else:
+        if ncpu == -1:
+            ncpu = 1
+        distributed+= f" --ncpu {ncpu}"
+
     if ncpu > 1 and nevents == -1 and distributed is None:
         ROOT.EnableImplicitMT(ncpu)
 
@@ -182,8 +190,7 @@ def run_analysis(
         declare_module, declare_kwargs = load_module(dec)
         parse_function(declare_module, "declare", None, declare_kwargs)
 
-    if distributed is None:
-        cpp.load(cpp_folder)
+    cpp.load(cpp_folder, distributed=distributed is not None)
     #! ----------------------== Module imports -------------------------- !#
     eras                           = eras.split(",")
     cfg_module    , _              = load_module(cfg)
@@ -223,14 +230,14 @@ def run_analysis(
 
     #! ---------------------- Distributed ------------------------- !#
     if distributed:
+        from CMGRDF.data import Source
+        Source.useDefinePerSample = False
         if int(ROOT.__version__.split(".")[1])<36:
             raise Exception("To enable dask submission you need ROOT 6.36. Move to lxplus9")
         from cmgrdf_cli.utils.distributed_utils import get_schedulerProc_and_client
-        scheduler_process, client = get_schedulerProc_and_client(distributed, cpp_folder)
-        from CMGRDF.data import Source
-        Source.useDefinePerSample = False
+        scheduler_process, client = get_schedulerProc_and_client(distributed, ncpu)
         processor_kwargs["executor"] = ('dask', client)
-              
+
 
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
@@ -330,7 +337,7 @@ def run_analysis(
     if plots:
         if not drawOnly:
             plotter = maker.runPlots(mergeEras=mergeEras, debug = targetDebug)
-        
+
             PlotSetPrinter(
                 stack= not noStack, noStackSignals=not stackSignal, plotFormats=plotFormats,
             ).printSet(plotter, folders.plots_path)
@@ -387,6 +394,8 @@ def run_analysis(
                 scheduler_process.kill()
                 scheduler_process.join()
             print("Dask scheduler process terminated.")
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     app()

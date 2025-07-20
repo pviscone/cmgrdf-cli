@@ -1,9 +1,7 @@
-from dask.distributed import Scheduler
-from distributed import Client
+from dask.distributed import Scheduler, Client
 import asyncio
 import multiprocessing
 import os
-from cmgrdf_cli import cpp
 
 def run_dask_scheduler(queue):
     async def start_scheduler():
@@ -13,7 +11,7 @@ def run_dask_scheduler(queue):
         await scheduler.finished()
     asyncio.run(start_scheduler())
 
-def get_schedulerProc_and_client(lxdask_options, cpp_folder):
+def get_schedulerProc_and_client(lxdask_options, ncpu):
     scheduler_address_queue = multiprocessing.Queue()
     scheduler_process = multiprocessing.Process(
         target=run_dask_scheduler,
@@ -30,14 +28,17 @@ def get_schedulerProc_and_client(lxdask_options, cpp_folder):
         if scheduler_process.is_alive():
             scheduler_process.kill()
         exit(1)
+
     os.system(os.path.join(os.environ['CMGRDF'], f"examples/lxdask_worker_submit.py {lxdask_options}"))
     try:
         client = Client(scheduler_address)
+        client.run(exec, "import faulthandler\nfaulthandler.enable()")
         client.run(exec, f"import  ROOT")
-        cpp.load(cpp_folder, client = client)
+        client.run(exec, f"ROOT.EnableImplicitMT({ncpu})")
+
         print(f"Successfully connected to Dask scheduler at: {scheduler_address}")
         print(f"Dask Dashboard Link: {client.dashboard_link}")
     except Exception as e:
         print(f"Error connecting Dask client or running computation: {e}")
     return scheduler_process, client
-    
+
