@@ -175,16 +175,18 @@ def run_analysis(
     if fullTraceback:
         from traceback_with_variables import activate_by_import  # noqa: F401
     #! -------------------------- RDF CONFIG ---------------------------- !#
-    if distributed is None:
-        if ncpu == -1:
-            ncpu = multiprocessing.cpu_count()
+    if ncpu == -1:
+        ncpu = multiprocessing.cpu_count()
+        distributed_cpu = 1
     else:
-        if ncpu == -1:
-            ncpu = 1
-        distributed+= f" --ncpu {ncpu}"
+        distributed_cpu = ncpu
 
-    if ncpu > 1 and nevents == -1 and distributed is None:
-        ROOT.EnableImplicitMT(ncpu)
+    if distributed is not None:
+        ROOT.EnableImplicitMT(multiprocessing.cpu_count())
+        distributed+= f" --ncpu {distributed_cpu}"
+    else:
+        if ncpu > 1 and nevents == -1:
+            ROOT.EnableImplicitMT(ncpu)
 
     for dec in declare:
         declare_module, declare_kwargs = load_module(dec)
@@ -235,7 +237,7 @@ def run_analysis(
         if int(ROOT.__version__.split(".")[1])<36:
             raise Exception("To enable dask submission you need ROOT 6.36. Move to lxplus9")
         from cmgrdf_cli.utils.distributed_utils import get_schedulerProc_and_client
-        scheduler_process, client = get_schedulerProc_and_client(distributed, ncpu)
+        scheduler_process, client = get_schedulerProc_and_client(distributed, distributed_cpu)
         processor_kwargs["executor"] = ('dask', client)
 
 
