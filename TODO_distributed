@@ -1,0 +1,6 @@
+transfer cpp files to worker node to declare
+set ncpu properly
+move lxdask script to cmgrdf cli
+add accounting group option
+remove "Experimental for distributed" in cmgrdf
+call condor_rm -all at the end (even in case of crash, is it possible?)
