@@ -567,9 +567,10 @@ class Hook(ABC):
 class Target:
     """An endpoint of the graph, e.g. a plot, yield, or similar."""
 
-    def __init__(self, name : str, mcOnly : bool = False):
+    def __init__(self, name : str, mcOnly : bool = False, eras : Optional[Container[str]] = None):
         self.name = name
         self.mcOnly = mcOnly
+        self.eras = eras
 
     def attach(self, rdf : Any, sample : Sample, era : Optional[str], withUncertainties : bool) -> Any:
         raise RuntimeError("Must be implemented by subclass")

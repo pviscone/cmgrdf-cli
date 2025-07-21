@@ -277,6 +277,8 @@ class Processor:
                         branch = self._growBranch(src, sflow, withUncertainties=withUncertainties)
                         branchid = branch.longId()
                         for t in targets:
+                            if t.eras is not None and era not in t.eras:
+                                continue
                             if t.mcOnly and not sample.isMC:
                                 continue
                             plotKey = sampleKey.addKeys(name=t.name)
