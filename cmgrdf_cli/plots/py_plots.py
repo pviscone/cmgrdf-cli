@@ -55,7 +55,8 @@ def plot_th1(fig, ax, file, plot, data_hist, signals):
         ax = ax[0],
         grid=grid,
         ylim = getattr(plot, "ylim", None),
-        xlim = getattr(plot, "xlim", None)
+        xlim = getattr(plot, "xlim", None),
+        legend_kwargs = getattr(plot, "legend_kwargs", {})
     )
 
     if data_hist:
@@ -89,7 +90,8 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
         ax = ax[0],
         grid=grid,
         ylim = getattr(plot, "ylim", None),
-        xlim = getattr(plot, "xlim", None)
+        xlim = getattr(plot, "xlim", None),
+        legend_kwargs = getattr(plot, "legend_kwargs", {})
     )
 
     if data_hist:
