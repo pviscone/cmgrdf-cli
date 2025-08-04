@@ -74,6 +74,8 @@ def write_log(command, cachepath):
 
 def copy_imports():
     for file_path in accessed_files:
+        if file_path.startswith("/eos/home-"):
+            file_path = file_path.replace("/eos/home-", "/eos/user/")
         relative_path = file_path.split(main_dir)[1]
         if relative_path.startswith("/"):
             relative_path = relative_path[1:]
