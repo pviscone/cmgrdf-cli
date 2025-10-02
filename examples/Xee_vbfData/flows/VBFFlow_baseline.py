@@ -47,12 +47,12 @@ def flow(hlt = "full", cat = ["PFPF_ID", "PFLP", "LPLP"],):
         tree.add(hlt, [
             #! ------------------------ SanityChecks ----------------------- #
             blind_cut,
-            Cut(hlt, path, plot=hlt, onMC=False),
+            Cut(hlt, path, plot=hlt, onMC=False, onDataDriven=False),
 
             DefineSkimmedCollection("Jet", mask="Jet_jetId & 0x2"), # Jet tight ID
             Cut("nJet>=2", "nJet>=2"),
-            Cut("HLT_EMU_data", f"{hlt_emu[hlt]}", onMC=False),
-            Cut("HLT_EMU_mc", f"{hlt_emu_mc[hlt]}", plot=f"{hlt}_emu", onData=False),            
+            Cut("HLT_EMU_data", f"{hlt_emu[hlt]}", onMC=False, onDataDriven=False),
+            Cut("HLT_EMU_mc", f"{hlt_emu_mc[hlt]}", plot=f"{hlt}_emu", onData=False),
         ])
 
 

@@ -5,7 +5,8 @@
 
 // https://cmshltinfo-dev.app.cern.ch/path/HLT_VBF_DiPFJet125_45_Mjj1050_v
 // https://github.com/cms-sw/cmssw/blob/e00eab5ecfe439676b2530e8e10f758d60bd36e6/HLTrigger/JetMET/src/HLTJetVBFFilter.cc
-
+using namespace ROOT;
+using namespace ROOT::VecOps;
 
 bool HLTPFJetVBFFilter(
     const RVecF &jet_pt,
