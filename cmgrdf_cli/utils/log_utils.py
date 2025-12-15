@@ -186,6 +186,8 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                         passed = (y.central**2) / (y.stat**2) if y.stat != 0 else y.central
 
                     eff = passed / old_passed if old_passed != 0 else 0.
+                    if passed>old_passed and passed-old_passed<1e-5:
+                        passed = old_passed
                     eff_err = ratio_uncertainty(passed, old_passed, uncertainty_type="efficiency") if old_passed != 0 else (0., 0.)
                     cumulative_eff = passed / n_events
                     cumulative_eff_err = ratio_uncertainty(passed, n_events, uncertainty_type="efficiency")
