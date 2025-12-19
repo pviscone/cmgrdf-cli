@@ -21,7 +21,7 @@ def convertToWeightStorage(h):
         for idx in np.ndindex(h.shape):
             value = h[idx]
             new_h[idx] = (value, value)
-        return new_h 
+        return new_h
 
 #!Have to manually compute yerr because mplhep w2method callable is broken
 def poisson_interval_ignore_empty(histogram):
@@ -37,9 +37,9 @@ def poisson_interval_ignore_empty(histogram):
     res = np.array([lo,hi])
     return np.abs(res - sumw)
 
-def parse_hist_file(file):
-    bkgs = [process_name for process_name, process_dict in all_processes.items() if not process_dict.get("signal", False)]
-    signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False)]
+def parse_hist_file(file, processes):
+    bkgs = [process_name for process_name, process_dict in all_processes.items() if not process_dict.get("signal", False) and process_name in processes]
+    signals = [process_name for process_name, process_dict in all_processes.items() if process_dict.get("signal", False) and process_name in processes]
     data_hist = file.get("data", False)
     if data_hist:
         data_hist = data_hist.to_hist()
@@ -142,7 +142,7 @@ def plot_ratio(ax, file, plot, stack_total):
 
     num_ratio = convertToWeightStorage(num_ratio)
     den_ratio = convertToWeightStorage(den_ratio)
-    
+
     #Do not normalize sensitivity
     if getattr(plot, "density", False) and ratiotype_ not in ["S/sqrt(S+B)"]:
         num_ratio_norm = num_ratio.integrate(0)
@@ -239,15 +239,17 @@ def __drawPyPlots(path, plot):
         lumitext = original_lumitext.format(lumi=lumi_dict[era], era=era)
         file = uproot.open(path)
         if len(all_processes) >0:
-            hist_type = str(type(file[list(all_processes.keys())[0]]))
+            file_keys = [k.split(';')[0] for k in file.keys()]
+            keys_intersection = [k for k in all_processes.keys() if k in file_keys]
+            hist_type = str(type(file[keys_intersection[0]]))
         else:
             hist_type = str(type(file["data"]))
             doRatio = False
 
         if "TH1" in hist_type:
             fig, ax = None ,[None, None]
-            data_hist, bkgs, signals = parse_hist_file(file)
-            
+            data_hist, bkgs, signals = parse_hist_file(file, keys_intersection)
+
             if (doRatio and
                 ("data" in ratio and "data" not in file) or
                 ("total" in ratio and noStack) or
@@ -271,7 +273,7 @@ def __drawPyPlots(path, plot):
             save_plot1D(h, path)
 
         elif "TH2" in hist_type:
-            for process_name, process_dict in all_processes.items():
+            for process_name in keys_intersection:
                 if process_name not in file:
                     continue
                 h = plot_th2(file, plot, process_name)
