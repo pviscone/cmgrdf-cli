@@ -138,6 +138,8 @@ class BasePlotter:
         self.name = name
         self.lumitext = lumitext
         self.cmstext = cmstext
+        self.ylim = ylim
+        self.xlim = xlim
 
         hep.cms.text(self.cmstext, ax=self.ax, loc=cmsloc, fontsize=cmstextsize)
         hep.cms.lumitext(self.lumitext, ax=self.ax, fontsize=lumitextsize)
@@ -148,12 +150,19 @@ class BasePlotter:
 
         self.ax.grid(grid)
         if xlim is not None:
-            self.ax.set_xlim(xlim)
+            if isinstance(xlim, tuple):
+                self.ax.set_xlim(xlim)
+            elif isinstance(xlim, dict):
+                self.ax.set_xlim(**xlim)
             self.ax.autoscale_view(scalex=True, scaley=True)
         if ylim is not None:
-            self.ax.set_ylim(ylim)
+            if isinstance(ylim, tuple):
+                self.ax.set_ylim(ylim)
+            elif isinstance(ylim, dict):
+                self.ax.set_ylim(**ylim)
             self.ax.autoscale_view(scalex=True, scaley=True)
 
+        self.log = log
         if "y" in log.lower():
             self.ax.set_yscale("log")
         if "x" in log.lower():
@@ -225,8 +234,23 @@ class TH1(BasePlotter):
 
         if kwargs.get("histtype") == "fill":
             self.ax.set_axisbelow(True)
-            
+
         self.ax.yaxis.offsetText.set_position((-0.1, 0))
+        if self.ylim is not None:
+            if isinstance(self.ylim, tuple):
+                self.ax.set_ylim(self.ylim)
+            elif isinstance(self.ylim, dict):
+                if "bottom" in self.ylim and "top" not in self.ylim:
+                    if kwargs.get("stacked", False):
+                        max_val = np.max(sum([h.values() for h in hist]))
+                    else:
+                        max_val = np.max([np.max(h.values()) for h in hist])
+                    if "y" in self.log.lower():
+                        self.ylim["top"] = max_val * 10
+                    else:
+                        self.ylim["top"] = max_val * 1.2
+                self.ax.set_ylim(**self.ylim)
+            self.ax.autoscale_view(scalex=True, scaley=True)
 
 
 class TH2(BasePlotter):
