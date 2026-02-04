@@ -99,8 +99,12 @@ def plot_stack(fig, ax, file, plot, data_hist, bkgs, signals):
         h.add(data_hist, label="Data", density = getattr(plot, "density", False), color = "black", histtype = "errorbar", yerr=yerr)
 
     bkg_hist = [file[bkg].to_hist() for bkg in bkgs if bkg in file]
+    values = [hist.integrate(0).value for hist in bkg_hist]
+
     bkg_labels = [all_processes[bkg]["label"] for bkg in bkgs if bkg in file]
     bkg_colors = [all_processes[bkg].get("color", None) for bkg in bkgs if bkg in file]
+
+    values, bkg_hist, bkg_labels, bkg_colors = map(list, zip(*sorted(zip(values, bkg_hist, bkg_labels, bkg_colors))))
 
     signal_hist = [file[signal].to_hist()*signalMultiplier for signal in signals if signal in file]
     mlt_lab = ""
