@@ -309,7 +309,6 @@ def run_analysis(
 
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
             pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
-            breakpoint()
             if not noYields and not drawOnly and not getattr(flow_list[-1], "isCommon", False):
                 maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
@@ -358,8 +357,6 @@ def run_analysis(
         yields = maker.runYields(mergeEras=mergeErasYields, debug = targetDebug)
         console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
-            breakpoint()
-            #TODO CHECK
             if len(region_flows)>1 and getattr(flow_list[-1], "isCommon", False):
                 print("skip")
                 continue
