@@ -169,7 +169,7 @@ def run_analysis(
         )
     elif verbose==2:
         verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
-            ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+18
+            ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10
         )
 
     if fullTraceback:
