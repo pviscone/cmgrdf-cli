@@ -8,10 +8,14 @@ import copy
 import re
 from collections import OrderedDict
 
-def split_at_plot(flow_obj, plots_dict):
+def split_at_plot(name, segment_list, plots_dict):
+    steps = [o for segment in segment_list for o in segment.obj]
+    steps_belongs_to = [segment.name for segment in segment_list for i in range(len(segment.obj))]
+    flow_obj = Flow(name, steps)
     flow_list = []
 
     plotted_steps = 0
+    flow_belongs_to = []
     for step_idx, flow_step in enumerate(flow_obj):
         if getattr(flow_step, "plot", False):
             assert isinstance(flow_step.plot, str)
@@ -19,10 +23,13 @@ def split_at_plot(flow_obj, plots_dict):
             flow_name += f"_{flow_step.plot}"
             plotted_steps += 1
             flow_list.append(Flow(flow_name, flow_obj[: step_idx + 1]))
+            flow_belongs_to.append(steps_belongs_to[step_idx])
     if plotted_steps == 0: #if there are no plotsteps append all
         flow_list.append(flow_obj)
+        flow_belongs_to.append(steps_belongs_to[-1])
     elif len(flow_list[-1].steps) < len(flow_obj.steps): #append the rest of the steps il last flowstep does not have plot argument
         flow_list.append(Flow(f"{flow_obj.name}_{plotted_steps}_full", flow_obj.steps))
+        flow_belongs_to.append(steps_belongs_to[-1])
     plot_list = [[] for _ in range(len(flow_list))]
     for idx in range(len(flow_list)):
         rematch = re.match("(.*)_(\d+)_(.*)", flow_list[idx].name)
@@ -34,7 +41,7 @@ def split_at_plot(flow_obj, plots_dict):
             plot_list[idx]+=plots_dict[rematch.group(3)]
         if idx==len(flow_list)-1 and "full" in plots_dict:
             plot_list[idx]+=plots_dict["full"]
-    return flow_list, plot_list #single leaf. list of flow for each plotstep. list of list of Plot to plot at each plotstep
+    return flow_list, plot_list, flow_belongs_to #single leaf. list of flow for each plotstep. list of list of Plot to plot at each plotstep
 
 
 def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noPlotsteps=False, graphviz = True):
@@ -55,7 +62,7 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
             flow_obj = parse_function(flow_module, "flow", Tree, kwargs=flow_kwargs)
 
         isBranched = True if any([len(s.children)>1 for _, s in flow_obj.segments.items()]) else False
-        flows_dict = flow_obj.to_dict() # leaf:steps
+        flows_dict = flow_obj.to_dict(obj = False) # leaf:steps
         if enable!=[""] or disable!=[""]:
             new_flows_dict = OrderedDict({})
             for name in flows_dict:
@@ -79,15 +86,17 @@ def parse_flows(console, flow_config, plots_dict, enable=[""], disable=[""], noP
         #list of list of flows. [i][j] i is leaf, j is plotstep
         region_flows=[]
         region_plots=[]
+        region_belongs_to=[]
 
         #flows_dict is a dict of lists of steps. The dict contains and entry for each leaf
-        for name, steps in flows_dict.items():
-            flow_list, p_list = split_at_plot(Flow(name, steps), plots_dict)
+        for name, segment_list in flows_dict.items():
+            flow_list, p_list, flow_belongs_to = split_at_plot(name, segment_list, plots_dict)
             region_flows.append(flow_list)
             region_plots.append(p_list)
-        return region_flows, region_plots, isBranched
+            region_belongs_to.append(flow_belongs_to)
+        return region_flows, region_plots, isBranched, region_belongs_to
     else:
-        return [[Flow("empty", Cut("empty", "1"))]], [[]], isBranched
+        return [[Flow("empty", Cut("empty", "1"))]], [[]], isBranched, [[]]
 
 
 def get_identical_elem_idxs(region_flows):
@@ -103,7 +112,7 @@ def get_identical_elem_idxs(region_flows):
                 index_map[key] = [(row_index, col_index)]
     return OrderedDict({key: value for key, value in index_map.items() if len(value) > 1})
 
-def _clean_commons(region_obj, elem_idxs, flows=False):
+def _clean_commons(region_obj, elem_idxs, region_belongs_to, flows=False):
     nleafs = len(region_obj)
     new_region_obj = [[] for _ in range(nleafs)]
     common_idx = 0
@@ -119,11 +128,13 @@ def _clean_commons(region_obj, elem_idxs, flows=False):
         idxs = elem_idxs[key]
         common_leafs = tuple([i for i,_ in idxs])
         common_obj = region_obj[idxs[0][0]][idxs[0][1]]
+        common_obj_belong_to = region_belongs_to[idxs[0][0]][idxs[0][1]]
         if flows:
             name = common_obj.name
             re_match = re.search(r"_(\d+)_", name)
-            new_name = f"{common_idx_dict[common_leafs]}common{re_match.group(0)}{name[re_match.end():]}" if re_match else f"{common_idx_dict[common_leafs]}common_{name}"
+            new_name = f"{common_obj_belong_to}{re_match.group(0)}{name[re_match.end():]}" if re_match else f"{common_idx_dict[common_leafs]}common_{name}"
             common_flows[common_idx_dict[common_leafs]].append(Flow(new_name, common_obj.steps))
+            common_flows[common_idx_dict[common_leafs]][-1].isCommon = True
         else:
             common_flows[common_idx_dict[common_leafs]].append(common_obj)
     flat_idxs = [elem_idxs[key] for key in elem_idxs.keys()]
@@ -134,11 +145,11 @@ def _clean_commons(region_obj, elem_idxs, flows=False):
                 new_region_obj[reg_idx].append(region_obj[reg_idx][plt_idx])
     return [*common_flows, *new_region_obj]
 
-def clean_commons(region_flows, region_plots):
+def clean_commons(region_flows, region_plots, region_belongs_to):
     elem_idxs = get_identical_elem_idxs(region_flows)
-    region_flows = _clean_commons(region_flows, elem_idxs, flows = True)
+    region_flows = _clean_commons(region_flows, elem_idxs, region_belongs_to, flows = True)
     if region_plots is not None:
-        region_plots = _clean_commons(region_plots, elem_idxs, flows = False)
+        region_plots = _clean_commons(region_plots, elem_idxs, region_belongs_to, flows = False)
         return region_flows, region_plots
     return region_flows, None
 

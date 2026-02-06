@@ -254,28 +254,28 @@ def run_analysis(
 
     #! -------------- Print flows table and parse flows -------------------- !#
     #list of list of flows. [i][j] i is leaf, j is plotstep. bool if tree contains a branch
-    region_flows, region_plots, isBranched = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps, graphviz = not drawOnly)
-
+    region_flows, region_plots, isBranched, region_belongs_to = parse_flows(console, flow, plots, enable=enableRegions.split(","), disable=disableRegions.split(","), noPlotsteps=noPlotsteps, graphviz = not drawOnly)
     if snapshot:
         snap_flows = copy.deepcopy(region_flows)
 
-    def get_flows(region_flows, region_plots, isBranched, noPlotsteps):
+    def get_flows(region_flows, region_plots, isBranched, region_belongs_to, noPlotsteps):
         if noPlotsteps:
             region_flows = [[r[-1]] for r in region_flows]
             region_plots = [[p[-1]] for p in region_plots] if region_plots is not None else None
+            region_belongs_to = [[b[-1]] for b in region_belongs_to] if region_plots is not None else None
             disable_plotflag(region_flows)
         if isBranched and not noPlotsteps:
-            region_flows, region_plots = clean_commons(region_flows, region_plots)
+            region_flows, region_plots = clean_commons(region_flows, region_plots, region_belongs_to)
         region_plots = [region_plots[idx] for idx in range(len(region_flows)) if region_flows[idx]] if region_plots is not None else None #remove plot elements associated to empty flow_list
         region_flows = [flow_list for flow_list in region_flows if flow_list] #remove empty flow_list
         return region_flows, region_plots
 
-    region_flows, region_plots = get_flows(region_flows, region_plots, isBranched, noPlotsteps)
+    region_flows, region_plots = get_flows(region_flows, region_plots, isBranched, region_belongs_to, noPlotsteps)
 
     flow_plots = []
     for flow_list, plot_list in zip(region_flows, region_plots, strict=True):
         #! ---------------------- PRINT THE FLOW ----------------------- !#
-        if not re.search(r"(\d+)common.*", flow_list[-1].name) and not drawOnly: #Do not print common flows
+        if not getattr(flow_list[-1], "isCommon", False) and not drawOnly: #Do not print common flows
             print_flow(console, flow_list[-1])
 
         #! ---------------------- LOOP ON FLOWS -------------------------- !#
@@ -309,7 +309,8 @@ def run_analysis(
 
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
             pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
-            if not noYields and not drawOnly:
+            breakpoint()
+            if not noYields and not drawOnly and not getattr(flow_list[-1], "isCommon", False):
                 maker.bookCutFlow(all_data, lumi, flow, eras=eras)
 
             if plots:
@@ -319,7 +320,7 @@ def run_analysis(
 
     #! ---------------------- BOOK SNAPSHOT ----------------------!#
     if snapshot and not drawOnly:
-        snap_flows, _ = get_flows(snap_flows, None, isBranched, not snapAllSteps)
+        snap_flows, _ = get_flows(snap_flows, None, isBranched, region_belongs_to, not snapAllSteps)
         for snap_list in snap_flows:
             for snap_flow in snap_list:
                 snap_data_list = []
@@ -357,7 +358,10 @@ def run_analysis(
         yields = maker.runYields(mergeEras=mergeErasYields, debug = targetDebug)
         console.print(f"[bold red]{center_header('YIELDS', s='#')}[/bold red]")
         for flow_list in region_flows:
-            if len(region_flows)>1 and re.search(r"(\d+)common.*", flow_list[-1].name):
+            breakpoint()
+            #TODO CHECK
+            if len(region_flows)>1 and getattr(flow_list[-1], "isCommon", False):
+                print("skip")
                 continue
             print_yields(yields, all_data, [flow_list[-1]], eras, mergeErasYields, console=console)
 
