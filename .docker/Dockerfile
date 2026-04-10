@@ -6,7 +6,7 @@ USER root
 # 2. Install what IS available in dnf
 RUN dnf clean all && \
     dnf install -y epel-release && \
-    dnf install -y poppler-utils zsh bat fzf git curl ripgrep procps-ng rsync graphviz graphviz-devel && \
+    dnf install -y poppler-utils zsh bat fzf git curl ripgrep procps-ng rsync graphviz graphviz-devel voms-clients-java&& \
     dnf clean all
 
 # 3. Manually install 'micro' editor
