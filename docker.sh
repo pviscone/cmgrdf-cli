@@ -50,6 +50,11 @@ mount_if_exists "/eos/user/$USER_INITIAL/$USER_NAME"
 # Check EOS CMS Store
 mount_if_exists "/eos/cms/store/cmst3"
 
+# Check grid certificates
+mount_if_exists "/etc/grid-security"
+mount_if_exists "/etc/vomses"
+
+
 # 5. Run it
 echo "Starting container: $CONTAINER"
 docker run "${DOCKER_FLAGS[@]}" "$CONTAINER" "$@"

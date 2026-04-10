@@ -47,11 +47,15 @@ RUN curl -sSfL https://raw.githubusercontent.com/bootandy/dust/refs/heads/master
 #11. Install rmz and cpz (FUC tools)
 RUN curl -L https://github.com/SUPERCILEX/fuc/releases/download/3.1.1/x86_64-unknown-linux-musl-cpz -o /usr/local/bin/cpz && \
     curl -L https://github.com/SUPERCILEX/fuc/releases/download/3.1.1/x86_64-unknown-linux-musl-rmz -o /usr/local/bin/rmz && \
-    chmod +x /usr/local/bin/cpz /usr/local/bin/rmz
+    curl -L https://github.com/dandavison/delta/releases/download/0.18.2/delta-0.18.2-x86_64-unknown-linux-musl.tar.gz | tar xz --strip-components=1 && \
+    mv delta /usr/local/bin/delta_bin && mv /usr/local/bin/delta_bin /usr/local/bin/delta && \
+    chmod +x /usr/local/bin/cpz /usr/local/bin/rmz /usr/local/bin/delta
 
 #12. Install pygraphviz
 RUN pip install pygraphviz
 
-    
+# 13. FIX OWNERSHIP (The "Clean Slate" Step)                                                                                                                                                                                                                                
+RUN chown -R root:root /usr/local/bin
+ 
 WORKDIR /work
 #CMD ["/bin/zsh"]
