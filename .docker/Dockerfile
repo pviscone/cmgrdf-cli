@@ -52,7 +52,7 @@ RUN curl -L https://github.com/SUPERCILEX/fuc/releases/download/3.1.1/x86_64-unk
     chmod +x /usr/local/bin/cpz /usr/local/bin/rmz /usr/local/bin/delta
 
 #12. Install pygraphviz
-RUN pip install pygraphviz
+RUN pip install pygraphviz XRootD
 
 # 13. FIX OWNERSHIP (The "Clean Slate" Step)                                                                                                                                                                                                                                
 RUN chown -R root:root /usr/local/bin
