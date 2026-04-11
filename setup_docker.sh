@@ -27,6 +27,7 @@ if [[ "$1" == "build" ]]; then
     python3 -m venv "$CMGRDF_CLI/.venv"
     source "$CMGRDF_CLI/.venv/bin/activate"
     pip install -r $CMGRDF_CLI/requirements.txt
+    pip install XRootD uproot
 else
     source "$CMGRDF_CLI/.venv/bin/activate"
 fi
