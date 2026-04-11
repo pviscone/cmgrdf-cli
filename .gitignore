@@ -6,3 +6,4 @@ temp*/
 pyproject.toml
 .vscode/
 .venv
+.apptainer
