@@ -1,3 +1,4 @@
+import itertools
 import os
 import re
 
@@ -19,8 +20,18 @@ cms10 = [
     "#92dadd",
     "#717581",
 ]
+cms10_cycle = itertools.cycle(cms10)
 
-ggplot_palette=('#348ABD','#E24A33', '#988ED5', '#777777', '#FBC15E', '#8EBA42', '#FFB5B8')
+ggplot_palette = (
+    "#348ABD",
+    "#E24A33",
+    "#988ED5",
+    "#777777",
+    "#FBC15E",
+    "#8EBA42",
+    "#FFB5B8",
+)
+ggplot_cycle = itertools.cycle(ggplot_palette)
 
 
 all_data = []
@@ -44,7 +55,7 @@ MCtable.add_column("Selections", style="bold red")
 MCtable.add_column("isSignal", style="bold red")
 
 
-def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
+def AddData(data_dict, friends, era_paths, mccFlow=None, eras=[]):
     if mccFlow is None:
         mcc_steps = []
     else:
@@ -66,10 +77,12 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
             hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
             data_datasets += [
                 DataSample(
-                    f"{sample_name}_Run{era}{subera}", #NEEDED especially for the snapshot (otherwise same filename)
+                    f"{sample_name}_Run{era}{subera}",  # NEEDED especially for the snapshot (otherwise same filename)
                     samples_path.format(subera=subera, name=sample_name, era="{era}"),
                     friends=[
-                        friends_path.format(subera=subera, folder=friend, name="{name}", era="{era}")
+                        friends_path.format(
+                            subera=subera, folder=friend, name="{name}", era="{era}"
+                        )
                         for friend in friends
                     ],
                     eras=[era],
@@ -83,25 +96,42 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras = []):
     if len(data_datasets) > 0:
         all_data.append(Data(data_datasets))
 
+
 #!Add table
-def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=False, processPattern = None):
+def AddMC(
+    all_processes,
+    friends,
+    era_paths,
+    mccFlow=None,
+    eras=[],
+    noXsec=False,
+    processPattern=None,
+):
     if mccFlow is None:
         mcc_steps = []
     else:
         mcc_steps = mccFlow.steps
 
     #! Loop over all processes
-    for (process, process_dict) in all_processes.items():
-        if processPattern and not re.match(processPattern+"$", process):
+    for process, process_dict in all_processes.items():
+        if processPattern and not re.match(processPattern + "$", process):
             continue
         process_list = []
         groups_list = process_dict["groups"]
         label = process_dict["label"]
-        mcgroup_samples=[]
-        datadriven_samples=[]
+        mcgroup_samples = []
+        datadriven_samples = []
         isDataDriven = process_dict.get("isDataDriven", False)
         processtable.add_row(process, "MC" if not isDataDriven else "Data-driven")
-        MCtable.add_row(process, "", "", "", "", "","\u2713" if process_dict.get("signal", False) else "")
+        MCtable.add_row(
+            process,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "\u2713" if process_dict.get("signal", False) else "",
+        )
         #! Loop over all groups
         for group_dict in groups_list:
             group_name = group_dict["name"]
@@ -109,18 +139,22 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
             group_samples_path = group_dict.get("path", False)
             group_friends_path = group_dict.get("friends_path", False)
             cut = getattr(group_dict, "cut", "1")
-            #If eras is not defined in the group but is defined in the process, inherit it
+            # If eras is not defined in the group but is defined in the process, inherit it
             if "eras" in process_dict and "eras" not in group_dict:
                 group_dict["eras"] = process_dict["eras"]
-            MCtable.add_row("", group_name, "", "", str(group_dict.get("eras", eras)) , cut)
+            MCtable.add_row(
+                "", group_name, "", "", str(group_dict.get("eras", eras)), cut
+            )
 
-            #Create MCGroup hook
+            # Create MCGroup hook
             hook_steps = []
 
-            #Attach MCC steps to hooks
+            # Attach MCC steps to hooks
             for mcc_step in mcc_steps:
                 if hasattr(mcc_step, "process") and hasattr(mcc_step, "group"):
-                    raise ValueError("Cannot have both process and group in the same step")
+                    raise ValueError(
+                        "Cannot have both process and group in the same step"
+                    )
                 if hasattr(mcc_step, "process"):
                     if bool(re.match(mcc_step.process, process)):
                         hook_steps.append(mcc_step)
@@ -130,27 +164,31 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
                 else:
                     hook_steps.append(mcc_step)
 
-            #Attach group cuts to hooks
+            # Attach group cuts to hooks
             if cut != "1":
                 hook_steps.append(Cut("Selection", cut))
             hook = Prepend(*hook_steps)
 
             group_xsec = 0
             #! Loop over all samples
-            #FIXME probably accumulating paths!!!
+            # FIXME probably accumulating paths!!!
             for sample_name in samples:
                 sample_dict = samples[sample_name]
                 if not isDataDriven:
                     xsec = sample_dict.get("xsec", "xsec") if not noXsec else None
                     if isinstance(xsec, int):
                         xsec = float(xsec)
-                    group_xsec = group_xsec + xsec if (xsec is not None and group_xsec is not None) else None
+                    group_xsec = (
+                        group_xsec + xsec
+                        if (xsec is not None and group_xsec is not None)
+                        else None
+                    )
                     MCtable.add_row("", "", sample_name, str(xsec), "", "")
                 else:
                     MCtable.add_row("", "", sample_name, "Data-driven", "", "")
 
                 #! Loop over all eras
-                for (era, paths) in era_paths.items():
+                for era, paths in era_paths.items():
                     if era not in eras:
                         continue
                     if "eras" in group_dict and era not in group_dict["eras"]:
@@ -177,32 +215,42 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
                         if key not in ["name", "samples", "eras", "cut"]
                     }
 
-                    #if noXsec:
+                    # if noXsec:
                     #    group_kwargs["genWeightName"] = None
                     #    group_kwargs["weight"] = "1."
                     if not isDataDriven:
                         mcgroup_samples.append(
                             MCSample(
-                            sample_name,
-                            samples_path,
-                            friends=[friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends],
-                            xsec=xsec,
-                            eras=[era],
-                            hooks=[hook],
-                            **group_kwargs,
+                                sample_name,
+                                samples_path,
+                                friends=[
+                                    friends_path.format(
+                                        folder=friend, name="{name}", era="{era}"
+                                    )
+                                    for friend in friends
+                                ],
+                                xsec=xsec,
+                                eras=[era],
+                                hooks=[hook],
+                                **group_kwargs,
                             )
                         )
                     else:
                         datadriven_samples.append(
                             DataDrivenSample(
-                            sample_name,
-                            samples_path,
-                            xsec=None,
-                            friends=[friends_path.format(folder=friend, name="{name}", era="{era}") for friend in friends],
-                            weight = sample_dict.get("weight", "1."),
-                            eras=[era],
-                            hooks=[hook],
-                            **group_kwargs,
+                                sample_name,
+                                samples_path,
+                                xsec=None,
+                                friends=[
+                                    friends_path.format(
+                                        folder=friend, name="{name}", era="{era}"
+                                    )
+                                    for friend in friends
+                                ],
+                                weight=sample_dict.get("weight", "1."),
+                                eras=[era],
+                                hooks=[hook],
+                                **group_kwargs,
                             )
                         )
             if not isDataDriven:
@@ -220,9 +268,13 @@ def AddMC(all_processes, friends, era_paths, mccFlow=None, eras = [], noXsec=Fal
         }
         if len(process_list) > 0:
             process_kwargs["pycolor"] = process_dict.get("color", None)
-            process=Process(process, process_list, label=label, **process_kwargs)
+            process = Process(process, process_list, label=label, **process_kwargs)
             if not isDataDriven:
-                process_xsec = sum([group.xsec for group in process_list]) if None not in [group.xsec for group in process_list] else None
+                process_xsec = (
+                    sum([group.xsec for group in process_list])
+                    if None not in [group.xsec for group in process_list]
+                    else None
+                )
                 process.xsec = process_xsec
             else:
                 process.xsec = 0
