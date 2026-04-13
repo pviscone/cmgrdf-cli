@@ -23,6 +23,7 @@ from cmgrdf_cli.utils.cli_utils import load_module, parse_function, copy_file_to
 from cmgrdf_cli.utils.log_utils import write_log, trace_calls, print_configs, print_dataset, print_mcc, print_flow, print_yields, print_snapshot
 from cmgrdf_cli.utils.flow_utils import parse_flows, clean_commons, disable_plotflag
 from cmgrdf_cli.utils.folders import folders
+from cmgrdf_cli import module_container
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
@@ -194,25 +195,25 @@ def run_analysis(
 
     cpp.load(cpp_folder, distributed=distributed is not None)
     #! ----------------------== Module imports -------------------------- !#
-    eras                           = eras.split(",")
-    cfg_module    , _              = load_module(cfg)
-    plots_module  , plots_kwargs   = load_module(plots)
-    data_module   , data_kwargs    = load_module(data)
-    mc_module     , mc_kwargs      = load_module(mc)
-    mcc_module    , mcc_kwargs     = load_module(mcc)
+    eras                                    = eras.split(",")
+    module_container.cfg   , _              = load_module(cfg)
+    module_container.data  , data_kwargs    = load_module(data)
+    module_container.mc    , mc_kwargs      = load_module(mc)
+    module_container.mcc   , mcc_kwargs     = load_module(mcc)
+    module_container.plots , plots_kwargs   = load_module(plots)
 
-    era_paths_Data = parse_function(cfg_module, "era_paths_Data", dict)
-    era_paths_MC   = parse_function(cfg_module, "era_paths_MC", dict)
-    PFs            = parse_function(cfg_module, "PFs", list)
-    PMCs           = parse_function(cfg_module, "PMCs", list)
+    era_paths_Data = parse_function(module_container.cfg, "era_paths_Data", dict)
+    era_paths_MC   = parse_function(module_container.cfg, "era_paths_MC", dict)
+    PFs            = parse_function(module_container.cfg, "PFs", list)
+    PMCs           = parse_function(module_container.cfg, "PMCs", list)
 
-    DataDict       = parse_function(data_module, "DataDict", dict, kwargs=data_kwargs)
-    all_processes  = parse_function(mc_module, "all_processes", dict, kwargs=mc_kwargs)
-    mccFlow        = parse_function(mcc_module, "mccFlow", Flow, kwargs=mcc_kwargs)
+    DataDict       = parse_function(module_container.data, "DataDict", dict, kwargs=data_kwargs)
+    all_processes  = parse_function(module_container.mc, "all_processes", dict, kwargs=mc_kwargs)
+    mccFlow        = parse_function(module_container.mcc, "mccFlow", Flow, kwargs=mcc_kwargs)
     try:
-        plots      = parse_function(plots_module, "plots", dict, kwargs=plots_kwargs)
+        plots      = parse_function(module_container.plots, "plots", dict, kwargs=plots_kwargs)
     except ValueError:
-        plots      = parse_function(plots_module, "plots", list, kwargs=plots_kwargs)
+        plots      = parse_function(module_container.plots, "plots", list, kwargs=plots_kwargs)
         plots      = {"main" : plots} if plots != [] else {}
 
     #! ---------------------- PRINT CONFIG --------------------------- !#
