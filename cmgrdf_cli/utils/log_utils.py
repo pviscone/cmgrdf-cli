@@ -173,18 +173,10 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                         continue
                     if not started:
                         started = True
-                        if proc.isData:
-                            n_events = y.central
-                            old_passed = y.central
-                        else:
-                            n_events = (y.central**2) / (y.stat**2)
-                            old_passed = (y.central**2) / (y.stat**2) if y.stat != 0 else y.central
+                        n_events = y.central
+                        old_passed = y.central
 
-                    if proc.isData:
-                        passed = y.central
-                    else:
-                        passed = (y.central**2) / (y.stat**2) if y.stat != 0 else y.central
-
+                    passed = y.central
                     eff = passed / old_passed if old_passed != 0 else 0.
                     if passed>old_passed and passed-old_passed<1e-5:
                         passed = old_passed
@@ -192,10 +184,7 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                     cumulative_eff = passed / n_events
                     cumulative_eff_err = ratio_uncertainty(passed, n_events, uncertainty_type="efficiency")
 
-                    if proc.isData:
-                        old_passed = y.central
-                    else:
-                        old_passed = (y.central**2) / (y.stat**2) if y.stat != 0 else y.central
+                    old_passed = y.central
 
                     subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
                     superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
