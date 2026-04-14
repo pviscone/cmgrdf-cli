@@ -311,11 +311,11 @@ def run_analysis(
             #! ---------------------- BOOK Plots and cutflow ----------------------- !#
             pprint(f"[bold red]{center_header(f'Booking flow {flow.name}')}[/bold red]")
             if not noYields and not drawOnly and not getattr(flow_list[-1], "isCommon", False):
-                maker.bookCutFlow(all_data, lumi, flow, eras=eras)
+                maker.bookCutFlow(all_data, lumi, flow, eras=eras, withUncertainties=not noSyst)
 
             if plots:
                 if not drawOnly:
-                    maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=True)
+                    maker.book(all_data, lumi, flow, plot, eras=eras, withUncertainties=not noSyst)
                 flow_plots.append((flow.name, plot))
 
     #! ---------------------- BOOK SNAPSHOT ----------------------!#
