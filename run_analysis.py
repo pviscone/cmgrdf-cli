@@ -164,14 +164,25 @@ def run_analysis(
         os.environ["PYTHONBREAKPOINT"] = "0"
 
     #Do not remove verbosity. If RLogScopedVerbosity is not saved in a variable, it will be deleted and the verbosity will not be set
-    if verbose==1:
-        verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
-            ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
-        )
-    elif verbose==2:
-        verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
-            ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10
-        )
+    root_version =  int(ROOT.__version__.split(".")[1])
+    if root_version < 36:
+        if verbose==1:
+            verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
+                ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kInfo
+            )
+        elif verbose==2:
+            verbosity=ROOT.Experimental.RLogScopedVerbosity(  # noqa: F841
+                ROOT.Detail.RDF.RDFLogChannel(), ROOT.Experimental.ELogLevel.kDebug+10
+            )
+    else:
+        if verbose==1:
+            verbosity=ROOT.RLogScopedVerbosity(  # noqa: F841
+                ROOT.Detail.RDF.RDFLogChannel(), ROOT.ELogLevel.kLogInfo
+            )
+        elif verbose==2:
+            verbosity=ROOT.RLogScopedVerbosity(  # noqa: F841
+                ROOT.Detail.RDF.RDFLogChannel(), ROOT.ELogLevel.kLogDebug+10
+            )
 
     if fullTraceback:
         from traceback_with_variables import activate_by_import  # noqa: F401
