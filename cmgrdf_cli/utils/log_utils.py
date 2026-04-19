@@ -1,6 +1,12 @@
 import os
 
 from CMGRDF import Cut, MultiKey
+from CMGRDF.skimFilters import (
+    TriggerBitFilter,
+    JsonFilter,
+    TriggersDefineDefault,
+    PrescalingSkimmer,
+)
 from hist.intervals import ratio_uncertainty
 from rich.console import Console
 from rich.table import Table
@@ -11,6 +17,7 @@ from cmgrdf_cli.utils.cli_utils import center_header
 main_dir = os.environ["PWD"]  # Path to current shell directory
 cmgrdf_dir = os.environ["CMGRDF_CLI"]  # Path to cmgrdf-cli folder
 accessed_files = []  # List to store the paths of .py files
+
 
 # Trace all the imported py files
 def trace_calls(frame, event, arg):
@@ -45,27 +52,33 @@ def write_log(command, cachepath):
     full_command = f"python {command} {cachestring}"
     commandsh_path = os.path.join(folders.log, "command.sh")
 
-    #-n to not overwrite
+    # -n to not overwrite
     os.system(
         f"cp -n {os.path.join(cmgrdf_dir, 'cmgrdf_cli/utils/command_template.sh')} {commandsh_path}"
     )
 
     # Append the command to the command.sh file checking if it is already there
-    os.system(f'grep -Fxq "{full_command}" {commandsh_path} || echo "{full_command}" >> {commandsh_path}')
+    os.system(
+        f'grep -Fxq "{full_command}" {commandsh_path} || echo "{full_command}" >> {commandsh_path}'
+    )
     # Append the command to the command.sh file
-    #os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(folders.log, "command.sh")}')
+    # os.system(fr'echo "python {command} {cachestring}" >> {os.path.join(folders.log, "command.sh")}')
 
     # Write cmgrdf commit hash and, eventually, git diff to cmdrdf_commit.txt
     os.system(
         f"cd {os.environ['CMGRDF']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'cmgrdf_commit.txt')}"
     )
-    os.system(f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(folders.log, 'cmgrdf_commit.txt')}")
+    os.system(
+        f"cd {os.environ['CMGRDF']} && git diff >> {os.path.join(folders.log, 'cmgrdf_commit.txt')}"
+    )
 
     # Write cmgrdf_cli commit hash and, eventually, git diff to cmgrdf_cli_commit.txt
     os.system(
         f"cd {os.environ['CMGRDF_CLI']} && git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty > {os.path.join(folders.log, 'cmgrdf_cli_commit.txt')}"
     )
-    os.system(f"cd {os.environ['CMGRDF_CLI']} && git diff >> {os.path.join(folders.log, 'cmgrdf_cli_commit.txt')}")
+    os.system(
+        f"cd {os.environ['CMGRDF_CLI']} && git diff >> {os.path.join(folders.log, 'cmgrdf_cli_commit.txt')}"
+    )
 
     # Copy all the accessed files to the log folder
     copy_imports()
@@ -99,7 +112,9 @@ def print_configs(
     PMCs,
 ):
     console.print()
-    config_table = Table(title="Configurations", show_header=True, header_style="bold black")
+    config_table = Table(
+        title="Configurations", show_header=True, header_style="bold black"
+    )
     config_table.add_column("Key", style="bold red")
     config_table.add_column("Value")
     config_table.add_row("ncpu", str(ncpu))
@@ -121,10 +136,18 @@ def print_configs(
     console.print("")
     for era in eras:
         console.print(f"Era: {era}")
-        console.print(f"\tData path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][1])}")
-        console.print(f"\tMC path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][1])}")
-        console.print(f"\tData friend path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][2])}")
-        console.print(f"\tMC friend path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][2])}")
+        console.print(
+            f"\tData path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][1])}"
+        )
+        console.print(
+            f"\tMC path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][1])}"
+        )
+        console.print(
+            f"\tData friend path: {os.path.join(era_paths_Data[era][0], era_paths_Data[era][2])}"
+        )
+        console.print(
+            f"\tMC friend path: {os.path.join(era_paths_MC[era][0], era_paths_MC[era][2])}"
+        )
     console.print("")
 
 
@@ -152,7 +175,12 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
             print()
             for era in eras:
                 suffix = "" if mergeEras else f" ({era})"
-                table = Table(title=f"{proc.name} ({flow.name}){suffix}", show_header=True, header_style="bold black", title_style="bold magenta")
+                table = Table(
+                    title=f"{proc.name} ({flow.name}){suffix}",
+                    show_header=True,
+                    header_style="bold black",
+                    title_style="bold magenta",
+                )
                 table.add_column("Cut", style="bold red")
                 table.add_column("Expr", style="bold red")
                 table.add_column("Pass (+- stat.)", justify="center")
@@ -162,9 +190,23 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                 table.add_column("Plot", justify="center")
                 started = False
                 for cut in flow:
-                    if not isinstance(cut, Cut):
+                    if not isinstance(
+                        cut,
+                        (
+                            Cut,
+                            TriggerBitFilter,
+                            JsonFilter,
+                            TriggersDefineDefault,
+                            PrescalingSkimmer,
+                        ),
+                    ):
                         continue
-                    key_dict = {"flow": flow.name, "process": proc.name, "name": cut.name, "era": era}
+                    key_dict = {
+                        "flow": flow.name,
+                        "process": proc.name,
+                        "name": cut.name,
+                        "era": era,
+                    }
                     if mergeEras:
                         key_dict.pop("era")
                     try:
@@ -175,40 +217,79 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                         started = True
                         n_events = y.central
                         old_passed = y.central
+                        mc_events = (y.central / y.stat) ** 2 if y.stat > 0 else 0
+                        old_mc_passed = mc_events
+
+                    mc_passed = (y.central / y.stat) ** 2 if y.stat > 0 else 0
 
                     passed = y.central
-                    eff = passed / old_passed if old_passed != 0 else 0.
-                    if passed>old_passed and passed-old_passed<1e-5:
+                    eff = passed / old_passed if old_passed != 0 else 0.0
+                    if passed > old_passed and passed - old_passed < 1e-5:
                         passed = old_passed
-                    eff_err = ratio_uncertainty(passed, old_passed, uncertainty_type="efficiency") if old_passed != 0 else (0., 0.)
+                    eff_err = (
+                        ratio_uncertainty(
+                            mc_passed, old_mc_passed, uncertainty_type="efficiency"
+                        )
+                        if old_passed != 0
+                        else (0.0, 0.0)
+                    )
+                    old_mc_passed = (y.central / y.stat) ** 2 if y.stat > 0 else 0
                     cumulative_eff = passed / n_events
-                    cumulative_eff_err = ratio_uncertainty(passed, n_events, uncertainty_type="efficiency")
+                    cumulative_eff_err = ratio_uncertainty(
+                        mc_passed, mc_events, uncertainty_type="efficiency"
+                    )
 
                     old_passed = y.central
 
                     subscripts = str.maketrans("0123456789+-.", "₀₁₂₃₄₅₆₇₈₉₊₋.")
                     superscripts = str.maketrans("0123456789+-.", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻˙")
 
-                    eff_err_minus = f"-{(eff_err[0]*100):.3f}".translate(subscripts)
-                    eff_err_plus = f"+{(eff_err[1]*100):.3f}".translate(superscripts)
-                    cumulative_eff_err_minus = f"-{(cumulative_eff_err[0]*100):.3f}".translate(subscripts)
-                    cumulative_eff_err_plus = f"+{(cumulative_eff_err[1]*100):.3f}".translate(superscripts)
+                    eff_err_minus = f"-{(eff_err[0] * 100):.3f}".translate(subscripts)
+                    eff_err_plus = f"+{(eff_err[1] * 100):.3f}".translate(superscripts)
+                    cumulative_eff_err_minus = (
+                        f"-{(cumulative_eff_err[0] * 100):.3f}".translate(subscripts)
+                    )
+                    cumulative_eff_err_plus = (
+                        f"+{(cumulative_eff_err[1] * 100):.3f}".translate(superscripts)
+                    )
 
-
-                    proc_xsec_err_minus = f"-{(proc.xsec*cumulative_eff_err[0]):.3f}".translate(subscripts) if getattr(proc,"xsec", None) is not None else ""
-                    proc_xsec_err_plus = f"+{(proc.xsec*cumulative_eff_err[1]):.3f}".translate(superscripts) if getattr(proc,"xsec", None) is not None else ""
+                    proc_xsec_err_minus = (
+                        f"-{(proc.xsec * cumulative_eff_err[0]):.3f}".translate(
+                            subscripts
+                        )
+                        if getattr(proc, "xsec", None) is not None
+                        else ""
+                    )
+                    proc_xsec_err_plus = (
+                        f"+{(proc.xsec * cumulative_eff_err[1]):.3f}".translate(
+                            superscripts
+                        )
+                        if getattr(proc, "xsec", None) is not None
+                        else ""
+                    )
+                    if hasattr(cut, "expr"):
+                        expr = cut.expr.split()
+                    else:
+                        expr = ""
                     table.add_row(
                         cut.name,
-                        ' '.join(cut.expr.split()),
+                        " ".join(expr),
                         f"{y.central:.0f} +- {y.stat:.0f}",
-                        f"{(eff*100):.3f}{eff_err_minus}{eff_err_plus}%" if started else "",
-                        f"{(cumulative_eff*100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %" if started else "",
-                        f"{cumulative_eff*proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}" if getattr(proc,"xsec", None) is not None else "",
-                        "\u2713" if getattr(cut, "plot", False) else ""
+                        f"{(eff * 100):.3f}{eff_err_minus}{eff_err_plus}%"
+                        if started
+                        else "",
+                        f"{(cumulative_eff * 100):.3f}{cumulative_eff_err_minus}{cumulative_eff_err_plus} %"
+                        if started
+                        else "",
+                        f"{cumulative_eff * proc.xsec:.3f}{proc_xsec_err_minus}{proc_xsec_err_plus}"
+                        if getattr(proc, "xsec", None) is not None
+                        else "",
+                        "\u2713" if getattr(cut, "plot", False) else "",
                     )
 
                 format_dict = {"era": era, "flow": flow.name}
-                if mergeEras: format_dict.pop("era")
+                if mergeEras:
+                    format_dict.pop("era")
                 os.makedirs(folders.tables_path.format(**format_dict), exist_ok=True)
                 format_dict["name"] = proc.name
                 txt_path = folders.tables.format(**format_dict)
@@ -218,7 +299,13 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                 df = table_to_df(table)
                 txt_dir = os.path.dirname(txt_path)
                 os.makedirs(os.path.join(txt_dir, "csv"), exist_ok=True)
-                df.to_csv(os.path.join(txt_dir, "csv", txt_path.rsplit("/",1)[-1].replace(".txt",".csv")))
+                df.to_csv(
+                    os.path.join(
+                        txt_dir,
+                        "csv",
+                        txt_path.rsplit("/", 1)[-1].replace(".txt", ".csv"),
+                    )
+                )
                 console.print(table)
                 console.print("\n")
                 if mergeEras:
@@ -228,20 +315,21 @@ def print_yields(yields, all_data, flows, eras, mergeEras, console=Console()):
                     f"[bold magenta]{center_header(f'END ERA {era}', padding=10)}[/bold magenta]"
                 )
             console.print("\n")
-    console.print(
-        f"[bold green]{center_header(f'END FLOW {flow.name}')}[/bold green]"
-    )
+    console.print(f"[bold green]{center_header(f'END FLOW {flow.name}')}[/bold green]")
     console.print("\n")
-
 
 
 def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPattern):
     console.print(f"[bold red]{center_header('SNAPSHOTS')}[/bold red]")
     console.print(f"columnSel: {columnSel.split(',') if columnSel is not None else []}")
-    console.print(f"columnVeto: {columnVeto.split(',') if columnVeto is not None else []}")
+    console.print(
+        f"columnVeto: {columnVeto.split(',') if columnVeto is not None else []}"
+    )
     console.print(f"MCpattern: {MCpattern if MCpattern is not None else []}")
     console.print(f"flowPattern: {flowPattern if flowPattern is not None else []}")
-    snapshot_table = Table(title="Snapshots", show_header=True, header_style="bold black")
+    snapshot_table = Table(
+        title="Snapshots", show_header=True, header_style="bold black"
+    )
     snapshot_table.add_column("Flow", style="bold red")
     snapshot_table.add_column("Process")
     snapshot_table.add_column("Sample")
@@ -251,6 +339,12 @@ def print_snapshot(console, report, columnSel, columnVeto, MCpattern, flowPatter
     snapshot_table.add_column("Path")
     for key, snap in report:
         snapshot_table.add_row(
-            key.flow, key.process, key.sample, key.era, f"{snap.entries}", f"{(snap.size/(1024.**3)):9.3f} GB", snap.fname
+            key.flow,
+            key.process,
+            key.sample,
+            key.era,
+            f"{snap.entries}",
+            f"{(snap.size / (1024.0**3)):9.3f} GB",
+            snap.fname,
         )
     console.print(snapshot_table)
