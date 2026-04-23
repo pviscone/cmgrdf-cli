@@ -33,6 +33,30 @@ ggplot_palette = (
 )
 ggplot_cycle = itertools.cycle(ggplot_palette)
 
+color20 = [
+    "#1f77b4",
+    "#aec7e8",  # Blues
+    "#ff7f0e",
+    "#ffbb78",  # Oranges
+    "#2ca02c",
+    "#98df8a",  # Greens
+    "#d62728",
+    "#ff9896",  # Reds
+    "#9467bd",
+    "#c5b0d5",  # Purples
+    "#8c564b",
+    "#c49c94",  # Browns
+    "#e377c2",
+    "#f7b6d2",  # Pinks
+    "#7f7f7f",
+    "#c7c7c7",  # Grays
+    "#bcbd22",
+    "#dbdb8d",  # Olive/Yellows
+    "#17becf",
+    "#9edae5",  # Teals
+]
+
+color20_cycle = itertools.cycle(color20)
 
 all_data = []
 processtable = Table(title="Processes", show_header=True, header_style="bold black")
