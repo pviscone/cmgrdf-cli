@@ -36,8 +36,7 @@ def _eff_plot(inputfolder, outfolder, denom, effplot_name, nums_dict, variable, 
             continue
         denom_h = denom_file[sample].to_hist()
         varlabel = denom_h.axes[0].label
-        sample_label = denom_h.name
-        eff = TEfficiency(xlabel=varlabel, lumitext=f"{sample_label} ({effplot_name})", **teff_kwargs)
+        eff = TEfficiency(xlabel=varlabel, lumitext=f"{sample} ({effplot_name})", **teff_kwargs)
         eff.add_line(y=1, linewidth=1, color="red", linestyle="--", alpha=0.3)
         eff.add_line(y=0.8, linewidth=1, color="red", linestyle="--", alpha=0.3)
         for num, num_label in nums_dict.items():

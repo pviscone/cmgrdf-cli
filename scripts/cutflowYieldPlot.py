@@ -184,6 +184,7 @@ def plot_efficiency(
         ax_yields.set_ylabel("Yield")
         ax_yields.legend(**legend_kwargs)
         ax_yields.set_xticklabels(cuts, rotation=45, ha="right")
+        ax_yields.grid()
         if logyield:
             ax_yields.set_yscale("log")
         mplhep.cms.text("Preliminary", loc=0, ax=ax_yields)
@@ -194,6 +195,7 @@ def plot_efficiency(
         ax_eff.set_ylabel("Cumulative Efficiency")
         ax_eff.legend(**legend_kwargs)
         ax_eff.set_xticklabels(cuts, rotation=45, ha="right")
+        ax_eff.grid()
         if logeff:
             ax_eff.set_yscale("log")
             ax_eff.set_ylim(1e-3, 2e0)
