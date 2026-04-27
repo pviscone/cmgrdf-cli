@@ -146,21 +146,18 @@ def AddData(data_dict, friends, era_paths, lumi, mccFlow=None, eras=[], lumiFrac
                         hooks=[hook],
                     )
                 ]
-            if lumiFrac < 1:
-                print(
-                    f"The actual lumi fraction for era {era} is {total_selected_era_size / total_era_size:.3f} (selected {(total_selected_era_size / 1e3):.2f} GB out of {(total_era_size / 1e3):.2f} GB)"
-                )
-                lumi = {
-                    era: lumi[era] * total_selected_era_size / total_era_size
-                    for era in eras
-                }
-                total_size += total_era_size
-                total_selected_size += total_selected_era_size
         if lumiFrac < 1:
             print(
-                f"The actual lumi fraction for all eras is {total_selected_size / total_size:.3f} (selected {(total_selected_size / 1e3):.2f} GB out of {(total_size / 1e3):.2f} GB)"
+                f"The actual lumi fraction for era {era} is {total_selected_era_size / total_era_size:.3f} (selected {(total_selected_era_size / 1e3):.2f} GB out of {(total_era_size / 1e3):.2f} GB)"
             )
+            lumi[era] = lumi[era] * total_selected_era_size / total_era_size
+            total_size += total_era_size
+            total_selected_size += total_selected_era_size
         datatable.add_section()
+    if lumiFrac < 1:
+        print(
+            f"The actual lumi fraction for all eras is {total_selected_size / total_size:.3f} (selected {(total_selected_size / 1e3):.2f} GB out of {(total_size / 1e3):.2f} GB)"
+        )
     if len(data_datasets) > 0:
         all_data.append(Data(data_datasets))
     return lumi
