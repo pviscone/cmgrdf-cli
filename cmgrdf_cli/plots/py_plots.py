@@ -200,7 +200,7 @@ def plot_ratio(ax, file, plot, stack_total):
         )
         if label:
             ax[1].legend()
-        ax[1].set_ylabel(ylabel)
+        #ax[1].set_ylabel(ylabel)
         ax[1].set_xlabel(plot.xlabel)
         ax[1].set_ylim(ratiorange) #not change with density=True (ratiorange instead of ratiorange_)
     if scale == "log":

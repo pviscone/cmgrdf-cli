@@ -13,7 +13,6 @@ from typing_extensions import Annotated
 
 import ROOT
 from CMGRDF import Processor, PlotSetPrinter, Flow, Range, SimpleCache, MultiKey, Snapshot
-from CMGRDF.cms.eras import lumis as lumi
 from CMGRDF.stat import DatacardWriter
 
 from cmgrdf_cli.data import AddMC, AddData, all_data, processtable, datatable, MCtable
@@ -45,6 +44,7 @@ def run_analysis(
     noSyst               : bool = typer.Option(False, "--noSyst", help="Disable systematics", rich_help_panel="Configs"),
     noXsec               : bool = typer.Option(False, "--noXsec", help="Ignore all the cross-sections and assign unitary weight to all the events", rich_help_panel="Configs"),
     plotFormats          : str  = typer.Option("root", "--plotFormats", help="Formats to save the plots. Available root,txt (comma separated)", rich_help_panel="Configs"),
+    lumiFrac             : float = typer.Option(1.0, "--lumiFrac", help="Fraction of the lumi to run on (computed on file size)", rich_help_panel="Configs"),
 
     #! RDF options
     ncpu                 : int  = typer.Option(-1, "-j", "--ncpu", help="Number of cores to use", rich_help_panel="RDF Options"),
@@ -232,7 +232,8 @@ def run_analysis(
     os.makedirs(folders.outfolder, exist_ok=True)
 
     #! ---------------------- DATASET BUILDING ----------------------- !#
-    AddData(DataDict, era_paths=era_paths_Data, friends=PFs, mccFlow=mccFlow, eras = eras)
+    from CMGRDF.cms.eras import lumis as lumi
+    lumi = AddData(DataDict, era_paths=era_paths_Data, lumi=lumi, friends=PFs, mccFlow=mccFlow, eras = eras, lumiFrac=lumiFrac)
     AddMC(all_processes, era_paths=era_paths_MC, friends=PMCs, mccFlow=mccFlow, eras = eras, noXsec=noXsec, processPattern=processPattern)
     print_dataset(console, processtable, datatable, MCtable, eras)
 

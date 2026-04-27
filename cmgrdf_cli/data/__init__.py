@@ -2,10 +2,12 @@ import itertools
 import os
 import re
 
+from rich.table import Table
+
 from CMGRDF import Data, DataSample, DataDrivenSample, MCSample, Process, Cut, MCGroup
 from CMGRDF.modifiers import Prepend
 
-from rich.table import Table
+from cmgrdf_cli.utils.files import get_file_sizes, select_files_by_fraction
 
 # cms palette list (10 colors version)
 cms10 = [
@@ -79,13 +81,17 @@ MCtable.add_column("Selections", style="bold red")
 MCtable.add_column("isSignal", style="bold red")
 
 
-def AddData(data_dict, friends, era_paths, mccFlow=None, eras=[]):
+def AddData(data_dict, friends, era_paths, lumi, mccFlow=None, eras=[], lumiFrac=1.0):
+    assert lumiFrac <= 1.0 and lumiFrac > 0, "lumiFrac must be between 0 and 1"
+
     if mccFlow is None:
         mcc_steps = []
     else:
         mcc_steps = mccFlow.steps
 
     data_datasets = []
+    total_size = 0
+    total_selected_size = 0
     for era, samples in data_dict.items():
         if era not in eras:
             continue
@@ -93,35 +99,75 @@ def AddData(data_dict, friends, era_paths, mccFlow=None, eras=[]):
         P0, samples_path, friends_path = era_paths[era]
         samples_path = os.path.join(P0, samples_path)
         friends_path = os.path.join(P0, friends_path)
+        size_offset = 0
+        total_selected_era_size = 0
+        total_era_size = 0
         for sample in samples:
             sample_name, suberas, triggers = sample
             processtable.add_row(sample_name, "Data")
             datatable.add_row("", sample_name, str(suberas), triggers)
             filtered_mcc = [step for step in mcc_steps if step.onData]
             hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
-            data_datasets += [
-                DataSample(
-                    f"{sample_name}_Run{era}{subera}",  # NEEDED especially for the snapshot (otherwise same filename)
-                    samples_path.format(subera=subera, name=sample_name, era="{era}"),
-                    friends=[
-                        friends_path.format(
-                            subera=subera, folder=friend, name="{name}", era="{era}"
+
+            for subera in suberas:
+                if lumiFrac < 1:
+                    file_sizes = get_file_sizes(
+                        samples_path.format(subera=subera, name=sample_name, era=era)
+                    )
+                    total_era_size += sum([f / 1e6 for f in file_sizes.values()])
+                    selected_files, selected_size, size_offset = (
+                        select_files_by_fraction(
+                            file_sizes, lumiFrac, offset=size_offset
                         )
-                        for friend in friends
-                    ],
-                    eras=[era],
-                    era=era,
-                    subera=subera,
-                    hooks=[hook],
+                    )
+                    total_selected_era_size += selected_size / 1e6
+                else:
+                    selected_files = samples_path.format(
+                        subera=subera, name=sample_name, era=era
+                    )
+                data_datasets += [
+                    DataSample(
+                        f"{sample_name}_Run{era}{subera}",  # NEEDED especially for the snapshot (otherwise same filename)
+                        selected_files,
+                        friends=[
+                            friends_path.format(
+                                subera=subera,
+                                folder=friend,
+                                name=f"{sample_name}_Run{era}{subera}",
+                                era=era,
+                            )
+                            for friend in friends
+                        ]
+                        if friends
+                        else None,
+                        eras=[era],
+                        era=era,
+                        subera=subera,
+                        hooks=[hook],
+                    )
+                ]
+            if lumiFrac < 1:
+                print(
+                    f"The actual lumi fraction for era {era} is {total_selected_era_size / total_era_size:.3f} (selected {(total_selected_era_size / 1e3):.2f} GB out of {(total_era_size / 1e3):.2f} GB)"
                 )
-                for subera in suberas
-            ]
+                lumi = {
+                    era: lumi[era] * total_selected_era_size / total_era_size
+                    for era in eras
+                }
+                total_size += total_era_size
+                total_selected_size += total_selected_era_size
+        if lumiFrac < 1:
+            print(
+                f"The actual lumi fraction for all eras is {total_selected_size / total_size:.3f} (selected {(total_selected_size / 1e3):.2f} GB out of {(total_size / 1e3):.2f} GB)"
+            )
         datatable.add_section()
     if len(data_datasets) > 0:
         all_data.append(Data(data_datasets))
+    return lumi
 
 
 #!Add table
+#TODO: Implement mcFrac, to fetch from the dictionary. Useful especially for datadriven samples
 def AddMC(
     all_processes,
     friends,
