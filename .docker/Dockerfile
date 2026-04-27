@@ -3,9 +3,6 @@ FROM gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el10-root-master:
 
 USER root
 
-#Update CMSJMECalculators
-RUN pip install --upgrade git+https://gitlab.cern.ch/cp3-cms/CMSJMECalculators.git@3320baa4fbf5867eb9e470a70f08e06c26d5ba6c
-
 # 2. Install what IS available in dnf
 RUN dnf clean all && \
     dnf install -y epel-release && \
@@ -56,8 +53,13 @@ RUN curl -L https://github.com/SUPERCILEX/fuc/releases/download/3.1.1/x86_64-unk
 #12. Install pygraphviz
 RUN pip install pygraphviz XRootD
 
-# 13. FIX OWNERSHIP (The "Clean Slate" Step)                                                                                                                                                                                                                                
+# 13. FIX OWNERSHIP (The "Clean Slate" Step)
 RUN chown -R root:root /usr/local/bin
+
+#Update CMSJMECalculators
+RUN pip install --upgrade correctionlib==2.8.0 git+https://gitlab.cern.ch/cp3-cms/CMSJMECalculators.git@3320baa4fbf5867eb9e470a70f08e06c26d5ba6c
+ENV LD_LIBRARY_PATH="/usr/local/lib64/python3.12/site-packages/correctionlib/lib:${LD_LIBRARY_PATH}"
+
  
 WORKDIR /work
 #CMD ["/bin/zsh"]
