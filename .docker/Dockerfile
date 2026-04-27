@@ -3,6 +3,9 @@ FROM gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el10-root-master:
 
 USER root
 
+#Update CMSJMECalculators
+RUN pip install --upgrade git+https://gitlab.cern.ch/cp3-cms/CMSJMECalculators.git@3320baa4fbf5867eb9e470a70f08e06c26d5ba6c
+
 # 2. Install what IS available in dnf
 RUN dnf clean all && \
     dnf install -y epel-release && \
@@ -28,8 +31,7 @@ RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linu
     rm nvim-linux-x86_64.tar.gz
 
 # 7. Manually install 'fd'
-RUN URL=$(curl -s https://api.github.com/repos/sharkdp/fd/releases/latest | grep "browser_download_url.*x86_64-unknown-linux-musl.tar.gz" | cut -d '"' -f 4) && \
-    curl -L "$URL" | tar xz --strip-components=1 && \
+RUN curl -L "https://github.com/sharkdp/fd/releases/download/v10.4.2/fd-v10.4.2-x86_64-unknown-linux-musl.tar.gz" | tar xz --strip-components=1 && \
     mv fd /usr/local/bin/ && \
     rm -f autocomplete/* README.md LICENSE*
 
