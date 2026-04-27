@@ -34,7 +34,17 @@ bind_if_exists() {
 bind_if_exists "/cvmfs"
 bind_if_exists "/eos"
 bind_if_exists "/afs"
-bind_if_exists "/etc/grid-security"
+
+# Machine-specific logic for grid-security
+if [[ $(hostname) == *"olhsw"* ]]; then
+    echo "Special host detected (olhsw). Mapping CVMFS grid-security to /etc/grid-security..."
+    # Bind the CVMFS path DIRECTLY to the container's /etc/grid-security
+    # This effectively acts like the symlink you wanted inside the container.
+    APPTAINER_FLAGS+=("-B" "/cvmfs/cms.cern.ch/grid/etc/grid-security:/etc/grid-security")
+else
+    bind_if_exists "/etc/grid-security"
+fi
+
 bind_if_exists "/etc/vomses"
 
 # 7. Run
