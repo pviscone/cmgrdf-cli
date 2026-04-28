@@ -154,7 +154,7 @@ def AddData(data_dict, friends, era_paths, lumi, mccFlow=None, eras=[], lumiFrac
             total_size += total_era_size
             total_selected_size += total_selected_era_size
         datatable.add_section()
-    if lumiFrac < 1:
+    if lumiFrac < 1 and data_dict:
         print(
             f"The actual lumi fraction for all eras is {total_selected_size / total_size:.3f} (selected {(total_selected_size / 1e3):.2f} GB out of {(total_size / 1e3):.2f} GB)"
         )
