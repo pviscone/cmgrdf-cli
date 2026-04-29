@@ -34,6 +34,7 @@ bind_if_exists() {
 bind_if_exists "/cvmfs"
 bind_if_exists "/eos"
 bind_if_exists "/afs"
+bind_if_exists "/data"
 
 # Machine-specific logic for grid-security
 if [[ $(hostname) == *"olhsw"* ]]; then
