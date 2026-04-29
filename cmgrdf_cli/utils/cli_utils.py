@@ -50,7 +50,7 @@ def load_module(filepath):
 def parse_function(module, name, typ, kwargs={}):
     if module is None:
         if typ is Flow:
-            return Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
+            return Flow("alwaysTrue", [Cut("alwaysTrue", "true")])
         elif typ is None:
             return None
         else:
@@ -58,7 +58,7 @@ def parse_function(module, name, typ, kwargs={}):
 
     if typ is Flow:
         obj = getattr(
-            module, name, Flow("alwaysTrue", [Cut("alwaysTrue", "1")])
+            module, name, Flow("alwaysTrue", [Cut("alwaysTrue", "true")])
         )  # typ or function that returns typ
     elif typ is None:
         obj = getattr(
@@ -84,7 +84,7 @@ def parse_function(module, name, typ, kwargs={}):
     if isinstance(obj, Tree):
         for segment in obj.segments:
             if obj.segments[segment].isHead:
-                obj.segments[segment].obj.insert(0, Cut("nEvents", "1"))
+                obj.segments[segment].obj.insert(0, Cut("nEvents", "true"))
 
     return obj
 
