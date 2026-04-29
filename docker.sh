@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 1. Handle Container argument (usage: ./script.sh custom-image:tag)
-CONTAINER=${1:-"el10-root-master:latest"}
+CONTAINER=${1:-"el9-root-master:latest"}
 shift
 
 USER_NAME=$(whoami)
@@ -25,7 +25,7 @@ DOCKER_FLAGS+=("-u" "$(id -u):$(id -g)")
 DOCKER_FLAGS+=("-v" "$(pwd):$(pwd)")  # Mount current host dir to same path in container
 DOCKER_FLAGS+=("-w" "$(pwd)")         # Set the starting directory inside the container
 DOCKER_FLAGS+=("-e" "PYTHONNOUSERSITE=1")
-DOCKER_FLAGS+=("-e" "PYTHONPATH=/usr/local/root_install/lib:/usr/local/lib64/python3.12/site-packages:/usr/local/lib/python3.12/site-packages")
+DOCKER_FLAGS+=("-e" "PYTHONPATH=/usr/local/root_install/lib:/usr/local/lib64/python3.11/site-packages:/usr/local/lib/python3.11/site-packages")
 DOCKER_FLAGS+=("-e" "LD_PRELOAD=")
 
 # 4. Conditional Mounts (CVMFS, AFS, EOS)

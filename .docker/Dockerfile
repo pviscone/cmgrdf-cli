@@ -1,12 +1,12 @@
 # 1. Use the CERN image as the base
-FROM gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el10-root-master:latest
+FROM gitlab-registry.cern.ch/cms-new-cmgtools/cmgrdf-prototype/el9-root-master:2.1
 
 USER root
 
 # 2. Install what IS available in dnf
 RUN dnf clean all && \
     dnf install -y epel-release && \
-    dnf install -y poppler-utils zsh bat fzf git curl ripgrep procps-ng rsync graphviz graphviz-devel voms-clients-java&& \
+    dnf install -y poppler-utils zsh bat fzf git curl ripgrep procps-ng rsync graphviz graphviz-devel voms-clients-java && \
     dnf clean all
 
 # 3. Manually install 'micro' editor
@@ -53,13 +53,36 @@ RUN curl -L https://github.com/SUPERCILEX/fuc/releases/download/3.1.1/x86_64-unk
 #12. Install pygraphviz
 RUN pip install pygraphviz XRootD
 
-# 13. FIX OWNERSHIP (The "Clean Slate" Step)
+#13. Install condor and slurm
+RUN printf "[batch9el-stable]\n\
+name=batch9el-stable\n\
+baseurl=http://linuxsoft.cern.ch/internal/repos/batch9el-stable/x86_64/os\n\
+enabled=1\n\
+gpgcheck=0\n" > /etc/yum.repos.d/batch9el-stable.repo
+
+RUN printf "[htcondor-release]\n\
+name=HTCondor 24.x EL9 Release\n\
+baseurl=https://linuxsoft.cern.ch/mirror/research.cs.wisc.edu/htcondor/repo/24.x/el9/x86_64/release\n\
+enabled=1\n\
+gpgcheck=0\n" > /etc/yum.repos.d/htcondor.repo
+
+RUN printf "[epel]\n\
+name=epel\n\
+baseurl=http://linuxsoft.cern.ch/epel/9/Everything/x86_64\n\
+enabled=1\n\
+gpgcheck=0\n" > /etc/yum.repos.d/epel.repo
+
+#slurm slurm-slurmctld slurm-slurmdbd slurm-slurmd munge && \
+RUN dnf install -y condor myschedd ngbauth-submit strace psmisc python3-condor perf lldb && \
+    dnf clean all
+
+# 15. FIX OWNERSHIP (The "Clean Slate" Step)
 RUN chown -R root:root /usr/local/bin
 
 #Update CMSJMECalculators
-RUN pip install --upgrade correctionlib==2.8.0 git+https://gitlab.cern.ch/cp3-cms/CMSJMECalculators.git@3320baa4fbf5867eb9e470a70f08e06c26d5ba6c
-ENV LD_LIBRARY_PATH="/usr/local/lib64/python3.12/site-packages/correctionlib/lib:${LD_LIBRARY_PATH}"
+#RUN pip install --upgrade correctionlib==2.8.0 git+https://gitlab.cern.ch/cp3-cms/CMSJMECalculators.git@3320baa4fbf5867eb9e470a70f08e06c26d5ba6c
+ENV LD_LIBRARY_PATH="/usr/local/lib64/python3.11/site-packages/correctionlib/lib:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="/usr/local/root_install/lib:/usr/local/lib64/python3.11/site-packages:/usr/local/lib/python3.11/site-packages"
 
- 
 WORKDIR /work
 #CMD ["/bin/zsh"]
