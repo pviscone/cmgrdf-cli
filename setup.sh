@@ -22,7 +22,7 @@ if [[ "$PLATFORM_ID" == "platform:el8" ]]; then
     source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el8-gcc11-opt/setup.sh
 elif [[ "$PLATFORM_ID" == "platform:el9" ]]; then
     export PLATFORM="el9"
-    source /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc15-opt/setup.sh
+    source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-el9-gcc15-opt/setup.sh
 else
     echo "Unsupported platform: $PLATFORM_ID. You must use el8 or el9 (preferred)"
     return 1
