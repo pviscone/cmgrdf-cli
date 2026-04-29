@@ -8,7 +8,7 @@ export APPTAINER_CACHEDIR="$BASEAPPTAINER/cache"
 mkdir -p "$APPTAINER_TMPDIR" "$APPTAINER_CACHEDIR"
 
 # 2. Container Image
-CONTAINER_URI=${1:-"docker://pviscone/cmgrdf-cli:el10-root-master"}
+CONTAINER_URI=${1:-"docker://pviscone/cmgrdf-cli:el9-root-master"}
 shift
 
 # 3. Detect SSH Key
@@ -23,27 +23,58 @@ APPTAINER_FLAGS=("--userns")
 # 5. Environment Variables (Internal to Container)
 export APPTAINERENV_GIT_SSH_COMMAND="ssh -i $SSH_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
 export APPTAINERENV_PYTHONNOUSERSITE=1
-export APPTAINERENV_PYTHONPATH="/usr/local/root_install/lib:/usr/local/lib64/python3.12/site-packages:/usr/local/lib/python3.12/site-packages"
+export APPTAINERENV_PYTHONPATH="/usr/local/root_install/lib:/usr/local/lib64/python3.11/site-packages:/usr/local/lib/python3.11/site-packages"
 
 # 6. Bind Mounts
 bind_if_exists() {
-    [ -d "$1" ] && APPTAINER_FLAGS+=("-B" "$1:$1")
+    # -e checks if the path exists (works for both files and directories)
+    if [ -e "$1" ]; then
+        APPTAINER_FLAGS+=("-B" "$1:$1")
+    fi
 }
 
 # Standard CERN/CMS mounts
 bind_if_exists "/cvmfs"
 bind_if_exists "/eos"
 bind_if_exists "/afs"
+bind_if_exists "/tmp"
+
+# Openlab/vocms machine specific
 bind_if_exists "/data"
+
+# T3PSI specific
 bind_if_exists "/scratch"
 bind_if_exists "/t3home"
 bind_if_exists "/swshare"
 bind_if_exists "/pnfs"
 bind_if_exists "/work"
-bind_if_exists "/tmp"
 
 
-# Machine-specific logic for grid-security
+# --- HTCondor / Security Binds ---
+# Bind the actual HTCondor configuration from LXPLUS host
+bind_if_exists "/etc/condor"
+bind_if_exists "/etc/pki/tls/certs"
+bind_if_exists "/etc/ngauth_batch_crypt_pub.pem"
+bind_if_exists "/etc/krb5.conf"
+bind_if_exists "/etc/krb5.conf.d"
+bind_if_exists "/etc/krb5.keytab"
+bind_if_exists "/etc/myschedd"
+bind_if_exists "/usr/share/ngbauth-submit"
+bind_if_exists "/etc/sysconfig/ngbauth-submit"
+
+
+# Bind the Kerberos ticket file itself (usually in /tmp)
+if [[ "$KRB5CCNAME" == FILE:* ]]; then
+    TKPATH="${KRB5CCNAME#FILE:}"
+    bind_if_exists "$TKPATH"
+elif [[ -n "$KRB5CCNAME" ]]; then
+    bind_if_exists "$KRB5CCNAME"
+fi
+APPTAINER_FLAGS+=("-B" "${KRB5CCNAME#FILE:}:${KRB5CCNAME#FILE:}")
+export APPTAINERENV_KRB5CCNAME="$KRB5CCNAME"
+
+# Grid certificates (rebind from cvmfs for openlab machines)
+# --- OPENLAB SPECIFIC BINDS ---
 if [[ $(hostname) == *"olhsw"* ]]; then
     echo "Special host detected (olhsw). Mapping CVMFS grid-security to /etc/grid-security..."
     # Bind the CVMFS path DIRECTLY to the container's /etc/grid-security
@@ -52,8 +83,8 @@ if [[ $(hostname) == *"olhsw"* ]]; then
 else
     bind_if_exists "/etc/grid-security"
 fi
-
 bind_if_exists "/etc/vomses"
+
 
 # 7. Run
 echo "Running in HOST network mode..."
