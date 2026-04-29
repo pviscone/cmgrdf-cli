@@ -35,6 +35,13 @@ bind_if_exists "/cvmfs"
 bind_if_exists "/eos"
 bind_if_exists "/afs"
 bind_if_exists "/data"
+bind_if_exists "/scratch"
+bind_if_exists "/t3home"
+bind_if_exists "/swshare"
+bind_if_exists "/pnfs"
+bind_if_exists "/work"
+bind_if_exists "/tmp"
+
 
 # Machine-specific logic for grid-security
 if [[ $(hostname) == *"olhsw"* ]]; then
