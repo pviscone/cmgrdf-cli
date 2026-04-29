@@ -107,7 +107,10 @@ def AddData(data_dict, friends, era_paths, lumi, mccFlow=None, eras=[], lumiFrac
             processtable.add_row(sample_name, "Data")
             datatable.add_row("", sample_name, str(suberas), triggers)
             filtered_mcc = [step for step in mcc_steps if step.onData]
-            hook = Prepend(*[*filtered_mcc, Cut("Trigger", triggers)])
+            hook_list = [*filtered_mcc]
+            if triggers is not None:
+                hook_list.append(Cut("Trigger", triggers))
+            hook = Prepend(*hook_list)
 
             for subera in suberas:
                 if lumiFrac < 1:
