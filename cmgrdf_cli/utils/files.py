@@ -27,11 +27,11 @@ def select_files_by_fraction(file_sizes, fraction, offset=0):
     # Greedy accumulation: add files as long as it brings us closer to target
     selected = []
     current_size = 0
-    for f in files:
+    for idx, f in enumerate(files):
         size = file_sizes[f]
         before = abs(target - current_size)
         after = abs(target - (current_size + size))
-        if after <= before:
+        if after <= before or idx==0:
             selected.append(f)
             current_size += size
         else:
