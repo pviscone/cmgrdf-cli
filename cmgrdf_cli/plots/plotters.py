@@ -307,8 +307,8 @@ class TEfficiency(BasePlotter):
         den_h = convert_to_hist(den)[self.rebin]
         num = num_h.to_numpy()
         edges = num[1]
-        num = num[0]
-        den = den_h.to_numpy()[0]
+        num = np.floor((num_h.values()**2) / num_h.variances())
+        den = np.ceil((den_h.values()**2) / den_h.variances())
         centers = (edges[:-1] + edges[1:]) / 2
         eff = np.nan_to_num(num / den, 0)
         if "marker" not in kwargs:
@@ -321,10 +321,8 @@ class TEfficiency(BasePlotter):
             self.ax.plot(centers, eff, **kwargs)
 
         if self.yerr:
-            mc_num = np.floor((num_h.values()**2) / num_h.variances())
-            mc_den = np.ceil((den_h.values()**2) / den_h.variances())
             try:
-                err = np.nan_to_num(intervals.ratio_uncertainty(mc_num, mc_den, "efficiency"), 0)
+                err = np.nan_to_num(intervals.ratio_uncertainty(num, den, "efficiency"), 0)
             except ValueError:
                 err = np.zeros_like(eff)
                 print(f"Error in {self.name} for {num_h.name} / {den_h.name}")
