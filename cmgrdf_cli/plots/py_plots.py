@@ -249,6 +249,7 @@ def __drawPyPlots(path, plot):
         else:
             hist_type = str(type(file["data"]))
             doRatio = False
+            keys_intersection = []
 
         if "TH1" in hist_type:
             fig, ax = None ,[None, None]
