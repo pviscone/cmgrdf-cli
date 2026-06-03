@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import uproot
 import glob
-from cmgrdf_cli.plots.plotters import TEfficiency, set_palette, ggplot_palette
+from cmgrdf_cli.plots.plotters import TEfficiency, set_palette, color20
 from cmgrdf_cli.utils.cli_utils import copy_file_to_subdirectories
 import concurrent
 import typer
@@ -14,7 +14,7 @@ from typing_extensions import Annotated
 from typing import Tuple
 import yaml
 
-set_palette(ggplot_palette)
+set_palette(color20)
 
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 

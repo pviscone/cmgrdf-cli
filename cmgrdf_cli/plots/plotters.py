@@ -44,6 +44,30 @@ acab_palette = (
 
 ggplot_palette=('#348ABD','#E24A33', '#988ED5', '#777777', '#FBC15E', '#8EBA42', '#FFB5B8')
 
+color20 = [
+    "#1f77b4",
+    "#aec7e8",  # Blues
+    "#ff7f0e",
+    "#ffbb78",  # Oranges
+    "#2ca02c",
+    "#98df8a",  # Greens
+    "#d62728",
+    "#ff9896",  # Reds
+    "#9467bd",
+    "#c5b0d5",  # Purples
+    "#8c564b",
+    "#c49c94",  # Browns
+    "#e377c2",
+    "#f7b6d2",  # Pinks
+    "#7f7f7f",
+    "#c7c7c7",  # Grays
+    "#bcbd22",
+    "#dbdb8d",  # Olive/Yellows
+    "#17becf",
+    "#9edae5",  # Teals
+]
+
+
 hep.styles.cms.CMS["patch.linewidth"] = 2
 hep.styles.cms.CMS["lines.linewidth"] = 2
 hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", cms10)
