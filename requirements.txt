@@ -11,3 +11,4 @@ mplhep_data==0.0.4
 traceback_with_variables==2.2.0
 ordered-set==4.1.0
 rich_tools==0.5.1
+annotated_doc==0.0.4
