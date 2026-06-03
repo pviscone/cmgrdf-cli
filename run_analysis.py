@@ -24,6 +24,8 @@ from cmgrdf_cli.utils.flow_utils import parse_flows, clean_commons, disable_plot
 from cmgrdf_cli.utils.folders import folders
 from cmgrdf_cli import module_container
 
+multiprocessing.set_start_method('spawn', force=True)
+
 app = typer.Typer(pretty_exceptions_show_locals=False, rich_markup_mode="rich", add_completion=False)
 console = Console(record=True)
 
