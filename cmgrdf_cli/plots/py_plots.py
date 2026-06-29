@@ -46,17 +46,20 @@ def parse_hist_file(file, processes):
     return data_hist, bkgs, signals
 
 def plot_th1(fig, ax, file, plot, data_hist, signals):
-    h = TH1(cmstext = cmstext,
+    h = TH1(cmstext = getattr(plot, "cmstext", False) or cmstext,
         lumitext= lumitext,
+        cmstextsize = getattr(plot, "cmstextsize", 17),
+        lumitextsize = getattr(plot, "lumitextsize", 17),
         xlabel = plot.xlabel if not doRatio else None,
         ylabel = "Density" if getattr(plot, "density", False) else "Events",
         log = getattr(plot, "log", ""),
         fig = fig,
         ax = ax[0],
-        grid=grid,
+        grid = getattr(plot, "grid", False) or grid,
         ylim = getattr(plot, "ylim", None),
         xlim = getattr(plot, "xlim", None),
-        legend_kwargs = getattr(plot, "legend_kwargs", {})
+        legend_kwargs = getattr(plot, "legend_kwargs", {}),
+        fig_kwargs = getattr(plot, "fig_kwargs", {}),
     )
 
     if data_hist:

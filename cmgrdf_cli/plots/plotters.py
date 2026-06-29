@@ -122,10 +122,6 @@ def convert_to_hist(*hists):
         return hists[0].to_hist()
     return hists[0]
 
-def set_palette(palette):
-    hep.styles.cms.CMS["axes.prop_cycle"] = cycler("color", palette)
-    hep.style.use(hep.style.CMS)
-
 def set_style(key, value):
     hep.styles.cms.CMS[key] = value
     hep.style.use(hep.style.CMS)
@@ -145,8 +141,9 @@ class BasePlotter:
         ylabel="",
         lumitext="",
         cmstext="",
-        cmstextsize=None,
-        lumitextsize=None,
+        cmstextsize=17,
+        lumitextsize=17,
+        fig_kwargs={},
         legend_kwargs={},
         cmsloc=0,
         rebin=1,
@@ -156,7 +153,7 @@ class BasePlotter:
             raise ValueError("If fig is provided, ax must be provided as well, and vice versa.")
 
         if fig is None and ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(**fig_kwargs)
         self.fig = fig
         self.ax = ax
         self.name = name
@@ -265,10 +262,10 @@ class TH1(BasePlotter):
                 self.ax.set_ylim(self.ylim)
             elif isinstance(self.ylim, dict):
                 if "bottom" in self.ylim and "top" not in self.ylim:
-                    if kwargs.get("stacked", False):
+                    if isinstance(hist, list):
                         max_val = np.max(sum([h.values() for h in hist]))
                     else:
-                        max_val = np.max([np.max(h.values()) for h in hist])
+                        max_val = np.max(hist.values())
                     if "y" in self.log.lower():
                         self.ylim["top"] = max_val * 10
                     else:
