@@ -12,7 +12,7 @@ from typing import Tuple, List
 from typing_extensions import Annotated
 
 import ROOT
-from CMGRDF import Processor, PlotSetPrinter, Flow, Range, SimpleCache, MultiKey, Snapshot
+from CMGRDF import Processor, PlotSetPrinter, Flow, Range, gCache, MultiKey, Snapshot
 from CMGRDF.stat import DatacardWriter
 
 from cmgrdf_cli.data import AddMC, AddData, all_data, processtable, datatable, MCtable
@@ -259,12 +259,11 @@ def run_analysis(
     #! ---------------------- Create processor -------------------------- !#
     if nocache is False and cachepath is None:
         os.makedirs(folders.cache, exist_ok=True)
-        processor_kwargs["cache"] = SimpleCache(folders.cache)
+        gCache.init(folders.cache)
     elif nocache is False:
-        processor_kwargs["cache"] = SimpleCache(cachepath)
+        gCache.init(cachepath)
     else:
         cachepath = -1
-        processor_kwargs["cache"] = None
     maker = Processor(**processor_kwargs)
 
     #! -------------- Print flows table and parse flows -------------------- !#
